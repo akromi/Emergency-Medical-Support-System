@@ -40,8 +40,13 @@ export function buildApp({ store }: { store: OpStore }): FastifyInstance {
       const all = await store.getOps(recordId)
       const { record, conflicts } = resolve(recordId, all)
       await store.upsertSnapshot(recordId, record)
+      // Only audit conflicts touched by THIS ingest — re-folding the full history
+      // would otherwise re-log every pre-existing conflict on each sync.
       for (const c of conflicts) {
-        await store.appendAudit({ recordId, opId: c.winningOpId, eventType: 'conflict-resolved', detail: c })
+        const involvesNewOp = inserted.has(c.winningOpId) || c.supersededOpIds.some((id) => inserted.has(id))
+        if (involvesNewOp) {
+          await store.appendAudit({ recordId, opId: c.winningOpId, eventType: 'conflict-resolved', detail: c })
+        }
       }
     }
 

@@ -9,16 +9,17 @@ import { OpStore, migrate, type Queryable } from '../src/ops-store.js'
 
 const RECORD_ID = 'CAS-1'
 
-// Deterministic per-client op context.
+// Deterministic per-client op context. Op ids are globally unique (across
+// contexts) so independently-built op streams never collide by id.
+let globalOpSeq = 0
 function ctx(clientId: string, startLamport = 1): OpContext {
   let lamport = startLamport
-  let n = 0
   return {
     recordId: RECORD_ID,
     clientId,
     nextLamport: () => lamport++,
-    now: () => 1_700_000_000_000 + n,
-    newId: () => `${clientId}-op-${++n}`,
+    now: () => 1_700_000_000_000,
+    newId: () => `${clientId}-op-${++globalOpSeq}`,
   }
 }
 
@@ -133,6 +134,22 @@ describe('sync-service integration', () => {
     expect(conflicts).toHaveLength(1)
     expect(conflicts[0].detail.target).toBe('tombstone.name')
     expect(conflicts[0].detail.supersededOpIds).toContain(opsA[0].id)
+  })
+
+  it('does not re-log an existing conflict when a later unrelated op arrives', async () => {
+    const base = createEmptyRecord(RECORD_ID)
+    const opsA = diffToOps(base, { ...base, tombstone: { ...base.tombstone, name: 'Alice' } }, ctx('A', 1))
+    const opsB = diffToOps(base, { ...base, tombstone: { ...base.tombstone, name: 'Bob' } }, ctx('B', 5))
+    await h.post(opsA, 'A')
+    await h.post(opsB, 'B') // conflict on tombstone.name -> logged once
+
+    // A later edits a DIFFERENT field; this must not re-log the old conflict.
+    const opsC = diffToOps(base, { ...base, incident: { ...base.incident, triage: 'delayed' } }, ctx('A', 9))
+    const r = await h.post(opsC, 'A')
+    expect(r.json().ingested).toBe(opsC.length)
+
+    const audit = (await h.get()).json().audit as Array<{ eventType: string }>
+    expect(audit.filter((a) => a.eventType === 'conflict-resolved')).toHaveLength(1)
   })
 
   it('serves health', async () => {
