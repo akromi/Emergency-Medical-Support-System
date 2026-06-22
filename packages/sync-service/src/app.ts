@@ -73,11 +73,17 @@ export function buildApp({ store }: { store: OpStore }): FastifyInstance {
   // Inspect a record: resolved snapshot, its full op-log, and the audit trail.
   app.get('/sync/:recordId', async (req) => {
     const { recordId } = req.params as { recordId: string }
-    const [snapshot, ops, audit] = await Promise.all([
+    const [stored, ops, audit] = await Promise.all([
       store.getSnapshot(recordId),
       store.getOps(recordId),
       store.getAudit(recordId),
     ])
+    // Same contract as POST /sync: never return null for a record that has ops.
+    let snapshot = stored
+    if (snapshot == null && ops.length > 0) {
+      snapshot = resolve(recordId, ops).record
+      await store.upsertSnapshot(recordId, snapshot)
+    }
     return { snapshot, ops, audit }
   })
 

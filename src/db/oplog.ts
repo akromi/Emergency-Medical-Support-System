@@ -3,7 +3,7 @@
 // future/optional sync pushes to the conflict-aware sync service and reconciles
 // using the SAME deterministic resolver the server uses (@triage-link/core).
 import { db } from './database'
-import { type CasualtyRecord, type Op } from '@triage-link/core'
+import { resolve, type CasualtyRecord, type Op } from '@triage-link/core'
 
 async function getMeta(key: string): Promise<string | undefined> {
   return (await db.meta.get(key))?.value
@@ -57,15 +57,28 @@ export async function syncWithServer(baseUrl: string): Promise<void> {
   const data = (await res.json()) as { records: Record<string, CasualtyRecord | null>; ops: Op[] }
 
   await db.transaction('rw', db.records, db.ops, db.meta, async () => {
-    const known = new Set((await db.ops.toArray()).map((o) => o.id))
+    // Re-read the local log inside the transaction; it may have grown since the
+    // request was sent (another tab or a debounced save).
+    const current = await db.ops.toArray()
+    const known = new Set(current.map((o) => o.id))
     const incoming = data.ops.filter((o) => !known.has(o.id))
     if (incoming.length) await db.ops.bulkAdd(incoming)
 
-    const maxLamport = data.ops.reduce((m, o) => Math.max(m, o.lamport), await getLamport())
+    const allOpsNow = incoming.length ? current.concat(incoming) : current
+    const maxLamport = allOpsNow.reduce((m, o) => Math.max(m, o.lamport), await getLamport())
     await db.meta.put({ key: 'lamport', value: String(maxLamport) })
 
-    for (const record of Object.values(data.records)) {
-      if (record) await db.records.put(record)
+    // Re-fold each record from the CURRENT local op-log (server ops + any ops
+    // appended while the request was in flight) rather than trusting the server
+    // snapshot, so the records row never goes stale relative to the log.
+    const opsByRecord = new Map<string, Op[]>()
+    for (const op of allOpsNow) {
+      const list = opsByRecord.get(op.recordId)
+      if (list) list.push(op)
+      else opsByRecord.set(op.recordId, [op])
+    }
+    for (const [recordId, recOps] of opsByRecord) {
+      await db.records.put(resolve(recordId, recOps).record)
     }
   })
 }

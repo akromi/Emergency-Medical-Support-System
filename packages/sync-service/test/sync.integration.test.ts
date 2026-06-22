@@ -168,6 +168,17 @@ describe('sync-service integration', () => {
     expect(rec!.tombstone.name).toBe('Alice')
   })
 
+  it('GET resolves a snapshot on demand when none was stored', async () => {
+    const base = createEmptyRecord(RECORD_ID)
+    const opsA = diffToOps(base, { ...base, tombstone: { ...base.tombstone, name: 'Alice' } }, ctx('A'))
+    await h.store.insertOps(opsA) // ops present, snapshot never written
+
+    const view = (await h.get()).json()
+    expect(view.snapshot).not.toBeNull()
+    expect((view.snapshot as CasualtyRecord).tombstone.name).toBe('Alice')
+    expect((view.ops as Op[]).length).toBe(opsA.length)
+  })
+
   it('serves health', async () => {
     const res = await h.app.inject({ method: 'GET', url: '/health' })
     expect(res.json()).toEqual({ ok: true })
