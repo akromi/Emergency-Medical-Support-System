@@ -1,5 +1,8 @@
 import { useRef } from 'react'
-import { type BodyView, type Injury, injuryColor, regionAt } from '@triage-link/core'
+import {
+  type BodyView, type Injury, injuryColor, regionAt,
+  bodyRegions, BODY_VIEWBOX,
+} from '@triage-link/core'
 
 export interface NewInjuryPlacement {
   view: BodyView
@@ -16,21 +19,16 @@ interface BodyChartProps {
   onSelect: (id: string) => void
 }
 
-// Shared anatomical silhouette (anterior/posterior use a near-identical outline).
-function Silhouette() {
+const { width: VW, height: VH } = BODY_VIEWBOX
+
+// The figure IS the set of anatomical region polygons from the shared model, so
+// what is drawn and what is tappable are guaranteed identical.
+function Figure({ view }: { view: BodyView }) {
   return (
-    <g className="silhouette">
-      <circle cx="110" cy="44" r="27" />
-      <rect x="98" y="66" width="24" height="16" rx="7" />
-      <path d="M70 84 Q110 74 150 84 L156 150 Q150 196 142 232 L78 232 Q70 196 64 150 Z" />
-      <path d="M70 88 Q54 92 50 110 L44 196 Q43 214 50 214 Q58 214 60 198 L66 120 Z" />
-      <path d="M150 88 Q166 92 170 110 L176 196 Q177 214 170 214 Q162 214 160 198 L154 120 Z" />
-      <circle cx="50" cy="220" r="9" />
-      <circle cx="170" cy="220" r="9" />
-      <path d="M80 232 L104 232 L106 330 Q106 392 98 414 Q92 420 86 414 Q80 392 80 330 Z" />
-      <path d="M116 232 L140 232 L140 330 Q140 392 134 414 Q128 420 122 414 Q114 392 114 330 Z" />
-      <ellipse cx="90" cy="420" rx="13" ry="7" />
-      <ellipse cx="130" cy="420" rx="13" ry="7" />
+    <g className="figure">
+      {bodyRegions(view).map((rgn, i) => (
+        <polygon key={i} className={`zone zone-${rgn.group}`} points={rgn.points.map((p) => p.join(',')).join(' ')} />
+      ))}
     </g>
   )
 }
@@ -53,7 +51,7 @@ export function BodyChart({ view, injuries, selectedId, onPlace, onSelect }: Bod
   function handleBackgroundClick(evt: React.MouseEvent) {
     const p = toUserSpace(evt)
     if (!p) return
-    if (p.x < 20 || p.x > 200 || p.y < 8 || p.y > 434) return
+    if (p.x < 0 || p.x > VW || p.y < 0 || p.y > VH) return
     onPlace({
       view,
       x: Number(p.x.toFixed(1)),
@@ -69,12 +67,12 @@ export function BodyChart({ view, injuries, selectedId, onPlace, onSelect }: Bod
       <span className="vlabel">{view === 'anterior' ? 'Anterior · front' : 'Posterior · back'}</span>
       <svg
         ref={svgRef}
-        viewBox="0 0 220 440"
+        viewBox={`0 0 ${VW} ${VH}`}
         role="img"
         aria-label={`${view} body chart`}
         onClick={handleBackgroundClick}
       >
-        <Silhouette />
+        <Figure view={view} />
         <g>
           {visible.map((inj) => (
             <g
@@ -85,8 +83,8 @@ export function BodyChart({ view, injuries, selectedId, onPlace, onSelect }: Bod
                 onSelect(inj.id)
               }}
             >
-              <circle className="halo" cx={inj.x} cy={inj.y} r={11} />
-              <circle cx={inj.x} cy={inj.y} r={6.5} fill={injuryColor(inj.type)} stroke="#0E1116" strokeWidth={1.4} />
+              <circle className="halo" cx={inj.x} cy={inj.y} r={22} />
+              <circle cx={inj.x} cy={inj.y} r={13} fill={injuryColor(inj.type)} stroke="#0E1116" strokeWidth={2.5} />
             </g>
           ))}
         </g>

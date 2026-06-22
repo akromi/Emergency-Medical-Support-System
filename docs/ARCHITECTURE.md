@@ -175,17 +175,24 @@ Key design points:
 
 ### 5.1 Body-region resolution
 
-`domain/regions.ts` models the body silhouette's SVG user space (`viewBox 0 0 220 440`)
-as **anatomical polygons** that trace the drawn silhouette (head circle, tapered
-arms/legs, curved torso). When a responder taps the chart, `regionAt(x, y, view)`:
+`domain/body-model.ts` is an **exhaustive anatomical model** (~150 regions across
+both views) in SVG user space (`viewBox 0 0 480 1040`) — facial features
+(forehead, eyes, nose, cheeks, mouth, chin, ears), arm/forearm/hand with the
+thumb and four fingers as individual phalanges, thigh/knee/leg/ankle, and the
+foot with individual toes; the posterior view swaps in occiput/back/buttocks/calf.
+Regions are procedurally generated from primitives (image-left authored once and
+mirrored), and the **same polygons are both drawn by `BodyChart` and hit-tested**,
+so the figure and the tappable regions can never drift apart.
 
-1. Ray-cast **point-in-polygon** tests the regions in order (joints before limb
-   roots) and returns the first containing region (Head, Chest, Forearm, Thigh, …).
-2. Applies **anatomical sidedness** — on the *anterior* view, image-left is the patient's **right**; the posterior view flips it — so a marker records "R Forearm", "L Thigh", etc.
-3. Falls back to a vertical-band heuristic only if the tap lands outside the silhouette.
+When a responder taps the chart, `regionAt(x, y, view)` (in `domain/regions.ts`):
 
-`regionAt(x, y, view)`'s signature and return shape are unchanged, so the body
-chart and capture UI are untouched — `regionAt()` is the single seam.
+1. Ray-cast **point-in-polygon** tests the model's regions in order (specific
+   parts before larger segments) and returns the first match.
+2. Applies **anatomical sidedness** — on the *anterior* view, image-left is the patient's **right**; the posterior view flips it — so a marker records "R Index distal", "L Calf", etc.
+3. Falls back to a vertical-band heuristic only if the tap lands outside the figure.
+
+`regionAt(x, y, view)`'s signature and return shape are unchanged; `BodyChart`
+renders `bodyRegions(view)` from the model. `regionAt()` remains the single seam.
 
 **Burn TBSA.** The same module exposes `regionTBSA(region)` and
 `estimateBurnTBSA(injuries)` — adult rule-of-nines / Lund-Browder surface-area
