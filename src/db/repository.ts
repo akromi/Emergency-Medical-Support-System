@@ -1,5 +1,5 @@
 import { db } from './database'
-import type { CasualtyRecord } from '../domain/types'
+import type { CasualtyRecord } from '@triage-link/core'
 
 // Thin repository over IndexedDB. A future sync layer wraps this with an op-log.
 export const recordRepo = {

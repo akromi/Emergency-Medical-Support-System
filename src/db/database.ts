@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type { CasualtyRecord } from '../domain/types'
+import type { CasualtyRecord } from '@triage-link/core'
 
 // IndexedDB store. Works fully offline; the unit of sync is one record.
 export class TriageDB extends Dexie {

@@ -1,7 +1,5 @@
 import { useRef } from 'react'
-import type { BodyView, Injury } from '../domain/types'
-import { injuryColor } from '../domain/injuries'
-import { regionAt } from '../domain/regions'
+import { type BodyView, type Injury, injuryColor, regionAt } from '@triage-link/core'
 
 export interface NewInjuryPlacement {
   view: BodyView

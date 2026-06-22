@@ -70,15 +70,21 @@ domain and mapping logic are hand-written TypeScript.
 
 The app is organised in layers, from a framework-free core outward to the UI.
 Dependencies point **inward only**: the UI depends on the domain, never the
-reverse.
+reverse. The domain model and FHIR mapping live in their own **npm workspace
+package, `@triage-link/core`**, so they can be reused by other clients (e.g. a
+React Native app or a backend sync service) without the React/Dexie shell.
+
+> **Note on paths.** Modules referenced below as `domain/…` and `fhir/…` live in
+> the core package under `packages/core/src/`; the React app lives at the repo
+> root under `src/` and imports them via the package name `@triage-link/core`.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  UI layer (React)                                          │
+│  UI layer (React) — repo root /src                         │
 │  App.tsx · components/BodyChart.tsx                        │
 │  - capture forms, injury chart, panels, auto-save wiring   │
 └───────────────┬───────────────────────┬──────────────────┘
-                │                        │
+                │  imports @triage-link/core                 │
         ┌───────▼────────┐      ┌────────▼─────────┐
         │  Persistence    │      │  Interop          │
         │  db/database.ts │      │  fhir/mapping.ts  │
@@ -86,35 +92,47 @@ reverse.
         │  (Dexie/IDB)    │      │  (R4 Bundle)      │
         └───────┬────────┘      └────────┬─────────┘
                 │                        │
-        ┌───────▼────────────────────────▼─────────┐
-        │  Domain core (framework-free TypeScript)  │
-        │  domain/types · injuries · regions · id   │
-        │  THE SINGLE SOURCE OF TRUTH               │
-        └───────────────────────────────────────────┘
+        ┌───────▼────────────────────────▼──────────────────┐
+        │  @triage-link/core  (framework-free package)       │
+        │  domain/types · injuries · regions · id            │
+        │  fhir/mapping · fhir/types                          │
+        │  THE SINGLE SOURCE OF TRUTH                         │
+        └────────────────────────────────────────────────────┘
 ```
 
 ### 4.1 Directory map
 
+The repository is an **npm workspaces** monorepo: the framework-free core is a
+package, and the PWA app at the root consumes it.
+
 ```
-src/
-  domain/        Framework-free model — reusable everywhere
-    types.ts       CasualtyRecord and all sub-types; triage labels/colours;
-                   createEmptyRecord() factory
-    injuries.ts    Catalog of injury types (key, label, colour) + lookups
-    regions.ts     Body-region hit-testing over the SVG coordinate space
-    id.ts          Case-ID and local-ID generation
-  fhir/          HL7 FHIR R4 mapping — framework-free
-    types.ts       Minimal FHIR resource/bundle types
-    mapping.ts     CasualtyRecord -> FHIR Bundle (Patient/Encounter/Condition/
-                   Observation/Procedure/MedicationAdministration)
-  db/            On-device persistence
-    database.ts    Dexie schema (IndexedDB database "triage-link")
-    repository.ts  save / get / list / remove over the records table
-  components/
-    BodyChart.tsx  Interactive anterior/posterior injury-marking SVG
-  App.tsx        Capture UI; wires domain + db + fhir together; auto-save
-  main.tsx       React entry point
-  styles.css     Application styling
+.
+├─ packages/
+│   └─ core/                  @triage-link/core — framework-free, reusable
+│       ├─ src/
+│       │   ├─ domain/        Framework-free model — reusable everywhere
+│       │   │   types.ts        CasualtyRecord + sub-types; triage labels/colours;
+│       │   │                   createEmptyRecord() factory
+│       │   │   injuries.ts      Catalog of injury types (key, label, colour)
+│       │   │   regions.ts       Body-region hit-testing over the SVG space
+│       │   │   id.ts            Case-ID and local-ID generation
+│       │   ├─ fhir/          HL7 FHIR R4 mapping — framework-free
+│       │   │   types.ts         Minimal FHIR resource/bundle types
+│       │   │   mapping.ts       CasualtyRecord -> FHIR Bundle (Patient/Encounter/
+│       │   │                    Condition/Observation/Procedure/MedicationAdmin)
+│       │   └─ index.ts       Barrel — the package's public API
+│       └─ test/
+│           fhir-mapping.test.ts  Round-trips a CasualtyRecord through
+│                                 toFhirBundle() (Vitest)
+└─ src/                       The PWA app (depends on @triage-link/core)
+    ├─ db/                    On-device persistence
+    │   database.ts             Dexie schema (IndexedDB database "triage-link")
+    │   repository.ts           save / get / list / remove over the records table
+    ├─ components/
+    │   BodyChart.tsx           Interactive anterior/posterior injury-marking SVG
+    ├─ App.tsx                Capture UI; wires core + db together; auto-save
+    ├─ main.tsx               React entry point
+    └─ styles.css             Application styling
 ```
 
 ---
@@ -309,7 +327,8 @@ be added without touching the UI:
   reconciliation.
 - **Security hardening.** Auth (OAuth2/OIDC, SMART-on-FHIR), audit logging,
   encryption at rest.
-- **Reuse on other clients.** The `domain` + `fhir` modules could back a React
+- **Reuse on other clients.** The `domain` + `fhir` modules are already factored
+  into the `@triage-link/core` workspace package, so they can back a React
   Native app or a Node sync service unchanged.
 
 ---
@@ -317,9 +336,10 @@ be added without touching the UI:
 ## 12. Build, run, deploy
 
 ```bash
-npm install
+npm install        # installs the root app + workspace packages
 npm run dev        # Vite dev server at http://localhost:5173
 npm run typecheck  # tsc --noEmit
+npm test           # run @triage-link/core unit tests (Vitest)
 npm run build      # type-check + production build to /dist
 npm run preview    # serve the production build locally
 ```
