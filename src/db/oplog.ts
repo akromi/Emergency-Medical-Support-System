@@ -78,7 +78,15 @@ export async function syncWithServer(baseUrl: string): Promise<void> {
       else opsByRecord.set(op.recordId, [op])
     }
     for (const [recordId, recOps] of opsByRecord) {
-      await db.records.put(resolve(recordId, recOps).record)
+      const resolved = resolve(recordId, recOps).record
+      // updatedAt isn't journaled, and resolve() derives it from op ts; keep the
+      // local row's value if it's newer so a just-saved case doesn't sort older
+      // in the list after a sync.
+      const existing = await db.records.get(recordId)
+      if (existing && existing.updatedAt > resolved.updatedAt) {
+        resolved.updatedAt = existing.updatedAt
+      }
+      await db.records.put(resolved)
     }
   })
 }

@@ -50,11 +50,14 @@ export function buildApp({ store }: { store: OpStore }): FastifyInstance {
       }
     }
 
-    // Respond with current state for every record referenced in the request.
-    const requested = [...new Set(ops.map((o) => o.recordId))]
+    // Full-state response: return EVERY record the server knows about (not just
+    // those in this upload), so a device receives cases created on other devices
+    // — multi-device caseload sharing. (A production system would use a
+    // per-client cursor / since-lamport to make this incremental.)
+    const knownRecordIds = await store.allRecordIds()
     const records: Record<string, unknown> = {}
     let merged: Op[] = []
-    for (const recordId of requested) {
+    for (const recordId of knownRecordIds) {
       const recOps = await store.getOps(recordId)
       let snapshot = await store.getSnapshot(recordId)
       // Defensive: if a record has ops but no stored snapshot (e.g. a pure

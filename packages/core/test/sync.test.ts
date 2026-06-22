@@ -61,7 +61,7 @@ describe('diffToOps', () => {
 
   it('emits item-remove when an item disappears', () => {
     const r0: CasualtyRecord = { ...base(), injuries: [injury('inj-1')] }
-    const r1: CasualtyRecord = { ...base(), injuries: [] }
+    const r1: CasualtyRecord = { ...r0, injuries: [] } // same record, item removed
     const ops = diffToOps(r0, r1, ctx('A'))
     expect(ops).toHaveLength(1)
     expect(ops[0]).toMatchObject({ kind: 'item-remove', path: 'injuries', itemId: 'inj-1' })

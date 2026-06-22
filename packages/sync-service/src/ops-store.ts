@@ -106,6 +106,12 @@ export class OpStore {
     return res.rows.map(rowToOp)
   }
 
+  /** Every record id the server holds ops for (for full-state sync). */
+  async allRecordIds(): Promise<string[]> {
+    const res = await this.db.query(`SELECT DISTINCT record_id FROM ops`)
+    return res.rows.map((r) => r.record_id)
+  }
+
   async upsertSnapshot(recordId: string, record: unknown): Promise<void> {
     await this.db.query(
       `INSERT INTO snapshots (record_id, record, updated_at) VALUES ($1, $2, now())

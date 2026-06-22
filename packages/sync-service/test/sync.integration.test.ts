@@ -179,6 +179,19 @@ describe('sync-service integration', () => {
     expect((view.ops as Op[]).length).toBe(opsA.length)
   })
 
+  it('delivers remote-only records to a device that never journaled them', async () => {
+    const base = createEmptyRecord(RECORD_ID)
+    const opsA = diffToOps(base, { ...base, tombstone: { ...base.tombstone, name: 'Alice' } }, ctx('A'))
+    await h.post(opsA, 'A') // device A creates the case
+
+    // Device B has never seen this case and uploads nothing of its own.
+    const r = await h.post([], 'B')
+    const rec = r.json().records[RECORD_ID] as CasualtyRecord | null
+    expect(rec).not.toBeNull()
+    expect(rec!.tombstone.name).toBe('Alice')
+    expect((r.json().ops as Op[]).some((o) => o.recordId === RECORD_ID)).toBe(true)
+  })
+
   it('serves health', async () => {
     const res = await h.app.inject({ method: 'GET', url: '/health' })
     expect(res.json()).toEqual({ ok: true })
