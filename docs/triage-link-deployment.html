@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRIAGE-LINK — Field Deployment Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#11161D; --ink-2:#3A4654; --ink-3:#6B7888; --faint:#9AA6B4;
+    --paper:#EDF1F6; --card:#FFFFFF; --line:#D8E0EA; --line-soft:#E7ECF3;
+    --slate:#161B22; --slate-2:#222B38;
+    --ekg:#1F9D5B; --ekg-bright:#3FE08A;
+    --field:#C9881F; --field-bg:#FBF2DF;
+    --central:#2563B8; --central-bg:#E9F0FB;
+    --hosp:#7A3FB0; --hosp-bg:#F1E9FA;
+    --red:#D8434A; --amber:#E0A12E; --green:#3E9E55; --gray:#6E7888;
+    --sans:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+       line-height:1.62;-webkit-font-smoothing:antialiased}
+  .doc{max-width:920px;margin:0 auto;background:var(--card);
+       box-shadow:0 1px 0 var(--line),0 24px 60px rgba(17,22,29,.08)}
+
+  /* ---------- cover ---------- */
+  .cover{background:linear-gradient(150deg,#0E1116 0%,#161B22 55%,#1C2533 100%);color:#E6EDF3;
+         padding:54px 56px 46px;position:relative;overflow:hidden}
+  .cover::after{content:"";position:absolute;right:-60px;top:-60px;width:280px;height:280px;
+    background:radial-gradient(circle,rgba(63,224,138,.18),transparent 68%)}
+  .cover .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--ekg-bright)}
+  .cover h1{font-size:38px;line-height:1.1;margin:14px 0 6px;font-weight:700;letter-spacing:-.5px}
+  .cover .lede{font-size:16px;color:#A9B6C6;max-width:600px;margin:0}
+  .cover .ekgline{margin:26px 0 0;height:34px;width:100%;opacity:.85}
+  .meta{display:flex;flex-wrap:wrap;gap:10px 26px;margin-top:24px;font-family:var(--mono);font-size:12px;color:#8B97A7}
+  .meta b{color:#D7DEE7;font-weight:500}
+  .warn{margin-top:22px;display:inline-flex;align-items:center;gap:9px;font-size:12.5px;
+        background:rgba(216,67,74,.14);border:1px solid rgba(216,67,74,.4);color:#F2B6B8;
+        padding:8px 13px;border-radius:8px;font-family:var(--mono)}
+
+  /* ---------- toc ---------- */
+  .toc{padding:24px 56px;border-bottom:1px solid var(--line);display:grid;
+       grid-template-columns:1fr 1fr;gap:4px 34px;background:#F8FAFC}
+  .toc a{display:flex;gap:12px;text-decoration:none;color:var(--ink-2);font-size:13.5px;padding:5px 0}
+  .toc a:hover{color:var(--ekg)}
+  .toc a .n{font-family:var(--mono);color:var(--faint);font-size:12px;min-width:22px}
+
+  /* ---------- body ---------- */
+  main{padding:8px 56px 60px}
+  section{padding:34px 0 6px;border-top:1px solid var(--line-soft)}
+  section:first-child{border-top:0}
+  .sec-h{display:flex;align-items:baseline;gap:14px;margin:0 0 6px}
+  .sec-h .n{font-family:var(--mono);font-size:13px;color:var(--ekg);font-weight:600;letter-spacing:1px}
+  h2{font-size:23px;margin:0;font-weight:700;letter-spacing:-.3px}
+  h3{font-size:15.5px;margin:26px 0 8px;font-weight:600;color:var(--ink)}
+  p{margin:11px 0;color:var(--ink-2);font-size:14.5px}
+  strong{color:var(--ink);font-weight:600}
+  .lead{font-size:15.5px;color:var(--ink-2)}
+
+  /* ---------- figure ---------- */
+  figure{margin:26px 0;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#FCFDFE}
+  figure .figbody{padding:22px 20px 8px}
+  figure svg{width:100%;height:auto;display:block}
+  figcaption{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);letter-spacing:.4px;
+             padding:11px 18px;border-top:1px solid var(--line-soft);background:#F4F7FA}
+  figcaption b{color:var(--ekg);font-weight:600}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 18px;padding:0 20px 16px;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+  /* ---------- tables ---------- */
+  table{width:100%;border-collapse:collapse;margin:18px 0;font-size:13.5px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  th{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--ink-3);
+     border-bottom:1.5px solid var(--line);font-weight:600}
+  tbody tr:hover{background:#F8FAFC}
+  td b{color:var(--ink)}
+  td .pill{font-family:var(--mono);font-size:10.5px;padding:2px 7px;border-radius:5px;white-space:nowrap}
+  .p-must{background:#FBE7E8;color:#B5343A}
+  .p-should{background:#FCF1DD;color:#9C6E16}
+  .p-rec{background:#E5F3EB;color:#2C7A45}
+
+  /* ---------- callouts ---------- */
+  .note{display:flex;gap:13px;background:#F4F7FA;border:1px solid var(--line);border-left:3px solid var(--ekg);
+        border-radius:10px;padding:14px 16px;margin:18px 0}
+  .note .ic{font-family:var(--mono);color:var(--ekg);font-weight:700;font-size:13px;flex:0 0 auto;margin-top:1px}
+  .note p{margin:0;font-size:13.5px}
+  .note.reg{border-left-color:var(--central)} .note.reg .ic{color:var(--central)}
+  .note.sec{border-left-color:var(--red)} .note.sec .ic{color:var(--red)}
+
+  ul.clean{margin:10px 0;padding:0;list-style:none}
+  ul.clean li{position:relative;padding:5px 0 5px 22px;color:var(--ink-2);font-size:14px}
+  ul.clean li::before{content:"▸";position:absolute;left:2px;color:var(--ekg);font-size:12px;top:6px}
+
+  footer{padding:24px 56px 40px;border-top:1px solid var(--line);color:var(--faint);
+         font-family:var(--mono);font-size:11.5px;background:#F8FAFC}
+
+  /* svg shared classes */
+  .znlbl{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:1.5px}
+  .node-t{font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;font-weight:600;fill:#1A2330}
+  .node-s{font-family:'IBM Plex Mono',monospace;font-size:9.5px;fill:#6B7888}
+  .flbl{font-family:'IBM Plex Mono',monospace;font-size:9.5px;fill:#5A6675}
+  .nodebox{fill:#fff;stroke-width:1.6;rx:9}
+
+  @media(max-width:680px){
+    .cover{padding:38px 24px 32px}.cover h1{font-size:28px}
+    .toc{grid-template-columns:1fr;padding:20px 24px}
+    main{padding:4px 22px 44px}.doc{box-shadow:none}
+    footer{padding:20px 24px}
+  }
+  @media print{
+    body{background:#fff}.doc{box-shadow:none;max-width:100%}
+    section{break-inside:avoid}figure{break-inside:avoid}
+    .toc a:hover{color:inherit}
+  }
+</style>
+<style>
+code{font-family:var(--mono);font-size:.92em;background:#EEF2F7;padding:1px 5px;border-radius:5px;color:#1A2330}
+pre.flow{background:#0E1116;color:#CDD7E2;border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-family:var(--mono);font-size:11px;line-height:1.55;overflow:auto;white-space:pre;margin:14px 0}
+pre.flow b{color:var(--ekg-bright);font-weight:600}
+ol.steps{counter-reset:st;list-style:none;margin:14px 0;padding:0}
+ol.steps li{counter-increment:st;position:relative;padding:7px 0 7px 40px;border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.5}
+ol.steps li:last-child{border-bottom:0}
+ol.steps li::before{content:counter(st);position:absolute;left:0;top:6px;width:25px;height:25px;border-radius:7px;background:var(--ekg);color:#fff;font-family:var(--mono);font-size:12px;font-weight:600;text-align:center;line-height:25px}
+ul.check{list-style:none;margin:12px 0;padding:0}
+ul.check li{position:relative;padding:6px 0 6px 30px;font-size:13px;border-bottom:1px solid var(--line);line-height:1.5}
+ul.check li:last-child{border-bottom:0}
+ul.check li::before{content:"";position:absolute;left:3px;top:9px;width:13px;height:13px;border:1.6px solid var(--ekg);border-radius:3px}
+</style>
+</head><body>
+<div class="doc">
+
+  <div class="cover">
+    <div class="eyebrow">◇ TRIAGE-LINK · Field Deployment Guide</div>
+    <h1>Putting TRIAGE-LINK on Responder Devices</h1>
+    <p class="lede">Install the offline-first PWA on Android phones &amp; tablets, Windows Surface &amp; laptops, and iPad — by hand or across a managed fleet. Companion to the Technical Architecture (§13 deployment topology, §14 security).</p>
+    <svg class="ekgline" viewBox="0 0 900 40" preserveAspectRatio="none"><path d="M0 20 H120 l14 0 8 -15 10 30 8 -22 7 14 9 -7 H300 l10 0 8 -15 10 30 8 -22 7 14 9 -7 H560 l12 0 8 -15 10 30 8 -22 7 14 9 -7 H900" fill="none" stroke="#3FE08A" stroke-width="2"/></svg>
+    <div class="meta"><span>Document <b>v0.1</b></span><span>Scope <b>Device install + MDM</b></span><span>Audience <b>Ops · IT · Field leads</b></span></div>
+    <div class="warn">⚠ Prototype — installs the current build as an app. Add the §14 security controls before entering real patient data.</div>
+  </div>
+
+  <nav class="toc">
+    <a href="#s1"><span class="n">01</span> Prerequisites</a>
+    <a href="#s2"><span class="n">02</span> Host the app (one-time)</a>
+    <a href="#s3"><span class="n">03</span> Android phones &amp; tablets</a>
+    <a href="#s4"><span class="n">04</span> Windows Surface &amp; laptops</a>
+    <a href="#s5"><span class="n">05</span> iPhone &amp; iPad</a>
+    <a href="#s6"><span class="n">06</span> Fleet / MDM deployment</a>
+    <a href="#s7"><span class="n">07</span> Updates</a>
+    <a href="#s8"><span class="n">08</span> Offline-readiness checklist</a>
+    <a href="#s9"><span class="n">09</span> Device hardening</a>
+    <a href="#s10"><span class="n">10</span> Quick reference</a>
+  </nav>
+
+  <main>
+  <svg width="0" height="0" style="position:absolute"><defs><filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1A2330" flood-opacity="0.10"/></filter></defs></svg>
+
+  <p class="lead">TRIAGE-LINK is an <strong>offline-first Progressive Web App</strong> — there is no app-store binary to sideload. Deployment is three steps: <strong>build &amp; host</strong> the app once on an HTTPS URL, <strong>install</strong> it on each device (one tap — it pins like a native app), then run it <strong>fully offline</strong> in the field. The network is only needed again to receive updates.</p>
+
+  <figure>
+    <div class="figbody">
+    <svg viewBox="0 0 900 300" role="img" aria-label="Deployment pipeline">
+      <defs><marker id="pa" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#5A6675"/></marker></defs>
+      <!-- main row -->
+      <g filter="url(#sh)">
+        <rect x="20" y="56" width="184" height="78" rx="11" fill="#fff" stroke="#94A3B4"/>
+        <rect x="244" y="56" width="184" height="78" rx="11" fill="#EAF1FB" stroke="#9DBCEC"/>
+        <rect x="468" y="56" width="184" height="78" rx="11" fill="#EAF4EE" stroke="#9FD3B0"/>
+        <rect x="692" y="56" width="188" height="78" rx="11" fill="#0E1116" stroke="#1F9D5B"/>
+      </g>
+      <text x="38" y="80" class="znlbl" fill="#5A6675">1 · BUILD</text>
+      <text x="38" y="100" class="node-t">npm run build</text>
+      <text x="38" y="118" class="node-s">→ /dist (static)</text>
+      <text x="262" y="80" class="znlbl" fill="#2563B8">2 · HOST</text>
+      <text x="262" y="100" class="node-t">Serve over HTTPS</text>
+      <text x="262" y="118" class="node-s">Pages · Netlify · nginx/IIS</text>
+      <text x="486" y="80" class="znlbl" fill="#1F9D5B">3 · INSTALL</text>
+      <text x="486" y="100" class="node-t">Add to device</text>
+      <text x="486" y="118" class="node-s">Android · Windows · iPad</text>
+      <text x="710" y="80" class="znlbl" fill="#3FE08A">4 · FIELD</text>
+      <text x="710" y="100" class="node-t" fill="#EAF4EE">Runs OFFLINE</text>
+      <text x="710" y="118" class="node-s" fill="#9FB7AA">capture · chart · FHIR export</text>
+      <g stroke="#5A6675" stroke-width="1.8" marker-end="url(#pa)" fill="none">
+        <line x1="204" y1="95" x2="240" y2="95"/>
+        <line x1="428" y1="95" x2="464" y2="95"/>
+        <line x1="652" y1="95" x2="688" y2="95"/>
+      </g>
+      <!-- MDM lane -->
+      <g filter="url(#sh)"><rect x="244" y="206" width="284" height="62" rx="11" fill="#FBF2DF" stroke="#E5C98A"/></g>
+      <text x="262" y="230" class="znlbl" fill="#C9881F">OPTIONAL · FLEET</text>
+      <text x="262" y="250" class="node-t">MDM force-install</text>
+      <text x="262" y="266" class="node-s" >Intune · Managed Google Play · kiosk</text>
+      <g stroke="#C9881F" stroke-width="1.6" marker-end="url(#pa)" fill="none" stroke-dasharray="5 4">
+        <path d="M336 134 V206"/>
+        <path d="M528 237 H560 V134"/>
+      </g>
+    </svg>
+    </div>
+    <figcaption><b>FIG 1</b> — Build once, host on HTTPS, install per device, run offline. For a fleet, MDM installs the same hosted URL automatically.</figcaption>
+  </figure>
+
+  <section id="s1"><div class="sec-h"><span class="n">01</span><h2>Prerequisites</h2></div>
+    <table><thead><tr><th>Requirement</th><th>Why</th></tr></thead><tbody>
+      <tr><td><b>Served over HTTPS</b></td><td>PWAs install and run a service worker <strong>only in a secure context</strong>. <code>https://…</code> works; a plain LAN address like <code>http://192.168.x.x</code> does <strong>not</strong>. <code>localhost</code> / <code>127.0.0.1</code> are exempt, for testing only.</td></tr>
+      <tr><td><b>A modern browser</b></td><td>Android → <b>Chrome</b> (or Samsung Internet); Windows → <b>Edge</b> or <b>Chrome</b>; iPhone/iPad → <b>Safari</b>. Keep them updated.</td></tr>
+      <tr><td><b>~50–100 MB free storage</b></td><td>For the cached app shell and the local IndexedDB record store.</td></tr>
+      <tr><td><b>The built <code>/dist</code> folder</b></td><td>Produced by <code>npm run build</code> — this is what you host.</td></tr>
+    </tbody></table>
+    <h3>Build the app</h3>
+    <pre class="flow">npm install
+npm run build      # type-checks, then emits the static site to /dist
+npm run preview    # optional: serve /dist locally at http://localhost:4173 to test</pre>
+    <p><code>/dist</code> is a self-contained static bundle — no server runtime, no database. Whatever hosts it only needs to serve static files over HTTPS.</p>
+  </section>
+
+  <section id="s2"><div class="sec-h"><span class="n">02</span><h2>Host the app (one-time)</h2></div>
+    <p>Pick whichever fits your situation — all that matters is a valid HTTPS URL.</p>
+    <table><thead><tr><th>Option</th><th>Good for</th><th>Notes</th></tr></thead><tbody>
+      <tr><td><code>npm run preview</code></td><td>Quick local test on the same machine</td><td><code>localhost</code> is a secure context, so install works for testing</td></tr>
+      <tr><td><b>GitHub Pages</b></td><td>Free public demo of the prototype</td><td>Project sites serve under a sub-path — see the base-path note. Don't put real PHI on a public host.</td></tr>
+      <tr><td><b>Netlify / Vercel</b></td><td>Free hosting, automatic HTTPS</td><td>Drag-and-drop <code>/dist</code> or connect the repo</td></tr>
+      <tr><td><b>Internal nginx / IIS</b></td><td>Real field/enterprise use behind your firewall</td><td>Serve <code>/dist</code> over HTTPS with a cert your devices trust (public or org CA)</td></tr>
+    </tbody></table>
+    <div class="note"><span class="ic">i</span><p><strong>Base-path note (GitHub Pages &amp; sub-path hosting).</strong> If you host at <code>https://&lt;user&gt;.github.io/Emergency-Medical-Support-System/</code> instead of a domain root, set the matching base in <code>vite.config.ts</code> so the service-worker scope and asset paths resolve, then rebuild:</p></div>
+    <pre class="flow">export default defineConfig({
+  <b>base: '/Emergency-Medical-Support-System/'</b>,
+  // …existing plugins
+})</pre>
+    <p>At a domain root (Netlify / Vercel / your own domain) leave <code>base</code> as the default <code>'/'</code>.</p>
+  </section>
+
+  <section id="s3"><div class="sec-h"><span class="n">03</span><h2>Android phones &amp; tablets (Chrome)</h2></div>
+    <ol class="steps">
+      <li>Open the hosted <strong>HTTPS URL</strong> in <strong>Chrome</strong>.</li>
+      <li>Let it finish loading once — this lets the service worker cache the app for offline use.</li>
+      <li>Tap <strong>⋮</strong> (top-right) → <strong>Install app</strong> (or <strong>Add to Home screen</strong>). Chrome often shows an <strong>Install</strong> banner automatically once the page qualifies.</li>
+      <li>Confirm. A TRIAGE-LINK icon appears on the home screen / app drawer.</li>
+      <li>Launch from that icon — it opens full-screen, without browser chrome, like a native app.</li>
+    </ol>
+    <p><b>Samsung Internet:</b> menu → <b>Add page to</b> → <b>Home screen</b> works the same way.</p>
+    <div class="note"><span class="ic">✓</span><p><strong>Verify offline:</strong> turn on <strong>Airplane mode</strong>, open the app from its icon, and confirm you can create a casualty, place injuries, record vitals, and export a FHIR bundle.</p></div>
+  </section>
+
+  <section id="s4"><div class="sec-h"><span class="n">04</span><h2>Windows Surface &amp; laptops (Edge)</h2></div>
+    <p><b>Microsoft Edge (recommended on Surface):</b></p>
+    <ol class="steps">
+      <li>Open the <strong>HTTPS URL</strong> in Edge and let it load once.</li>
+      <li>Click the <strong>install icon</strong> in the address bar (a monitor with a ↓), <strong>or</strong> <strong>⋯</strong> → <strong>Apps</strong> → <strong>Install this site as an app</strong>.</li>
+      <li>Click <strong>Install</strong>; pin to <strong>Start</strong> / <strong>Taskbar</strong> when prompted.</li>
+      <li>It launches in its own window and appears in the Start menu like any installed app.</li>
+    </ol>
+    <p><b>Google Chrome on Windows:</b> click the <strong>install icon</strong> in the address bar → <strong>Install</strong>.</p>
+    <p><b>Surface specifics:</b> touch and the Surface Pen both work on the body chart exactly as a mouse does — tap an injury type, then tap the body to drop a marker. No extra setup.</p>
+    <div class="note"><span class="ic">✓</span><p><strong>Verify offline:</strong> disconnect Wi-Fi, then launch the app from the Start menu and run through a capture.</p></div>
+  </section>
+
+  <section id="s5"><div class="sec-h"><span class="n">05</span><h2>iPhone &amp; iPad (Safari)</h2></div>
+    <ol class="steps">
+      <li>Open the <strong>HTTPS URL</strong> in <strong>Safari</strong> (PWA install on iOS is Safari-only).</li>
+      <li>Tap <strong>Share</strong> → <strong>Add to Home Screen</strong> → <strong>Add</strong>.</li>
+      <li>Launch from the new home-screen icon; it runs full-screen.</li>
+    </ol>
+    <div class="note reg"><span class="ic">!</span><p><strong>iOS caveats:</strong> there's no automatic install prompt, and iOS may evict cached data if the device is very low on storage and the app is unused for a long time. For a managed fleet, Android or Windows give firmer control.</p></div>
+  </section>
+
+  <section id="s6"><div class="sec-h"><span class="n">06</span><h2>Fleet / MDM deployment</h2></div>
+    <p>For more than a handful of devices, push the app from your device manager so every responder tablet gets it — and the right security policy — automatically.</p>
+    <h3>Android fleet — Intune / Workspace ONE / SOTI + Managed Google Play</h3>
+    <ul class="clean">
+      <li>Use <strong>Managed Google Play → "Web apps"</strong> to wrap the hosted URL as an installable web app (Google builds a signed WebAPK). Assign it to your responder group as a <strong>required</strong> app so it force-installs.</li>
+      <li>For single-purpose tablets, use <strong>dedicated-device / kiosk mode</strong> to lock the device to TRIAGE-LINK alone.</li>
+      <li>Enforce: <strong>device encryption</strong>, <strong>screen lock / biometric</strong>, <strong>auto-update</strong>, and <strong>remote wipe</strong>.</li>
+    </ul>
+    <h3>Windows / Surface fleet — Microsoft Intune</h3>
+    <ul class="clean">
+      <li>Edge supports a <strong>force-install policy for web apps</strong> (<code>WebAppInstallForceList</code>). Point it at the hosted URL and Edge installs + pins TRIAGE-LINK on managed devices at next launch — no user action.</li>
+      <li>Pair with <strong>BitLocker</strong> (disk encryption), <strong>Windows Hello</strong> (biometric sign-in), and, for dedicated Surfaces, <strong>Assigned Access / kiosk</strong>.</li>
+    </ul>
+    <div class="note"><span class="ic">i</span><p>Exact menu paths in Intune / Managed Google Play change over time — treat the above as the mechanism and confirm current steps in your MDM console's documentation. All you ever hand the MDM is the <strong>hosted HTTPS URL</strong>; it does the rest.</p></div>
+  </section>
+
+  <section id="s7"><div class="sec-h"><span class="n">07</span><h2>Updates</h2></div>
+    <p>Because it's a PWA you <strong>never repackage or re-push</strong> to update — just re-deploy <code>/dist</code> to the host:</p>
+    <ol class="steps">
+      <li>Make changes, run <code>npm run build</code>, upload the new <code>/dist</code> to the same URL.</li>
+      <li>Next time a device opens the app <strong>with connectivity</strong>, the service worker fetches the new version in the background.</li>
+      <li>Depending on the <code>vite-plugin-pwa</code> <code>registerType</code>, the update applies automatically on next launch (<strong>autoUpdate</strong>) or shows a "new version available" prompt (<strong>prompt</strong>). A quick close-and-reopen guarantees the new version is active.</li>
+    </ol>
+    <p>Devices that are offline keep running the last cached version safely and pick up the update whenever they next reconnect.</p>
+  </section>
+
+  <section id="s8"><div class="sec-h"><span class="n">08</span><h2>Offline-readiness checklist</h2></div>
+    <p>Run this on <strong>each device</strong> before it goes into the field:</p>
+    <ul class="check">
+      <li>App installed from the HTTPS URL and pinned to the home screen / Start menu</li>
+      <li>Opened <strong>once online</strong> so the service worker cached the app shell</li>
+      <li><strong>Airplane mode on</strong> → app still launches from its icon</li>
+      <li>Can create a casualty, place injuries, and record vitals offline</li>
+      <li><strong>Export FHIR</strong> produces a <code>…-fhir-bundle.json</code> download on-device</li>
+      <li>Close and reopen → the saved casualty is still there (IndexedDB persisted)</li>
+      <li>Device encryption, screen lock, and (if managed) MDM enrolment are on</li>
+    </ul>
+  </section>
+
+  <section id="s9"><div class="sec-h"><span class="n">09</span><h2>Device hardening (required before real PHI)</h2></div>
+    <p>These are <strong>operating-system / MDM</strong> controls, not app features — but they are what makes a device safe to hold patient data. They map to <code>ARCHITECTURE.md</code> §14.</p>
+    <table><thead><tr><th>Control</th><th>Android</th><th>Windows / Surface</th><th>iPad</th></tr></thead><tbody>
+      <tr><td><b>Encryption at rest</b></td><td>File-Based Encryption (default)</td><td><b>BitLocker</b></td><td>Data Protection (default)</td></tr>
+      <tr><td><b>Screen lock / biometric</b></td><td>PIN + fingerprint/face</td><td><b>Windows Hello</b></td><td>Passcode + Face/Touch ID</td></tr>
+      <tr><td><b>Remote wipe</b></td><td>via MDM</td><td>via Intune</td><td>via MDM</td></tr>
+      <tr><td><b>Auto-update OS &amp; browser</b></td><td>Managed Google Play</td><td>Intune / Windows Update</td><td>MDM</td></tr>
+      <tr><td><b>Single-app lock (optional)</b></td><td>Kiosk / dedicated device</td><td>Assigned Access kiosk</td><td>Guided Access / kiosk</td></tr>
+    </tbody></table>
+  </section>
+
+  <section id="s10"><div class="sec-h"><span class="n">10</span><h2>Quick reference</h2></div>
+    <table><thead><tr><th>Device</th><th>Browser</th><th>Install path</th><th>Offline after install</th></tr></thead><tbody>
+      <tr><td><b>Android phone / tablet</b></td><td>Chrome</td><td>⋮ → <b>Install app</b></td><td>Yes</td></tr>
+      <tr><td><b>Windows Surface / laptop</b></td><td>Edge</td><td>⋯ → Apps → <b>Install this site as an app</b></td><td>Yes</td></tr>
+      <tr><td><b>Windows laptop</b></td><td>Chrome</td><td>Address-bar <b>install icon</b></td><td>Yes</td></tr>
+      <tr><td><b>iPhone / iPad</b></td><td>Safari</td><td>Share → <b>Add to Home Screen</b></td><td>Yes (iOS storage caveats)</td></tr>
+    </tbody></table>
+    <div class="note reg"><span class="ic">!</span><p>The one rule that catches everyone: the app must be reached over <strong>HTTPS</strong> (or <code>localhost</code>) for installation to be offered. Plain <code>http://</code> LAN addresses load the page but won't let it install or work offline.</p></div>
+  </section>
+
+  </main>
+  <footer>TRIAGE-LINK · Field Deployment Guide · v0.1 — Prototype reference, not for clinical use.<br>Companion to the Technical Architecture (§13 deployment topology, §14 security). Add encryption, authentication and audit before entering real patient data.</footer>
+</div>
+</body></html>
