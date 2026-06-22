@@ -33,6 +33,9 @@ export const recordRepo = {
     return db.records.orderBy('updatedAt').reverse().toArray()
   },
   async remove(id: string): Promise<void> {
-    await db.records.delete(id)
+    await db.transaction('rw', db.records, db.ops, async () => {
+      await db.records.delete(id)
+      await db.ops.where('recordId').equals(id).delete()
+    })
   },
 }

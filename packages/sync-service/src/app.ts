@@ -41,6 +41,8 @@ export function buildApp({ store }: { store: OpStore }): FastifyInstance {
       const { record, conflicts } = resolve(recordId, all)
       await store.upsertSnapshot(recordId, record)
       for (const c of conflicts) {
+        const involved = [c.winningOpId, ...c.supersededOpIds]
+        if (!involved.some((id) => inserted.has(id))) continue
         await store.appendAudit({ recordId, opId: c.winningOpId, eventType: 'conflict-resolved', detail: c })
       }
     }

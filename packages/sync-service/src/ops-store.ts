@@ -70,26 +70,24 @@ export class OpStore {
 
   /**
    * Append ops idempotently. Returns the ids that were newly inserted.
-   * Newness is determined by an explicit existence check (portable across
-   * drivers) rather than `RETURNING` row counts, whose behaviour with
-   * `ON CONFLICT DO NOTHING` is not uniform. `ON CONFLICT DO NOTHING` is still
-   * used as a guard against concurrent inserts of the same op id.
+   * A fast existence check skips the common replay path; `ON CONFLICT DO
+   * NOTHING RETURNING id` confirms actual insertion under concurrency.
    */
   async insertOps(ops: Op[]): Promise<string[]> {
     const inserted: string[] = []
     for (const op of ops) {
       const existing = await this.db.query(`SELECT 1 FROM ops WHERE id = $1`, [op.id])
       if (existing.rows.length > 0) continue
-      await this.db.query(
+      const res = await this.db.query(
         `INSERT INTO ops (id, record_id, client_id, lamport, ts, kind, path, item_id, value)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-         ON CONFLICT (id) DO NOTHING`,
+         ON CONFLICT (id) DO NOTHING RETURNING id`,
         [
           op.id, op.recordId, op.clientId, op.lamport, op.ts, op.kind, op.path,
           op.itemId ?? null, op.value === undefined ? null : JSON.stringify(op.value),
         ],
       )
-      inserted.push(op.id)
+      if (res.rows.length > 0) inserted.push(op.id)
     }
     return inserted
   }
