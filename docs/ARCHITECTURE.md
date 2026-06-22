@@ -350,8 +350,9 @@ npm run build --workspace @triage-link/core   # emit dist/ (ESM + .d.ts)
 
 The app resolves `@triage-link/core` through the package's `exports` map (its
 built `dist/`), which is produced automatically on `npm install` via the
-package's `prepare` script. After editing core sources, rebuild it
-(`npm run build --workspace @triage-link/core`) to surface the changes.
+package's `prepare` script. The app's `dev`, `build`, and `typecheck` scripts
+each rebuild the core package first (via `pre*` hooks), so the PWA never bundles
+or type-checks against a stale `dist/`.
 
 `/dist` is a self-contained static bundle; the service worker makes it work
 offline after the first load.

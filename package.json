@@ -9,9 +9,13 @@
     "packages/*"
   ],
   "scripts": {
+    "core:build": "npm run build --workspace @triage-link/core",
+    "predev": "npm run core:build",
     "dev": "vite",
+    "prebuild": "npm run core:build",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "pretypecheck": "npm run core:build",
     "typecheck": "tsc --noEmit",
     "test": "npm run test --workspace @triage-link/core"
   },
