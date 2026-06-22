@@ -1,4 +1,4 @@
-import type { BodyView } from './types'
+import type { BodyView } from './types.js'
 
 // Rectangular hit-test zones in the body-chart's SVG user space (viewBox 0 0 220 440).
 // A future iteration replaces these with a precise anatomical SVG.

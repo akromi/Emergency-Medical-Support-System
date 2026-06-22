@@ -1,4 +1,4 @@
-import type { InjuryTypeKey } from './types'
+import type { InjuryTypeKey } from './types.js'
 
 export interface InjuryTypeDef {
   key: InjuryTypeKey

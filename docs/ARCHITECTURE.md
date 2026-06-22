@@ -327,22 +327,31 @@ be added without touching the UI:
   reconciliation.
 - **Security hardening.** Auth (OAuth2/OIDC, SMART-on-FHIR), audit logging,
   encryption at rest.
-- **Reuse on other clients.** The `domain` + `fhir` modules are already factored
-  into the `@triage-link/core` workspace package, so they can back a React
-  Native app or a Node sync service unchanged.
+- **Reuse on other clients.** The `domain` + `fhir` modules are factored into the
+  `@triage-link/core` workspace package, which builds to `dist/` (ES module +
+  `.d.ts`) and exposes a Node-resolvable `exports` map, so it can be imported by
+  a React Native app or a Node sync service — not just the bundled PWA.
 
 ---
 
 ## 12. Build, run, deploy
 
 ```bash
-npm install        # installs the root app + workspace packages
+npm install        # installs workspaces; builds @triage-link/core (prepare)
 npm run dev        # Vite dev server at http://localhost:5173
 npm run typecheck  # tsc --noEmit
 npm test           # run @triage-link/core unit tests (Vitest)
 npm run build      # type-check + production build to /dist
 npm run preview    # serve the production build locally
+
+# Core package (consumed by the app via its built dist, and by Node consumers):
+npm run build --workspace @triage-link/core   # emit dist/ (ESM + .d.ts)
 ```
+
+The app resolves `@triage-link/core` through the package's `exports` map (its
+built `dist/`), which is produced automatically on `npm install` via the
+package's `prepare` script. After editing core sources, rebuild it
+(`npm run build --workspace @triage-link/core`) to surface the changes.
 
 `/dist` is a self-contained static bundle; the service worker makes it work
 offline after the first load.
