@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type { CasualtyRecord, Op } from '@triage-link/core'
+import { diffToOps, type CasualtyRecord, type Op } from '@triage-link/core'
 
 /** Sync bookkeeping: persistent clientId and the device's Lamport clock. */
 export interface MetaRow {
@@ -19,11 +19,36 @@ export class TriageDB extends Dexie {
       records: 'id, updatedAt',
     })
     // v2: append-only op-log + sync metadata (clientId, Lamport clock).
-    this.version(2).stores({
-      records: 'id, updatedAt',
-      ops: 'id, recordId, lamport',
-      meta: 'key',
-    })
+    this.version(2)
+      .stores({
+        records: 'id, updatedAt',
+        ops: 'id, recordId, lamport',
+        meta: 'key',
+      })
+      // Backfill: existing v1 records have no ops, but resolve() rebuilds state
+      // from ops alone. Journal each existing record as a full initial op set
+      // (diff from nothing) so sync can't drop untouched pre-upgrade fields.
+      .upgrade(async (tx) => {
+        const clientId = `dev-${Math.random().toString(36).slice(2, 10)}`
+        let lamport = 0
+        const records = (await tx.table('records').toArray()) as CasualtyRecord[]
+        const ops: Op[] = []
+        for (const rec of records) {
+          ops.push(
+            ...diffToOps(undefined, rec, {
+              recordId: rec.id,
+              clientId,
+              nextLamport: () => (lamport += 1),
+              now: () => rec.updatedAt ?? rec.createdAt ?? Date.now(),
+            }),
+          )
+        }
+        if (ops.length) await tx.table('ops').bulkAdd(ops)
+        await tx.table('meta').bulkPut([
+          { key: 'clientId', value: clientId },
+          { key: 'lamport', value: String(lamport) },
+        ])
+      })
   }
 }
 

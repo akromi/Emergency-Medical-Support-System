@@ -39,6 +39,26 @@ describe('diffToOps', () => {
     expect(ops.filter((o) => o.kind === 'item-put').map((o) => o.itemId)).toEqual(['inj-1'])
   })
 
+  it('journals createdAt on first save so it survives a resolve round-trip', () => {
+    const rec: CasualtyRecord = {
+      ...base(),
+      createdAt: 1_600_000_000_000, // original creation time
+      tombstone: { ...base().tombstone, name: 'Doe, Jane' },
+    }
+    const ops = diffToOps(undefined, rec, ctx('A')) // first journaling (prev = undefined)
+    expect(ops.some((o) => o.kind === 'scalar' && o.path === 'createdAt')).toBe(true)
+    const resolved = resolve('CAS-1', ops).record
+    expect(resolved.createdAt).toBe(1_600_000_000_000) // not the op ts
+    expect(resolved.tombstone.name).toBe('Doe, Jane')
+  })
+
+  it('does not re-journal createdAt on steady-state saves', () => {
+    const r0 = base()
+    const r1: CasualtyRecord = { ...r0, tombstone: { ...r0.tombstone, name: 'X' } }
+    const ops = diffToOps(r0, r1, ctx('A')) // prev defined, createdAt unchanged
+    expect(ops.some((o) => o.path === 'createdAt')).toBe(false)
+  })
+
   it('emits item-remove when an item disappears', () => {
     const r0: CasualtyRecord = { ...base(), injuries: [injury('inj-1')] }
     const r1: CasualtyRecord = { ...base(), injuries: [] }

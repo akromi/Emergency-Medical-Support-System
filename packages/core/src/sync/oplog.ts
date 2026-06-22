@@ -38,6 +38,10 @@ export function mergeOps(...streams: Op[][]): Op[] {
 }
 
 function setScalar(rec: CasualtyRecord, path: string, value: unknown): void {
+  if (path === 'createdAt') {
+    rec.createdAt = value as number
+    return
+  }
   if (path === 'handover') {
     rec.handover = value as CasualtyRecord['handover']
     return
@@ -49,6 +53,7 @@ function setScalar(rec: CasualtyRecord, path: string, value: unknown): void {
 
 function getScalar(rec: CasualtyRecord | undefined, path: string): unknown {
   if (!rec) return undefined
+  if (path === 'createdAt') return rec.createdAt
   if (path === 'handover') return rec.handover
   const [group, field] = path.split('.')
   return (rec as unknown as Record<string, Record<string, unknown>>)[group][field]
@@ -62,6 +67,9 @@ export function resolve(recordId: string, ops: Op[]): ResolveResult {
   const sorted = [...ops].sort(compareOps)
   const rec = createEmptyRecord(recordId)
   if (sorted.length) {
+    // Deterministic timestamps from op wall-clocks. createdAt is a fallback:
+    // if a `createdAt` op was journaled (it is, on first save), the scalar fold
+    // below overrides this with the record's true creation time.
     rec.createdAt = Math.min(...sorted.map((o) => o.ts))
     rec.updatedAt = Math.max(...sorted.map((o) => o.ts))
   }
@@ -160,6 +168,10 @@ export function diffToOps(
   }
 
   const scalarPaths = [
+    // Journal createdAt so the record's original creation time survives a fold;
+    // it only differs (and thus only emits an op) on the first journaling of a
+    // record (prev === undefined), so steady-state saves are unaffected.
+    'createdAt',
     ...TOMBSTONE_FIELDS.map((f) => `tombstone.${f}`),
     ...INCIDENT_FIELDS.map((f) => `incident.${f}`),
     'handover',
