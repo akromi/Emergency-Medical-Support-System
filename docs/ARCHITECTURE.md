@@ -120,14 +120,23 @@ package, and the PWA app at the root consumes it.
 │       │   │   types.ts         Minimal FHIR resource/bundle types
 │       │   │   mapping.ts       CasualtyRecord -> FHIR Bundle (Patient/Encounter/
 │       │   │                    Condition/Observation/Procedure/MedicationAdmin)
+│       │   ├─ sync/          Deterministic op-log engine — framework-free
+│       │   │   types.ts         Op / ConflictReport / ResolveResult
+│       │   │   oplog.ts         diffToOps, mergeOps, resolve (Lamport-ordered fold)
 │       │   └─ index.ts       Barrel — the package's public API
+│       └─ test/                fhir-mapping / sync / domain-helper suites (Vitest)
+├─ packages/sync-service/      @triage-link/sync-service — Fastify + PostgreSQL
+│       ├─ src/
+│       │   ops-store.ts         Append-only ops/snapshots/audit over a Queryable
+│       │   app.ts               POST /sync (idempotent), GET /sync/:id, /health
+│       │   server.ts            Production entrypoint (real pg Pool)
 │       └─ test/
-│           fhir-mapping.test.ts  Round-trips a CasualtyRecord through
-│                                 toFhirBundle() (Vitest)
+│           sync.integration.test.ts  Two offline clients converge (pg-mem)
 └─ src/                       The PWA app (depends on @triage-link/core)
     ├─ db/                    On-device persistence
-    │   database.ts             Dexie schema (IndexedDB database "triage-link")
-    │   repository.ts           save / get / list / remove over the records table
+    │   database.ts             Dexie schema (records + append-only ops + meta)
+    │   repository.ts           save / get / list / remove; save journals ops
+    │   oplog.ts                clientId/Lamport, op queries, optional sync push/pull
     ├─ components/
     │   BodyChart.tsx           Interactive anterior/posterior injury-marking SVG
     ├─ App.tsx                Capture UI; wires core + db together; auto-save
@@ -318,8 +327,10 @@ The footer and README state plainly that the app is not for clinical use.
 Because the domain and FHIR layers are framework-free, several roadmap items can
 be added without touching the UI:
 
-- **Conflict-aware sync.** Wrap `recordRepo` with an operation log and reconcile
-  records (the atomic sync unit) against a central service.
+- **Conflict-aware sync.** _Scaffolded_ — see §12. An append-only op-log wraps
+  `recordRepo` and a Fastify + PostgreSQL service reconciles records with a
+  deterministic resolver. Remaining: auth, incremental cursors, transport
+  hardening.
 - **Anatomical body chart.** Replace the rectangular `regions.ts` zones with a
   precise anatomical SVG supporting burn TBSA and named bones — `regionAt()` is
   the single seam to swap.
@@ -334,18 +345,86 @@ be added without touching the UI:
 
 ---
 
-## 12. Build, run, deploy
+## 12. Conflict-aware sync (op-log + sync service)
+
+The sync layer lets multiple devices edit the same casualty record offline and
+later converge **without lost writes** — and without record-level last-write-wins.
+
+### 12.1 Operation model (`@triage-link/core` → `sync/`)
+
+Every local edit becomes one or more immutable **ops** (`diffToOps(prev, next)`):
+
+| Op kind | Target | Example |
+|---|---|---|
+| `scalar` | a field path | `tombstone.name`, `incident.triage`, `handover` |
+| `item-put` | a collection + item id | add/update an injury / vital / treatment |
+| `item-remove` | a collection + item id | delete an item |
+
+Each op carries a **Lamport clock**, a `clientId`, and a unique `id` (its
+idempotency key). State is the deterministic **fold** of all ops for a record in
+a total canonical order — `(lamport, clientId, id)` — so any two replicas holding
+the same ops compute byte-identical state regardless of arrival order:
+
+```
+resolve(recordId, ops) === resolve(recordId, anyPermutation(ops))
+```
+
+### 12.2 Deterministic resolver (not last-write-wins)
+
+`resolve()` groups ops **per target**: scalars per path, items per id.
+
+- Edits to **different** fields/items never compete → both survive (no lost writes).
+- Edits to the **same** target pick a deterministic winner by **highest Lamport**
+  (clientId as tiebreak) — a logical-clock decision, *not* a wall-clock race. The
+  losing op is **retained** in the append-only log and reported as a
+  `ConflictReport` for the audit trail.
+
+### 12.3 Device side (no UI change)
+
+`recordRepo.save()` diffs the previous vs. next record and appends the resulting
+ops to an append-only Dexie `ops` table **inside the same transaction** as the
+record write; a `meta` table holds the device `clientId` and Lamport clock. The
+repository's public interface is unchanged, so `App.tsx` is untouched.
+`oplog.syncWithServer()` optionally pushes the log and adopts the resolved
+snapshots.
+
+### 12.4 Sync service (`@triage-link/sync-service`)
+
+A **Fastify + PostgreSQL** service that imports the core resolver (it does not
+reimplement merge logic):
+
+- `POST /sync` — **idempotent** ingest (`ops.id` primary key; new ops detected by
+  existence check, guarded by `ON CONFLICT DO NOTHING`), then re-folds affected
+  records via `resolve()`, upserts the snapshot, and appends `op-ingested` /
+  `conflict-resolved` rows to an **append-only `audit`** table. Returns the
+  resolved snapshot + full op set.
+- `GET /sync/:recordId` — snapshot, op-log, and audit trail.
+- `GET /health`.
+
+The store talks to a small `Queryable` interface, so production uses `pg` and the
+integration test uses in-memory `pg-mem` against identical SQL. The integration
+test simulates two offline clients editing one record, syncs them in both orders,
+and asserts convergence with no lost writes, plus idempotency, order-independence,
+and audited conflict resolution.
+
+---
+
+## 13. Build, run, deploy
 
 ```bash
 npm install        # installs workspaces; builds @triage-link/core (prepare)
 npm run dev        # Vite dev server at http://localhost:5173
 npm run typecheck  # tsc --noEmit
-npm test           # run @triage-link/core unit tests (Vitest)
+npm test           # run all workspace unit/integration tests (Vitest)
 npm run build      # type-check + production build to /dist
 npm run preview    # serve the production build locally
 
 # Core package (consumed by the app via its built dist, and by Node consumers):
 npm run build --workspace @triage-link/core   # emit dist/ (ESM + .d.ts)
+
+# Sync service (Fastify + PostgreSQL):
+npm test  --workspace @triage-link/sync-service   # integration tests (pg-mem)
+DATABASE_URL=postgres://… npm start --workspace @triage-link/sync-service
 ```
 
 The app resolves `@triage-link/core` through the package's `exports` map (its
@@ -359,7 +438,7 @@ offline after the first load.
 
 ---
 
-## 13. Key design decisions (summary)
+## 14. Key design decisions (summary)
 
 1. **PWA over native** — maximum portability from one codebase; installable;
    offline-capable; static deployment.

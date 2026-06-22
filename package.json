@@ -17,7 +17,8 @@
     "preview": "vite preview",
     "pretypecheck": "npm run core:build",
     "typecheck": "tsc --noEmit",
-    "test": "npm run test --workspace @triage-link/core"
+    "pretest": "npm run core:build",
+    "test": "npm run test --workspaces --if-present"
   },
   "dependencies": {
     "@triage-link/core": "*",
