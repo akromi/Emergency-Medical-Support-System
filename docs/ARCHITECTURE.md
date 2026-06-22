@@ -175,15 +175,23 @@ Key design points:
 
 ### 5.1 Body-region resolution
 
-`domain/regions.ts` divides the body silhouette's SVG user space (`viewBox 0 0 220 440`)
-into rectangular hit-test zones. When a responder taps the chart, `regionAt(x, y, view)`:
+`domain/regions.ts` models the body silhouette's SVG user space (`viewBox 0 0 220 440`)
+as **anatomical polygons** that trace the drawn silhouette (head circle, tapered
+arms/legs, curved torso). When a responder taps the chart, `regionAt(x, y, view)`:
 
-1. Finds the first region box containing the point (Head, Chest, Thigh, …).
+1. Ray-cast **point-in-polygon** tests the regions in order (joints before limb
+   roots) and returns the first containing region (Head, Chest, Forearm, Thigh, …).
 2. Applies **anatomical sidedness** — on the *anterior* view, image-left is the patient's **right**; the posterior view flips it — so a marker records "R Forearm", "L Thigh", etc.
-3. Falls back to a vertical-band heuristic if the tap lands outside any defined box.
+3. Falls back to a vertical-band heuristic only if the tap lands outside the silhouette.
 
-This rectangular model is explicitly a placeholder; the roadmap replaces it with a
-precise anatomical SVG (named bones, burn TBSA).
+`regionAt(x, y, view)`'s signature and return shape are unchanged, so the body
+chart and capture UI are untouched — `regionAt()` is the single seam.
+
+**Burn TBSA.** The same module exposes `regionTBSA(region)` and
+`estimateBurnTBSA(injuries)` — adult rule-of-nines / Lund-Browder surface-area
+percentages per region (front and back each ~50%). `estimateBurnTBSA` sums the
+`burn` injuries, counting each region+view once (anterior and posterior add up;
+left/right count separately), capped at 100%.
 
 ## 6. Persistence
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { regionAt } from '../src/index'
+import { regionAt, regionTBSA, estimateBurnTBSA } from '../src/index'
 
 // regionAt(x, y, view) hit-tests the body silhouette (viewBox 0 0 220 440).
 // Midline regions carry no side; limbs/shoulders are sided, and the side flips
@@ -40,5 +40,47 @@ describe('regionAt — body-region hit-testing', () => {
     // Far to the side, low down -> lower-limb band split on the midline x=110.
     expect(regionAt(10, 300, 'anterior')).toBe('Left lower limb')
     expect(regionAt(210, 300, 'anterior')).toBe('Right lower limb')
+  })
+
+  it('resolves distal limb segments precisely (anatomical polygons)', () => {
+    expect(regionAt(55, 185, 'anterior')).toBe('R Forearm') // image-left forearm
+    expect(regionAt(52, 220, 'anterior')).toBe('R Hand')
+    expect(regionAt(92, 370, 'anterior')).toBe('R Lower leg')
+    expect(regionAt(92, 420, 'anterior')).toBe('R Foot')
+    expect(regionAt(165, 185, 'anterior')).toBe('L Forearm') // image-right forearm
+  })
+})
+
+describe('burn TBSA estimation', () => {
+  it('returns per-region surface percentages, ignoring the side prefix', () => {
+    expect(regionTBSA('Chest')).toBe(9)
+    expect(regionTBSA('Head')).toBe(4.5)
+    expect(regionTBSA('R Thigh')).toBe(4.5)
+    expect(regionTBSA('L Forearm')).toBe(1.5)
+    expect(regionTBSA('Nowhere')).toBe(0)
+  })
+
+  it('sums burns across regions and ignores non-burn injuries', () => {
+    const tbsa = estimateBurnTBSA([
+      { type: 'burn', region: 'Chest', view: 'anterior' },
+      { type: 'burn', region: 'R Thigh', view: 'anterior' },
+      { type: 'laceration', region: 'Head', view: 'anterior' }, // ignored
+    ])
+    expect(tbsa).toBe(13.5) // 9 + 4.5
+  })
+
+  it('counts a region/view once but anterior + posterior separately', () => {
+    const tbsa = estimateBurnTBSA([
+      { type: 'burn', region: 'Chest', view: 'anterior' },
+      { type: 'burn', region: 'Chest', view: 'anterior' }, // duplicate marker
+      { type: 'burn', region: 'Chest', view: 'posterior' }, // other surface
+    ])
+    expect(tbsa).toBe(18) // 9 + 9, the duplicate doesn't double-count
+  })
+
+  it('caps at 100%', () => {
+    const everywhere = ['Head', 'Chest', 'Abdomen', 'Pelvis', 'L Thigh', 'R Thigh', 'L Lower leg', 'R Lower leg']
+      .flatMap((region) => (['anterior', 'posterior'] as const).map((view) => ({ type: 'burn', region, view })))
+    expect(estimateBurnTBSA(everywhere)).toBeLessThanOrEqual(100)
   })
 })
