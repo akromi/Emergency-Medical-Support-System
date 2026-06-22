@@ -55,8 +55,17 @@ export function buildApp({ store }: { store: OpStore }): FastifyInstance {
     const records: Record<string, unknown> = {}
     let merged: Op[] = []
     for (const recordId of requested) {
-      records[recordId] = await store.getSnapshot(recordId)
-      merged = merged.concat(await store.getOps(recordId))
+      const recOps = await store.getOps(recordId)
+      let snapshot = await store.getSnapshot(recordId)
+      // Defensive: if a record has ops but no stored snapshot (e.g. a pure
+      // replay sync, or a snapshot that was never persisted), resolve it on
+      // demand so the client never receives a null for a record it has ops for.
+      if (snapshot == null && recOps.length > 0) {
+        snapshot = resolve(recordId, recOps).record
+        await store.upsertSnapshot(recordId, snapshot)
+      }
+      records[recordId] = snapshot
+      merged = merged.concat(recOps)
     }
     return reply.send({ records, ops: merged, ingested: inserted.size })
   })

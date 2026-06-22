@@ -33,11 +33,12 @@ async function harness() {
   const pg = db.adapters.createPg()
   const pool = new pg.Pool() as unknown as Queryable
   await migrate(pool)
-  const app = buildApp({ store: new OpStore(pool) })
+  const store = new OpStore(pool)
+  const app = buildApp({ store })
   const post = (ops: Op[], clientId: string) =>
     app.inject({ method: 'POST', url: '/sync', payload: { clientId, ops } })
   const get = (recordId = RECORD_ID) => app.inject({ method: 'GET', url: `/sync/${recordId}` })
-  return { app, post, get }
+  return { app, store, post, get }
 }
 
 describe('sync-service integration', () => {
@@ -150,6 +151,21 @@ describe('sync-service integration', () => {
 
     const audit = (await h.get()).json().audit as Array<{ eventType: string }>
     expect(audit.filter((a) => a.eventType === 'conflict-resolved')).toHaveLength(1)
+  })
+
+  it('returns a resolved snapshot even when none was stored (replay sync)', async () => {
+    const base = createEmptyRecord(RECORD_ID)
+    const opsA = diffToOps(base, { ...base, tombstone: { ...base.tombstone, name: 'Alice' } }, ctx('A'))
+    // Insert ops directly via the store so NO snapshot is ever persisted.
+    await h.store.insertOps(opsA)
+
+    // A replay sync introduces no new ops, so the endpoint won't re-resolve from
+    // the ingest path — it must still return a non-null, resolved snapshot.
+    const r = await h.post(opsA, 'A')
+    expect(r.json().ingested).toBe(0)
+    const rec = r.json().records[RECORD_ID] as CasualtyRecord | null
+    expect(rec).not.toBeNull()
+    expect(rec!.tombstone.name).toBe('Alice')
   })
 
   it('serves health', async () => {

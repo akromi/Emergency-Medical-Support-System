@@ -9,14 +9,21 @@ async function getMeta(key: string): Promise<string | undefined> {
   return (await db.meta.get(key))?.value
 }
 
-/** Stable per-device id, created once and persisted. */
+/**
+ * Stable per-device id, created once and persisted. The get-or-create runs in a
+ * single `rw` transaction so overlapping callers/tabs can't persist two ids
+ * (which would tag one device's ops with multiple authors). When called from
+ * within an existing transaction that already covers `meta` (e.g. save()), Dexie
+ * reuses the parent transaction.
+ */
 export async function getClientId(): Promise<string> {
-  let id = await getMeta('clientId')
-  if (!id) {
-    id = `dev-${Math.random().toString(36).slice(2, 10)}`
+  return db.transaction('rw', db.meta, async () => {
+    const existing = (await db.meta.get('clientId'))?.value
+    if (existing) return existing
+    const id = `dev-${Math.random().toString(36).slice(2, 10)}`
     await db.meta.put({ key: 'clientId', value: id })
-  }
-  return id
+    return id
+  })
 }
 
 /** Current Lamport clock for this device (0 if never set). */
