@@ -3,11 +3,11 @@ import {
   type CasualtyRecord, type InjuryTypeKey, type TriageCategory,
   type VitalSign, type Treatment, type TreatmentPlace,
   createEmptyRecord, TRIAGE_LABELS, TRIAGE_COLORS,
-} from './domain/types'
-import { genCaseId, genLocalId } from './domain/id'
-import { INJURY_TYPES, injuryColor, injuryLabel } from './domain/injuries'
+  genCaseId, genLocalId,
+  INJURY_TYPES, injuryColor, injuryLabel,
+  toFhirBundle,
+} from '@triage-link/core'
 import { recordRepo } from './db/repository'
-import { toFhirBundle } from './fhir/mapping'
 import { BodyChart, type NewInjuryPlacement } from './components/BodyChart'
 
 const TRIAGE_ORDER: TriageCategory[] = ['immediate', 'delayed', 'minor', 'deceased']

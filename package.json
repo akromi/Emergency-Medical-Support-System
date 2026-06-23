@@ -5,13 +5,23 @@
   "type": "module",
   "description": "Offline-first PWA for casualty care & transport documentation",
   "license": "MIT",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
+    "core:build": "npm run build --workspace @triage-link/core",
+    "predev": "npm run core:build",
     "dev": "vite",
+    "prebuild": "npm run core:build",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "pretypecheck": "npm run core:build",
+    "typecheck": "tsc --noEmit",
+    "pretest": "npm run core:build",
+    "test": "npm run test --workspaces --if-present"
   },
   "dependencies": {
+    "@triage-link/core": "*",
     "dexie": "^4.0.10",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

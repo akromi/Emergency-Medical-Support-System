@@ -3,9 +3,9 @@
 // Observation = vitals, Procedure / MedicationAdministration = treatments.
 import type {
   CasualtyRecord, Injury, Treatment, VitalSign, Sex,
-} from '../domain/types'
-import { injuryLabel } from '../domain/injuries'
-import type { FhirBundle, FhirResource } from './types'
+} from '../domain/types.js'
+import { injuryLabel } from '../domain/injuries.js'
+import type { FhirBundle, FhirResource } from './types.js'
 
 const SEX_TO_GENDER: Record<Sex, string | undefined> = {
   female: 'female', male: 'male', other: 'other', unknown: 'unknown', '': undefined,

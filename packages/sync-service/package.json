@@ -1,0 +1,27 @@
+{
+  "name": "@triage-link/sync-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fastify + PostgreSQL conflict-aware sync service for TRIAGE-LINK casualty records",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "start": "node --experimental-strip-types src/server.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@triage-link/core": "*",
+    "fastify": "^4.28.1",
+    "pg": "^8.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/pg": "^8.11.6",
+    "pg-mem": "^3.0.5",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}
