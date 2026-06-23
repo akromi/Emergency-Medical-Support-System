@@ -199,6 +199,70 @@ export function bodyRegions(view: BodyView): ReadonlyArray<BodyRegion> {
   return view === 'anterior' ? ANTERIOR : POSTERIOR
 }
 
+// ---- Macro zones (for tap-to-zoom "blow up") ------------------------------
+
+export interface BodyZone {
+  key: string
+  name: string
+  side?: 'left' | 'right'
+  group: RegionGroup
+  /** Padded bounding box in SVG user space. */
+  bbox: { x: number; y: number; w: number; h: number }
+}
+
+const ZONE_PAD = 14
+const ZONE_NAME: Partial<Record<RegionGroup, string>> = {
+  head: 'Head', neck: 'Neck', trunk: 'Torso', arm: 'Arm', hand: 'Hand', leg: 'Leg', foot: 'Foot',
+}
+
+function macroKey(r: BodyRegion): { key: string; name: string; side?: 'left' | 'right'; group: RegionGroup } {
+  if (r.group === 'head' || r.group === 'face') return { key: 'head', name: 'Head', group: 'head' }
+  if (r.group === 'neck') return { key: 'neck', name: 'Neck', group: 'neck' }
+  if (r.group === 'trunk') return { key: 'torso', name: 'Torso', group: 'trunk' }
+  return { key: `${r.group}-${r.side}`, name: ZONE_NAME[r.group] ?? r.group, side: r.side, group: r.group }
+}
+
+function buildZones(view: BodyView): BodyZone[] {
+  const acc = new Map<string, { meta: ReturnType<typeof macroKey>; x1: number; y1: number; x2: number; y2: number }>()
+  for (const r of bodyRegions(view)) {
+    const meta = macroKey(r)
+    let z = acc.get(meta.key)
+    if (!z) { z = { meta, x1: Infinity, y1: Infinity, x2: -Infinity, y2: -Infinity }; acc.set(meta.key, z) }
+    for (const [x, y] of r.points) { z.x1 = Math.min(z.x1, x); z.y1 = Math.min(z.y1, y); z.x2 = Math.max(z.x2, x); z.y2 = Math.max(z.y2, y) }
+  }
+  return [...acc.values()].map((z) => ({
+    key: z.meta.key, name: z.meta.name, side: z.meta.side, group: z.meta.group,
+    bbox: {
+      x: Math.max(0, z.x1 - ZONE_PAD),
+      y: Math.max(0, z.y1 - ZONE_PAD),
+      w: Math.min(BODY_VIEWBOX.width, z.x2 + ZONE_PAD) - Math.max(0, z.x1 - ZONE_PAD),
+      h: Math.min(BODY_VIEWBOX.height, z.y2 + ZONE_PAD) - Math.max(0, z.y1 - ZONE_PAD),
+    },
+  }))
+}
+
+const ZONES_ANT = buildZones('anterior')
+const ZONES_POST = buildZones('posterior')
+
+/** Macro zones (head, neck, torso, each arm/hand/leg/foot) for a view. */
+export function bodyZones(view: BodyView): ReadonlyArray<BodyZone> {
+  return view === 'anterior' ? ZONES_ANT : ZONES_POST
+}
+
+/** Smallest macro zone containing the point (so hand wins over arm), or null. */
+export function zoneAt(x: number, y: number, view: BodyView): BodyZone | null {
+  let best: BodyZone | null = null
+  let bestArea = Infinity
+  for (const z of bodyZones(view)) {
+    const b = z.bbox
+    if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
+      const area = b.w * b.h
+      if (area < bestArea) { bestArea = area; best = z }
+    }
+  }
+  return best
+}
+
 // ---- Burn TBSA ------------------------------------------------------------
 
 export const REGION_TBSA: Readonly<Record<string, number>> = (() => {

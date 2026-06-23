@@ -46,13 +46,36 @@ button { font-family:inherit; }
 
 .bodyview { position:relative; background:var(--panel-2); border:1px solid var(--line-soft); border-radius:10px; padding:8px; }
 .bodyview .vlabel { position:absolute; top:8px; left:10px; font-family:var(--mono); font-size:10px; letter-spacing:1px; color:var(--txt-faint); text-transform:uppercase; }
-.bodyview svg { width:100%; height:auto; display:block; cursor:crosshair; touch-action:manipulation; }
-.figure .zone { fill:#28323f; stroke:#3a4656; stroke-width:1; transition:fill .08s; }
-.figure .zone:hover { fill:#33414f; }
-.figure .zone-face, .figure .zone-hand, .figure .zone-foot { fill:#2c3744; }
+.bodyview svg { width:100%; height:auto; display:block; touch-action:manipulation; }
+.bodyview svg.overview { cursor:zoom-in; }
+.bodyview svg.zoomed { cursor:crosshair; }
+
+/* 3D-scan-style quad mesh + brighter silhouette rim, in the app's teal.
+   Constant stroke weight at any zoom via non-scaling-stroke. */
+.figure .mesh {
+  fill:none; stroke:#5fe3c6; stroke-width:0.6; stroke-opacity:.4;
+  vector-effect:non-scaling-stroke;
+}
+.figure .rim {
+  fill:rgba(95,227,198,.04); stroke:#aef2e4; stroke-width:1.4; stroke-opacity:.9;
+  vector-effect:non-scaling-stroke; stroke-linejoin:round;
+}
+.bodyview svg.zoomed .figure .mesh { stroke-opacity:.5; }
+
+.zoomout { position:absolute; top:8px; right:10px; z-index:3; border:1px solid var(--line);
+  background:var(--panel); color:var(--txt); padding:5px 11px; border-radius:8px;
+  font-size:12px; font-weight:600; cursor:pointer; font-family:var(--mono); }
+.zoomout:hover { background:var(--raised); border-color:#5fe3c6; }
+.zoomlbl { position:absolute; bottom:8px; left:10px; font-family:var(--mono); font-size:11px;
+  letter-spacing:.5px; color:#5fe3c6; text-transform:uppercase; }
+
+/* Injury markers: a fine small ✕ at the tapped point. */
 .marker { cursor:pointer; }
-.marker .halo { fill:rgba(255,255,255,.07); }
-.marker.sel .halo { fill:rgba(63,224,138,.22); stroke:var(--ekg); stroke-width:2; }
+.marker .hit { fill:transparent; }
+.marker .x { stroke-width:2; stroke-linecap:round; vector-effect:non-scaling-stroke; }
+.marker.sel .x { stroke-width:2.6; }
+.marker .ring { fill:none; stroke:var(--ekg); stroke-width:1.4; stroke-opacity:.7;
+  vector-effect:non-scaling-stroke; }
 .hint { font-family:var(--mono); font-size:11px; color:var(--txt-faint); padding:0 15px 13px; margin:0; }
 
 .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
