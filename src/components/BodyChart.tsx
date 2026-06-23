@@ -39,10 +39,10 @@ function Figure({ view }: { view: BodyView }) {
           href={img.href}
           x={0}
           y={0}
-          width={VW}
-          height={VH}
+          width={img.w}
+          height={img.h}
           transform={img.align}
-          preserveAspectRatio="xMidYMid meet"
+          preserveAspectRatio="none"
           onError={() => setImgFailed(true)}
         />
       ) : (

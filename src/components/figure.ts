@@ -148,11 +148,32 @@ export function figureRimPath(): string {
 // the hidden region-lookup coordinates (tuned once the real image is in).
 export interface FigureImageConfig {
   href: string
-  /** SVG transform applied so the drawn body sits on the region boxes. */
-  align?: string
+  /** Natural pixel size of the source image. */
+  w: number
+  h: number
+  /**
+   * SVG transform that maps the natural-size image into BODY_VIEWBOX user
+   * space, so the drawn body lands on the hidden region lookup. Derived by
+   * measuring each image's body bounding box (head-crown..feet, centre line)
+   * and uniformly scaling it to the region extent: crown -> y18, feet -> y1040,
+   * centred at x240. Uniform scale keeps the figure's natural proportions
+   * (the muscular figure's arms sit a touch wider than the slim region boxes;
+   * head, trunk, legs and feet align precisely).
+   */
+  align: string
 }
 
 export const FIGURE_IMAGE: Record<BodyView, FigureImageConfig> = {
-  anterior: { href: '/figure/anterior.png' },
-  posterior: { href: '/figure/posterior.png' },
+  anterior: {
+    href: '/figure/anterior.png',
+    w: 1086,
+    h: 1448,
+    align: 'translate(-182.45 -29.59) scale(0.78015)',
+  },
+  posterior: {
+    href: '/figure/posterior.png',
+    w: 1086,
+    h: 1448,
+    align: 'translate(-187.15 -26.09) scale(0.78737)',
+  },
 }
