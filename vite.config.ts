@@ -21,7 +21,11 @@ export default defineConfig({
           { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }
         ]
       },
-      workbox: { globPatterns: ['**/*.{js,css,html,svg,woff2}'] }
+      // Precache png too so the figure images are available offline.
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,woff2,png}'],
+        maximumFileSizeToCacheInBytes: 4_000_000,
+      }
     })
   ]
 })

@@ -50,17 +50,14 @@ button { font-family:inherit; }
 .bodyview svg.overview { cursor:zoom-in; }
 .bodyview svg.zoomed { cursor:crosshair; }
 
-/* 3D-scan-style quad mesh + brighter silhouette rim, in the app's teal.
+/* Fallback outline (only if the figure image fails to load): faint teal
+   region polygons, so the placeholder always matches the tap lookup.
    Constant stroke weight at any zoom via non-scaling-stroke. */
-.figure .mesh {
-  fill:none; stroke:#5fe3c6; stroke-width:0.6; stroke-opacity:.4;
-  vector-effect:non-scaling-stroke;
-}
-.figure .rim {
-  fill:rgba(95,227,198,.04); stroke:#aef2e4; stroke-width:1.4; stroke-opacity:.9;
+.figure .figfallback polygon {
+  fill:rgba(95,227,198,.03); stroke:#5fe3c6; stroke-width:0.8; stroke-opacity:.45;
   vector-effect:non-scaling-stroke; stroke-linejoin:round;
 }
-.bodyview svg.zoomed .figure .mesh { stroke-opacity:.5; }
+.bodyview svg.zoomed .figure .figfallback polygon { stroke-opacity:.6; }
 
 .zoomout { position:absolute; top:8px; right:10px; z-index:3; border:1px solid var(--line);
   background:var(--panel); color:var(--txt); padding:5px 11px; border-radius:8px;
