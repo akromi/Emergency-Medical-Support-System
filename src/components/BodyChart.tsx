@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react'
 import {
   type BodyView, type BodyZone, type Injury, injuryColor, regionAt,
-  zoneAt, BODY_VIEWBOX,
+  zoneAt, bodyRegions, BODY_VIEWBOX,
 } from '@triage-link/core'
-import { figureMeshPath, figureRimPath, FIGURE_IMAGE } from './figure'
+import { FIGURE_IMAGE } from './figure'
 
 export interface NewInjuryPlacement {
   view: BodyView
@@ -33,8 +33,8 @@ function patientSide(side: 'left' | 'right', view: BodyView): 'L' | 'R' {
 // by coordinate against the hidden lookup table in @triage-link/core, so nothing
 // is overlaid at runtime — only the figure and the markers are drawn.
 //
-// If a licensed figure image is present under public/figure/, it is used;
-// otherwise the <image> fails to load and we fall back to the procedural mesh.
+// If the licensed figure image fails to load, we fall back to a faint outline
+// of the region polygons themselves — guaranteed to match the tap lookup.
 function Figure({ view }: { view: BodyView }) {
   const img = FIGURE_IMAGE[view]
   const [imgFailed, setImgFailed] = useState(false)
@@ -53,10 +53,11 @@ function Figure({ view }: { view: BodyView }) {
           onError={() => setImgFailed(true)}
         />
       ) : (
-        <>
-          <path className="mesh" d={figureMeshPath()} />
-          <path className="rim" d={figureRimPath()} />
-        </>
+        <g className="figfallback">
+          {bodyRegions(view).map((r, i) => (
+            <polygon key={i} points={r.points.map(([x, y]) => `${x},${y}`).join(' ')} />
+          ))}
+        </g>
       )}
     </g>
   )

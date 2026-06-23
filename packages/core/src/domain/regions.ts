@@ -32,10 +32,11 @@ export function regionAt(x: number, y: number, view: BodyView): string {
     if (inPolygon(x, y, region.points)) return anatomicalSide(region.side, view) + region.name
   }
   // Coarse vertical-band fallback when the tap lands outside the silhouette.
+  // Bands follow the figure's pose (head ~y113-235, trunk ~235-560, legs below).
   const { height } = BODY_VIEWBOX
-  if (y < height * 0.19) return 'Head'
-  if (y < height * 0.34) return 'Chest'
+  if (y < height * 0.23) return 'Head'
+  if (y < height * 0.38) return 'Chest'
   if (y < height * 0.44) return 'Abdomen'
-  if (y < height * 0.5) return 'Pelvis'
+  if (y < height * 0.54) return 'Pelvis'
   return x < BODY_VIEWBOX.width / 2 ? 'Left lower limb' : 'Right lower limb'
 }

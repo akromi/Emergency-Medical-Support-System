@@ -22,6 +22,20 @@ button { font-family:inherit; }
 .topbtn { border:1px solid var(--line); background:var(--panel); color:var(--txt); padding:8px 13px;
   border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; }
 .topbtn:hover { background:var(--raised); }
+
+/* Triage tag — prominent acuity band under the header (sticky below topbar). */
+.triagebar { position:sticky; top:47px; z-index:35; display:flex; align-items:center; gap:14px;
+  padding:7px 18px 7px 12px; background:var(--panel); border-bottom:1px solid var(--line);
+  border-left:6px solid var(--line); }
+.tb-label { font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--txt-faint); font-weight:600; }
+.tb-opts { display:flex; gap:6px; flex-wrap:wrap; }
+.tb-opt { display:inline-flex; align-items:center; gap:6px; padding:4px 11px; border-radius:999px;
+  border:1px solid var(--line); background:var(--panel-2); color:var(--txt); font-size:12px;
+  font-weight:600; cursor:pointer; }
+.tb-opt:hover { background:var(--raised); }
+.tb-opt .sw { width:10px; height:10px; border-radius:3px; display:inline-block; }
+.tb-current { margin-left:auto; font-size:12.5px; font-weight:700; color:var(--txt-dim); letter-spacing:.02em; }
 .topbtn.primary { background:var(--ekg); color:#06210f; border-color:var(--ekg); }
 
 .wrap { max-width:1320px; margin:0 auto; padding:18px; display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:16px; align-items:start; }
@@ -50,17 +64,14 @@ button { font-family:inherit; }
 .bodyview svg.overview { cursor:zoom-in; }
 .bodyview svg.zoomed { cursor:crosshair; }
 
-/* 3D-scan-style quad mesh + brighter silhouette rim, in the app's teal.
+/* Fallback outline (only if the figure image fails to load): faint teal
+   region polygons, so the placeholder always matches the tap lookup.
    Constant stroke weight at any zoom via non-scaling-stroke. */
-.figure .mesh {
-  fill:none; stroke:#5fe3c6; stroke-width:0.6; stroke-opacity:.4;
-  vector-effect:non-scaling-stroke;
-}
-.figure .rim {
-  fill:rgba(95,227,198,.04); stroke:#aef2e4; stroke-width:1.4; stroke-opacity:.9;
+.figure .figfallback polygon {
+  fill:rgba(95,227,198,.03); stroke:#5fe3c6; stroke-width:0.8; stroke-opacity:.45;
   vector-effect:non-scaling-stroke; stroke-linejoin:round;
 }
-.bodyview svg.zoomed .figure .mesh { stroke-opacity:.5; }
+.bodyview svg.zoomed .figure .figfallback polygon { stroke-opacity:.6; }
 
 .zoomout { position:absolute; top:8px; right:10px; z-index:3; border:1px solid var(--line);
   background:var(--panel); color:var(--txt); padding:5px 11px; border-radius:8px;
