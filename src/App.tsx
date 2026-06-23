@@ -98,6 +98,7 @@ export function App() {
   }
 
   const selected = record.injuries.find((i) => i.id === selectedInjury) ?? null
+  const triage = record.incident.triage
 
   return (
     <div className="app">
@@ -107,6 +108,33 @@ export function App() {
         <button className="topbtn" onClick={newCase}>+ New casualty</button>
         <button className="topbtn primary" onClick={exportFhir}>Export FHIR ↓</button>
       </header>
+
+      {/* Prominent, always-visible triage tag (acuity channel, distinct from
+          injury-type marker colours). Quick-set here; persists on the record. */}
+      <div
+        className="triagebar"
+        style={triage ? { borderLeftColor: TRIAGE_COLORS[triage], background: `color-mix(in srgb, ${TRIAGE_COLORS[triage]} 12%, var(--panel))` } : undefined}
+      >
+        <span className="tb-label">Triage</span>
+        <div className="tb-opts" role="group" aria-label="Triage category">
+          {TRIAGE_ORDER.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={`tb-opt${triage === t ? ' on' : ''}`}
+              style={triage === t ? { background: TRIAGE_COLORS[t], borderColor: TRIAGE_COLORS[t], color: '#0c0c0c' } : undefined}
+              onClick={() => setInc('triage', t)}
+              title={TRIAGE_LABELS[t]}
+            >
+              <span className="sw" style={{ background: TRIAGE_COLORS[t] }} />
+              {TRIAGE_LABELS[t].split(' ')[0]}
+            </button>
+          ))}
+        </div>
+        <span className="tb-current" style={triage ? { color: TRIAGE_COLORS[triage] } : undefined}>
+          {triage ? TRIAGE_LABELS[triage] : 'Not set'}
+        </span>
+      </div>
 
       <div className="wrap">
         <main>

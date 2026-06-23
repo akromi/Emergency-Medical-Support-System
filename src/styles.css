@@ -22,6 +22,20 @@ button { font-family:inherit; }
 .topbtn { border:1px solid var(--line); background:var(--panel); color:var(--txt); padding:8px 13px;
   border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; }
 .topbtn:hover { background:var(--raised); }
+
+/* Triage tag — prominent acuity band under the header (sticky below topbar). */
+.triagebar { position:sticky; top:47px; z-index:35; display:flex; align-items:center; gap:14px;
+  padding:7px 18px 7px 12px; background:var(--panel); border-bottom:1px solid var(--line);
+  border-left:6px solid var(--line); }
+.tb-label { font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--txt-faint); font-weight:600; }
+.tb-opts { display:flex; gap:6px; flex-wrap:wrap; }
+.tb-opt { display:inline-flex; align-items:center; gap:6px; padding:4px 11px; border-radius:999px;
+  border:1px solid var(--line); background:var(--panel-2); color:var(--txt); font-size:12px;
+  font-weight:600; cursor:pointer; }
+.tb-opt:hover { background:var(--raised); }
+.tb-opt .sw { width:10px; height:10px; border-radius:3px; display:inline-block; }
+.tb-current { margin-left:auto; font-size:12.5px; font-weight:700; color:var(--txt-dim); letter-spacing:.02em; }
 .topbtn.primary { background:var(--ekg); color:#06210f; border-color:var(--ekg); }
 
 .wrap { max-width:1320px; margin:0 auto; padding:18px; display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:16px; align-items:start; }
