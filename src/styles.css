@@ -100,11 +100,6 @@ input:focus, select:focus { border-color:var(--ekg); box-shadow:0 0 0 3px rgba(6
 input.mono { font-family:var(--mono); }
 input::placeholder { color:var(--txt-faint); }
 
-.triage { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
-.triage button { border:1px solid var(--line); background:var(--panel-2); color:var(--txt-dim);
-  padding:8px 4px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; }
-.triage button .swatch { display:block; height:5px; border-radius:3px; margin-bottom:5px; }
-
 .row { display:flex; align-items:flex-start; gap:9px; padding:9px 0; border-top:1px solid var(--line-soft); }
 .row:first-of-type { border-top:0; }
 .row.on { background:rgba(63,224,138,.05); border-radius:6px; padding-left:6px; padding-right:6px; }
