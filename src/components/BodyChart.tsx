@@ -3,7 +3,7 @@ import {
   type BodyView, type BodyZone, type Injury, injuryColor, regionAt,
   zoneAt, BODY_VIEWBOX,
 } from '@triage-link/core'
-import { figureMeshPath, figureRimPath } from './figure'
+import { figureMeshPath, figureRimPath, FIGURE_IMAGE } from './figure'
 
 export interface NewInjuryPlacement {
   view: BodyView
@@ -22,15 +22,35 @@ interface BodyChartProps {
 
 const { width: VW, height: VH } = BODY_VIEWBOX
 
-// The realistic humanoid figure (presentation only) — a teal quad mesh wrapping
-// the body. It carries no hit-testing: taps are resolved by coordinate against
-// the hidden lookup table in @triage-link/core (regionAt / zoneAt), so nothing
-// is overlaid at runtime — only the mesh and the markers are drawn.
-function Figure() {
+// The figure (presentation only). It carries no hit-testing: taps are resolved
+// by coordinate against the hidden lookup table in @triage-link/core, so nothing
+// is overlaid at runtime — only the figure and the markers are drawn.
+//
+// If a licensed figure image is present under public/figure/, it is used;
+// otherwise the <image> fails to load and we fall back to the procedural mesh.
+function Figure({ view }: { view: BodyView }) {
+  const img = FIGURE_IMAGE[view]
+  const [imgFailed, setImgFailed] = useState(false)
   return (
     <g className="figure">
-      <path className="mesh" d={figureMeshPath()} />
-      <path className="rim" d={figureRimPath()} />
+      {!imgFailed ? (
+        <image
+          className="figimg"
+          href={img.href}
+          x={0}
+          y={0}
+          width={VW}
+          height={VH}
+          transform={img.align}
+          preserveAspectRatio="xMidYMid meet"
+          onError={() => setImgFailed(true)}
+        />
+      ) : (
+        <>
+          <path className="mesh" d={figureMeshPath()} />
+          <path className="rim" d={figureRimPath()} />
+        </>
+      )}
     </g>
   )
 }
@@ -101,7 +121,7 @@ export function BodyChart({ view, injuries, selectedId, onPlace, onSelect }: Bod
         className={zoom ? 'zoomed' : 'overview'}
         onClick={handleBackgroundClick}
       >
-        <Figure />
+        <Figure view={view} />
         <g>
           {visible.map((inj) => {
             const a = 7 * k // arm length of the ✕
