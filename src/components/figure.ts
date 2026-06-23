@@ -153,12 +153,12 @@ export interface FigureImageConfig {
   h: number
   /**
    * SVG transform that maps the natural-size image into BODY_VIEWBOX user
-   * space, so the drawn body lands on the hidden region lookup. Derived by
-   * measuring each image's body bounding box (head-crown..feet, centre line)
-   * and uniformly scaling it to the region extent: crown -> y18, feet -> y1040,
-   * centred at x240. Uniform scale keeps the figure's natural proportions
-   * (the muscular figure's arms sit a touch wider than the slim region boxes;
-   * head, trunk, legs and feet align precisely).
+   * space. Derived by measuring each image's body bounding box and uniformly
+   * scaling it to FIT THE FRAME: because this figure has a wide stance (arms
+   * spread, legs apart) the body is wider than the tall viewBox, so it is
+   * scaled to the frame WIDTH and centred vertically — keeping the whole body
+   * (hands and feet included) visible and undistorted. (Tap regions are a
+   * separate concern; they are re-aligned to the figure's pose in body-model.)
    */
   align: string
 }
@@ -168,12 +168,12 @@ export const FIGURE_IMAGE: Record<BodyView, FigureImageConfig> = {
     href: '/figure/anterior.png',
     w: 1086,
     h: 1448,
-    align: 'translate(-182.45 -29.59) scale(0.78015)',
+    align: 'translate(-137.96 21.17) scale(0.69670)',
   },
   posterior: {
     href: '/figure/posterior.png',
     w: 1086,
     h: 1448,
-    align: 'translate(-187.15 -26.09) scale(0.78737)',
+    align: 'translate(-136.91 33.71) scale(0.69670)',
   },
 }
