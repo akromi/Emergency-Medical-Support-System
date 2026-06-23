@@ -22,11 +22,11 @@ describe('regionAt — anatomical hit-testing', () => {
   })
 
   it('resolves individual fingers and toes', () => {
-    expect(regionAt(28, 543, 'anterior')).toBe('R Index proximal')
-    expect(regionAt(42, 546, 'anterior')).toBe('R Middle proximal')
-    expect(regionAt(196, 918, 'anterior')).toBe('R Great toe')
+    expect(regionAt(59, 532, 'anterior')).toBe('R Index proximal')
+    expect(regionAt(47, 533, 'anterior')).toBe('R Middle proximal')
+    expect(regionAt(184, 914, 'anterior')).toBe('R Great toe')
     // Mirror across the midline -> patient's LEFT.
-    expect(regionAt(480 - 28, 543, 'anterior')).toBe('L Index proximal')
+    expect(regionAt(480 - 59, 532, 'anterior')).toBe('L Index proximal')
   })
 
   it('resolves limb and trunk segments with anatomical sidedness', () => {
