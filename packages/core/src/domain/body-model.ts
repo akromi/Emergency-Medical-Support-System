@@ -146,15 +146,17 @@ function sharedParts(): SharedPart[] {
   L({ ant: 'Forearm', post: 'Forearm' }, 'arm', 1.5, quad(80, 458, 36, 52, 498, 32))
   L({ ant: 'Wrist', post: 'Wrist' }, 'arm', 0.3, quad(52, 498, 30, 48, 510, 28))
 
-  // Open hand: palm/back, thumb (2 phalanges), four splayed fingers.
-  L({ ant: 'Palm', post: 'Back of hand' }, 'hand', 0.5, box(26, 510, 72, 538))
-  L({ ant: 'Thumb proximal', post: 'Thumb proximal' }, 'hand', 0.1, box(58, 514, 78, 534))
-  L({ ant: 'Thumb distal', post: 'Thumb distal' }, 'hand', 0.1, box(62, 494, 80, 516))
+  // Open hand: palm/back, thumb (2 phalanges), four splayed fingers. The
+  // fingers fan out from the knuckle row (~y527) toward the lower-left, traced
+  // off the figure: centres ~x60/49/38/26, each angling left as it descends.
+  L({ ant: 'Palm', post: 'Back of hand' }, 'hand', 0.5, box(20, 508, 72, 527))
+  L({ ant: 'Thumb proximal', post: 'Thumb proximal' }, 'hand', 0.1, box(58, 512, 78, 530))
+  L({ ant: 'Thumb distal', post: 'Thumb distal' }, 'hand', 0.1, box(62, 492, 80, 514))
   const fingers: Array<{ label: string; rootX: number; rootY: number; ang: number; w: number; lens: [number, number, number] }> = [
-    { label: 'Index', rootX: 30, rootY: 538, ang: -26, w: 11, lens: [11, 9, 8] },
-    { label: 'Middle', rootX: 43, rootY: 540, ang: -10, w: 12, lens: [12, 10, 9] },
-    { label: 'Ring', rootX: 55, rootY: 540, ang: 4, w: 11, lens: [11, 9, 8] },
-    { label: 'Little', rootX: 65, rootY: 538, ang: 18, w: 10, lens: [10, 8, 7] },
+    { label: 'Index', rootX: 60, rootY: 527, ang: -6, w: 10, lens: [11, 10, 9] },
+    { label: 'Middle', rootX: 49, rootY: 527, ang: -15, w: 11, lens: [12, 10, 9] },
+    { label: 'Ring', rootX: 38, rootY: 527, ang: -22, w: 10, lens: [11, 9, 8] },
+    { label: 'Little', rootX: 26, rootY: 527, ang: -30, w: 9, lens: [10, 8, 7] },
   ]
   for (const f of fingers) {
     for (const d of digitFan(f.rootX, f.rootY, f.ang, 'hand', 'left', f.label, f.w, [
@@ -169,18 +171,19 @@ function sharedParts(): SharedPart[] {
   L({ ant: 'Knee', post: 'Back of knee' }, 'leg', 0.5, box(158, 718, 212, 760))
   L({ ant: 'Shin', post: 'Calf' }, 'leg', 3, quad(184, 760, 46, 177, 852, 32))
   L({ ant: 'Ankle', post: 'Ankle' }, 'leg', 0.5, box(160, 852, 198, 880))
-  L({ ant: 'Foot dorsum', post: 'Sole' }, 'foot', 1, box(148, 880, 210, 910))
+  L({ ant: 'Foot dorsum', post: 'Sole' }, 'foot', 1, box(142, 882, 196, 906))
 
-  // Toes (great toe is medial → larger x on image-left foot).
+  // Toes (great toe is medial → larger x on image-left foot). Traced to the
+  // figure's toe row (~x145-188) at the bottom of the foot.
   const toes: Array<{ label: string; cx: number; w: number; len: number }> = [
-    { label: 'Great toe', cx: 196, w: 14, len: 16 },
-    { label: '2nd toe', cx: 182, w: 11, len: 15 },
-    { label: '3rd toe', cx: 170, w: 10, len: 14 },
-    { label: '4th toe', cx: 160, w: 9, len: 13 },
-    { label: '5th toe', cx: 151, w: 8, len: 12 },
+    { label: 'Great toe', cx: 184, w: 13, len: 16 },
+    { label: '2nd toe', cx: 172, w: 10, len: 15 },
+    { label: '3rd toe', cx: 162, w: 9, len: 14 },
+    { label: '4th toe', cx: 153, w: 9, len: 13 },
+    { label: '5th toe', cx: 145, w: 8, len: 11 },
   ]
   for (const t of toes) {
-    left.push({ names: { ant: t.label, post: t.label }, side: 'left', group: 'foot', tbsa: 0.1, points: box(r1(t.cx - t.w / 2), 910, r1(t.cx + t.w / 2), 910 + t.len) })
+    left.push({ names: { ant: t.label, post: t.label }, side: 'left', group: 'foot', tbsa: 0.1, points: box(r1(t.cx - t.w / 2), 906, r1(t.cx + t.w / 2), 906 + t.len) })
   }
 
   parts.push(...left)
