@@ -3,20 +3,27 @@
 // future/optional sync pushes to the conflict-aware sync service and reconciles
 // using the SAME deterministic resolver the server uses (@triage-link/core).
 import { db } from './database'
-import { type CasualtyRecord, type Op } from '@triage-link/core'
+import { resolve, type CasualtyRecord, type Op } from '@triage-link/core'
 
 async function getMeta(key: string): Promise<string | undefined> {
   return (await db.meta.get(key))?.value
 }
 
-/** Stable per-device id, created once and persisted. */
+/**
+ * Stable per-device id, created once and persisted. The get-or-create runs in a
+ * single `rw` transaction so overlapping callers/tabs can't persist two ids
+ * (which would tag one device's ops with multiple authors). When called from
+ * within an existing transaction that already covers `meta` (e.g. save()), Dexie
+ * reuses the parent transaction.
+ */
 export async function getClientId(): Promise<string> {
-  let id = await getMeta('clientId')
-  if (!id) {
-    id = `dev-${Math.random().toString(36).slice(2, 10)}`
+  return db.transaction('rw', db.meta, async () => {
+    const existing = (await db.meta.get('clientId'))?.value
+    if (existing) return existing
+    const id = `dev-${Math.random().toString(36).slice(2, 10)}`
     await db.meta.put({ key: 'clientId', value: id })
-  }
-  return id
+    return id
+  })
 }
 
 /** Current Lamport clock for this device (0 if never set). */
@@ -50,15 +57,36 @@ export async function syncWithServer(baseUrl: string): Promise<void> {
   const data = (await res.json()) as { records: Record<string, CasualtyRecord | null>; ops: Op[] }
 
   await db.transaction('rw', db.records, db.ops, db.meta, async () => {
-    const known = new Set((await db.ops.toArray()).map((o) => o.id))
+    // Re-read the local log inside the transaction; it may have grown since the
+    // request was sent (another tab or a debounced save).
+    const current = await db.ops.toArray()
+    const known = new Set(current.map((o) => o.id))
     const incoming = data.ops.filter((o) => !known.has(o.id))
     if (incoming.length) await db.ops.bulkAdd(incoming)
 
-    const maxLamport = data.ops.reduce((m, o) => Math.max(m, o.lamport), await getLamport())
+    const allOpsNow = incoming.length ? current.concat(incoming) : current
+    const maxLamport = allOpsNow.reduce((m, o) => Math.max(m, o.lamport), await getLamport())
     await db.meta.put({ key: 'lamport', value: String(maxLamport) })
 
-    for (const record of Object.values(data.records)) {
-      if (record) await db.records.put(record)
+    // Re-fold each record from the CURRENT local op-log (server ops + any ops
+    // appended while the request was in flight) rather than trusting the server
+    // snapshot, so the records row never goes stale relative to the log.
+    const opsByRecord = new Map<string, Op[]>()
+    for (const op of allOpsNow) {
+      const list = opsByRecord.get(op.recordId)
+      if (list) list.push(op)
+      else opsByRecord.set(op.recordId, [op])
+    }
+    for (const [recordId, recOps] of opsByRecord) {
+      const resolved = resolve(recordId, recOps).record
+      // updatedAt isn't journaled, and resolve() derives it from op ts; keep the
+      // local row's value if it's newer so a just-saved case doesn't sort older
+      // in the list after a sync.
+      const existing = await db.records.get(recordId)
+      if (existing && existing.updatedAt > resolved.updatedAt) {
+        resolved.updatedAt = existing.updatedAt
+      }
+      await db.records.put(resolved)
     }
   })
 }

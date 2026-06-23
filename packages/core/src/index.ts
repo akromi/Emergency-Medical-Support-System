@@ -4,6 +4,7 @@
 export * from './domain/types.js'
 export * from './domain/injuries.js'
 export * from './domain/regions.js'
+export * from './domain/body-model.js'
 export * from './domain/id.js'
 export * from './fhir/types.js'
 export * from './fhir/mapping.js'

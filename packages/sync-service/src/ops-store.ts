@@ -69,6 +69,13 @@ export class OpStore {
   constructor(private readonly db: Queryable) {}
 
   /**
+   * Append ops idempotently. Returns the ids that were ACTUALLY newly inserted.
+   *
+   * An op counts as inserted only when the INSERT creates a row (RETURNING yields
+   * one). The pre-check fast-paths the common replay case and avoids relying on
+   * pg-mem's divergent `ON CONFLICT … RETURNING` behaviour for already-present
+   * rows; the RETURNING check then closes the concurrency window where two
+   * requests both pass the pre-check but only one row is actually written.
    * Append ops idempotently. Returns the ids that were newly inserted.
    * A fast existence check skips the common replay path; `ON CONFLICT DO
    * NOTHING RETURNING id` confirms actual insertion under concurrency.
@@ -81,6 +88,8 @@ export class OpStore {
       const res = await this.db.query(
         `INSERT INTO ops (id, record_id, client_id, lamport, ts, kind, path, item_id, value)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         ON CONFLICT (id) DO NOTHING
+         RETURNING id`,
          ON CONFLICT (id) DO NOTHING RETURNING id`,
         [
           op.id, op.recordId, op.clientId, op.lamport, op.ts, op.kind, op.path,
@@ -99,6 +108,12 @@ export class OpStore {
       [recordId],
     )
     return res.rows.map(rowToOp)
+  }
+
+  /** Every record id the server holds ops for (for full-state sync). */
+  async allRecordIds(): Promise<string[]> {
+    const res = await this.db.query(`SELECT DISTINCT record_id FROM ops`)
+    return res.rows.map((r) => r.record_id)
   }
 
   async upsertSnapshot(recordId: string, record: unknown): Promise<void> {

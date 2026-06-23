@@ -33,6 +33,8 @@ export const recordRepo = {
     return db.records.orderBy('updatedAt').reverse().toArray()
   },
   async remove(id: string): Promise<void> {
+    // Purge the record AND its op-log entries together, so a later
+    // syncWithServer can't re-upload orphaned ops and resurrect the record.
     await db.transaction('rw', db.records, db.ops, async () => {
       await db.records.delete(id)
       await db.ops.where('recordId').equals(id).delete()
