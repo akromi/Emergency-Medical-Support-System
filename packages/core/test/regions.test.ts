@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { regionAt, regionTBSA, estimateBurnTBSA, bodyRegions } from '../src/index'
+import { regionAt, regionTBSA, estimateBurnTBSA, bodyRegions, zoneAt } from '../src/index'
 
 // regionAt(x, y, view) hit-tests the anatomical body model (body-model.ts) in
 // SVG user space (480 x 1040). Image-left maps to the patient's RIGHT on the
@@ -41,6 +41,17 @@ describe('regionAt — anatomical hit-testing', () => {
     expect(regionAt(240, 180, 'posterior')).toBe('Occiput')
     expect(regionAt(210, 300, 'posterior')).toBe('L Upper back')
     expect(regionAt(182, 800, 'posterior')).toBe('L Calf')
+  })
+
+  it('maps a tap to the macro zone of the region under it, not the smallest overlapping bbox', () => {
+    // Chest tap: the arm zone's padded bbox overlaps the torso and is smaller,
+    // so a bbox-only zoneAt would wrongly zoom the arm.
+    expect(regionAt(180, 300, 'anterior')).toBe('R Chest')
+    expect(zoneAt(180, 300, 'anterior')?.key).toBe('torso')
+    // Upper-thigh / pelvis stays in the torso zone, not an overlapping limb.
+    expect(zoneAt(210, 520, 'anterior')?.key).toBe('torso')
+    // Distal parts still resolve to their own zone.
+    expect(zoneAt(48, 524, 'anterior')?.key).toBe('hand-left')
   })
 
   it('falls back to vertical bands outside the silhouette', () => {

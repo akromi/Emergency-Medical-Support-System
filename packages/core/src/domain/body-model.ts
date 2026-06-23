@@ -266,11 +266,36 @@ export function bodyZones(view: BodyView): ReadonlyArray<BodyZone> {
   return view === 'anterior' ? ZONES_ANT : ZONES_POST
 }
 
-/** Smallest macro zone containing the point (so hand wins over arm), or null. */
+/** Ray-casting point-in-polygon test. */
+function inPoly(x: number, y: number, poly: ReadonlyArray<Point>): boolean {
+  let inside = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i]
+    const [xj, yj] = poly[j]
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside
+  }
+  return inside
+}
+
+/**
+ * Macro zone for a tap. Resolves the precise region polygon under the point
+ * first (so a chest tap maps to the torso zone even though the arm's padded
+ * bbox overlaps it and is smaller), and maps it to its macro zone. Only when
+ * the tap lands outside every region does it fall back to the smallest padded
+ * bounding box — so taps just off the silhouette still zoom somewhere sensible.
+ */
 export function zoneAt(x: number, y: number, view: BodyView): BodyZone | null {
+  const zones = bodyZones(view)
+  for (const r of bodyRegions(view)) {
+    if (inPoly(x, y, r.points)) {
+      const z = zones.find((z) => z.key === macroKey(r).key)
+      if (z) return z
+    }
+  }
+  // Fallback: smallest padded bbox containing the point.
   let best: BodyZone | null = null
   let bestArea = Infinity
-  for (const z of bodyZones(view)) {
+  for (const z of zones) {
     const b = z.bbox
     if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
       const area = b.w * b.h

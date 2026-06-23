@@ -22,6 +22,13 @@ interface BodyChartProps {
 
 const { width: VW, height: VH } = BODY_VIEWBOX
 
+// Image side -> patient's anatomical side. On the anterior view image-left is
+// the patient's RIGHT; the posterior view flips it (matches regionAt's naming).
+function patientSide(side: 'left' | 'right', view: BodyView): 'L' | 'R' {
+  const isRight = view === 'anterior' ? side === 'left' : side === 'right'
+  return isRight ? 'R' : 'L'
+}
+
 // The figure (presentation only). It carries no hit-testing: taps are resolved
 // by coordinate against the hidden lookup table in @triage-link/core, so nothing
 // is overlaid at runtime — only the figure and the markers are drawn.
@@ -112,7 +119,7 @@ export function BodyChart({ view, injuries, selectedId, onPlace, onSelect }: Bod
           ← Full body
         </button>
       )}
-      {zoom && <span className="zoomlbl">{zoom.side ? `${zoom.side === 'left' ? 'Patient L' : 'Patient R'} ` : ''}{zoom.name}</span>}
+      {zoom && <span className="zoomlbl">{zoom.side ? `Patient ${patientSide(zoom.side, view)} ` : ''}{zoom.name}</span>}
       <svg
         ref={svgRef}
         viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}
