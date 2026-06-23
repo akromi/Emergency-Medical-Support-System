@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRIAGE-LINK — Technical Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#11161D; --ink-2:#3A4654; --ink-3:#6B7888; --faint:#9AA6B4;
+    --paper:#EDF1F6; --card:#FFFFFF; --line:#D8E0EA; --line-soft:#E7ECF3;
+    --slate:#161B22; --slate-2:#222B38;
+    --ekg:#1F9D5B; --ekg-bright:#3FE08A;
+    --field:#C9881F; --field-bg:#FBF2DF;
+    --central:#2563B8; --central-bg:#E9F0FB;
+    --hosp:#7A3FB0; --hosp-bg:#F1E9FA;
+    --red:#D8434A; --amber:#E0A12E; --green:#3E9E55; --gray:#6E7888;
+    --sans:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+       line-height:1.62;-webkit-font-smoothing:antialiased}
+  .doc{max-width:920px;margin:0 auto;background:var(--card);
+       box-shadow:0 1px 0 var(--line),0 24px 60px rgba(17,22,29,.08)}
+
+  /* ---------- cover ---------- */
+  .cover{background:linear-gradient(150deg,#0E1116 0%,#161B22 55%,#1C2533 100%);color:#E6EDF3;
+         padding:54px 56px 46px;position:relative;overflow:hidden}
+  .cover::after{content:"";position:absolute;right:-60px;top:-60px;width:280px;height:280px;
+    background:radial-gradient(circle,rgba(63,224,138,.18),transparent 68%)}
+  .cover .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--ekg-bright)}
+  .cover h1{font-size:38px;line-height:1.1;margin:14px 0 6px;font-weight:700;letter-spacing:-.5px}
+  .cover .lede{font-size:16px;color:#A9B6C6;max-width:600px;margin:0}
+  .cover .ekgline{margin:26px 0 0;height:34px;width:100%;opacity:.85}
+  .meta{display:flex;flex-wrap:wrap;gap:10px 26px;margin-top:24px;font-family:var(--mono);font-size:12px;color:#8B97A7}
+  .meta b{color:#D7DEE7;font-weight:500}
+  .warn{margin-top:22px;display:inline-flex;align-items:center;gap:9px;font-size:12.5px;
+        background:rgba(216,67,74,.14);border:1px solid rgba(216,67,74,.4);color:#F2B6B8;
+        padding:8px 13px;border-radius:8px;font-family:var(--mono)}
+
+  /* ---------- toc ---------- */
+  .toc{padding:24px 56px;border-bottom:1px solid var(--line);display:grid;
+       grid-template-columns:1fr 1fr;gap:4px 34px;background:#F8FAFC}
+  .toc a{display:flex;gap:12px;text-decoration:none;color:var(--ink-2);font-size:13.5px;padding:5px 0}
+  .toc a:hover{color:var(--ekg)}
+  .toc a .n{font-family:var(--mono);color:var(--faint);font-size:12px;min-width:22px}
+
+  /* ---------- body ---------- */
+  main{padding:8px 56px 60px}
+  section{padding:34px 0 6px;border-top:1px solid var(--line-soft)}
+  section:first-child{border-top:0}
+  .sec-h{display:flex;align-items:baseline;gap:14px;margin:0 0 6px}
+  .sec-h .n{font-family:var(--mono);font-size:13px;color:var(--ekg);font-weight:600;letter-spacing:1px}
+  h2{font-size:23px;margin:0;font-weight:700;letter-spacing:-.3px}
+  h3{font-size:15.5px;margin:26px 0 8px;font-weight:600;color:var(--ink)}
+  p{margin:11px 0;color:var(--ink-2);font-size:14.5px}
+  strong{color:var(--ink);font-weight:600}
+  .lead{font-size:15.5px;color:var(--ink-2)}
+
+  /* ---------- figure ---------- */
+  figure{margin:26px 0;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#FCFDFE}
+  figure .figbody{padding:22px 20px 8px}
+  figure svg{width:100%;height:auto;display:block}
+  figcaption{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);letter-spacing:.4px;
+             padding:11px 18px;border-top:1px solid var(--line-soft);background:#F4F7FA}
+  figcaption b{color:var(--ekg);font-weight:600}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 18px;padding:0 20px 16px;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+  /* ---------- tables ---------- */
+  table{width:100%;border-collapse:collapse;margin:18px 0;font-size:13.5px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  th{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--ink-3);
+     border-bottom:1.5px solid var(--line);font-weight:600}
+  tbody tr:hover{background:#F8FAFC}
+  td b{color:var(--ink)}
+  td .pill{font-family:var(--mono);font-size:10.5px;padding:2px 7px;border-radius:5px;white-space:nowrap}
+  .p-must{background:#FBE7E8;color:#B5343A}
+  .p-should{background:#FCF1DD;color:#9C6E16}
+  .p-rec{background:#E5F3EB;color:#2C7A45}
+
+  /* ---------- callouts ---------- */
+  .note{display:flex;gap:13px;background:#F4F7FA;border:1px solid var(--line);border-left:3px solid var(--ekg);
+        border-radius:10px;padding:14px 16px;margin:18px 0}
+  .note .ic{font-family:var(--mono);color:var(--ekg);font-weight:700;font-size:13px;flex:0 0 auto;margin-top:1px}
+  .note p{margin:0;font-size:13.5px}
+  .note.reg{border-left-color:var(--central)} .note.reg .ic{color:var(--central)}
+  .note.sec{border-left-color:var(--red)} .note.sec .ic{color:var(--red)}
+
+  ul.clean{margin:10px 0;padding:0;list-style:none}
+  ul.clean li{position:relative;padding:5px 0 5px 22px;color:var(--ink-2);font-size:14px}
+  ul.clean li::before{content:"▸";position:absolute;left:2px;color:var(--ekg);font-size:12px;top:6px}
+
+  footer{padding:24px 56px 40px;border-top:1px solid var(--line);color:var(--faint);
+         font-family:var(--mono);font-size:11.5px;background:#F8FAFC}
+
+  /* svg shared classes */
+  .znlbl{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:1.5px}
+  .node-t{font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;font-weight:600;fill:#1A2330}
+  .node-s{font-family:'IBM Plex Mono',monospace;font-size:9.5px;fill:#6B7888}
+  .flbl{font-family:'IBM Plex Mono',monospace;font-size:9.5px;fill:#5A6675}
+  .nodebox{fill:#fff;stroke-width:1.6;rx:9}
+
+  @media(max-width:680px){
+    .cover{padding:38px 24px 32px}.cover h1{font-size:28px}
+    .toc{grid-template-columns:1fr;padding:20px 24px}
+    main{padding:4px 22px 44px}.doc{box-shadow:none}
+    footer{padding:20px 24px}
+  }
+  @media print{
+    body{background:#fff}.doc{box-shadow:none;max-width:100%}
+    section{break-inside:avoid}figure{break-inside:avoid}
+    .toc a:hover{color:inherit}
+  }
+</style>
+<style>
+.part{margin:34px 0 6px;padding:20px 24px;border-radius:13px;background:linear-gradient(105deg,#0E1116 0%,#161B22 55%,#1C2533 100%);color:#E6EDF3;position:relative;overflow:hidden}
+.part::after{content:"";position:absolute;right:-40px;top:-40px;width:180px;height:180px;background:radial-gradient(circle,rgba(63,224,138,.16),transparent 68%)}
+.part .pl{font-family:var(--mono);font-size:11px;letter-spacing:3px;color:var(--ekg-bright);text-transform:uppercase}
+.part h2{margin:7px 0 0;color:#fff;font-size:21px;border:0;padding:0}
+.part p{margin:8px 0 0;color:#A9B6C6;font-size:13.5px;max-width:680px}
+pre.flow{background:#0E1116;color:#CDD7E2;border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-family:var(--mono);font-size:11px;line-height:1.55;overflow:auto;white-space:pre;margin:16px 0}
+pre.flow b{color:var(--ekg);font-weight:600}
+code{font-family:var(--mono);font-size:.92em;background:#EEF2F7;padding:1px 5px;border-radius:5px;color:#1A2330}
+.toc .grp{grid-column:1 / -1;font-family:var(--mono);font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--ekg);margin-top:10px;padding-top:6px;border-top:1px solid var(--line)}
+.toc .grp:first-child{margin-top:0;border-top:0}
+</style>
+</head><body>
+<div class="doc">
+
+  <div class="cover">
+    <div class="eyebrow">◇ TRIAGE-LINK · Technical Architecture</div>
+    <h1>Casualty Care &amp; Transport Documentation System</h1>
+    <p class="lede">Offline-first capture of patient identity, injuries, vitals and treatment, with FHIR transfer to the hospital EHR at handover. Merged reference: as-built prototype plus production target architecture.</p>
+    <svg class="ekgline" viewBox="0 0 900 40" preserveAspectRatio="none"><path d="M0 20 H120 l14 0 8 -15 10 30 8 -22 7 14 9 -7 H300 l10 0 8 -15 10 30 8 -22 7 14 9 -7 H560 l12 0 8 -15 10 30 8 -22 7 14 9 -7 H900" fill="none" stroke="#3FE08A" stroke-width="2"/></svg>
+    <div class="meta"><span>Document <b>v0.3 — Merged</b></span><span>Scope <b>As-built + target architecture</b></span><span>Audience <b>Engineering · Clinical · Compliance</b></span></div>
+    <div class="warn">⚠ Prototype reference — not a medical device; not for clinical use until validated &amp; certified.</div>
+  </div>
+
+  <nav class="toc">
+    <span class="grp">Part I · As Built (current prototype)</span>
+    <a href="#s1"><span class="n">01</span> Purpose &amp; context</a>
+    <a href="#s2"><span class="n">02</span> Goals &amp; principles</a>
+    <a href="#s3"><span class="n">03</span> Technology choices</a>
+    <a href="#s4"><span class="n">04</span> System structure</a>
+    <a href="#s5"><span class="n">05</span> Domain model</a>
+    <a href="#s6"><span class="n">06</span> Persistence</a>
+    <a href="#s7"><span class="n">07</span> Runtime data flow</a>
+    <a href="#s8"><span class="n">08</span> FHIR interoperability</a>
+    <a href="#s9"><span class="n">09</span> Offline &amp; PWA strategy</a>
+    <span class="grp">Part II · Target Architecture (production)</span>
+    <a href="#s10"><span class="n">10</span> Three-zone topology</a>
+    <a href="#s11"><span class="n">11</span> Handover data flow</a>
+    <a href="#s12"><span class="n">12</span> Offline-first &amp; sync</a>
+    <a href="#s13"><span class="n">13</span> Deployment topology</a>
+    <a href="#s14"><span class="n">14</span> Security &amp; privacy</a>
+    <a href="#s15"><span class="n">15</span> Regulatory &amp; compliance</a>
+    <a href="#s16"><span class="n">16</span> Non-functional targets</a>
+    <span class="grp">Part III · Forward</span>
+    <a href="#s17"><span class="n">17</span> Roadmap &amp; extensibility</a>
+    <a href="#s18"><span class="n">18</span> Build, run, deploy</a>
+    <a href="#s19"><span class="n">19</span> Key design decisions</a>
+  </nav>
+
+  <main>
+  <svg width="0" height="0" style="position:absolute"><defs><filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1A2330" flood-opacity="0.10"/></filter></defs></svg>
+
+  <div class="part"><div class="pl">Part I</div><h2>As Built — current prototype</h2><p>The system exactly as it exists in this repository today: a client-only, offline-first PWA. No backend, no auth, no encryption — capture and FHIR export run entirely on the device.</p></div>
+
+  <section id="s1"><div class="sec-h"><span class="n">01</span><h2>Purpose &amp; context</h2></div>
+    <p class="lead">TRIAGE-LINK is a digital replacement for the paper triage tag used by emergency responders at accident scenes and mass-casualty incidents. A single responder, often with no network connectivity, captures a patient's identity, injuries, vital signs and treatments at the point of care, then hands that record to a receiving hospital as an HL7&nbsp;FHIR&nbsp;R4 bundle.</p>
+    <table><thead><tr><th>Actor</th><th>Role</th></tr></thead><tbody>
+      <tr><td><b>Field responder</b> (paramedic, medic, first-aider)</td><td>Captures the casualty record on a phone/tablet, usually offline</td></tr>
+      <tr><td><b>Receiving facility</b> (hospital EHR)</td><td>Imports the exported FHIR bundle at handover</td></tr>
+    </tbody></table>
+    <h3>Driving requirements</h3>
+    <ul class="clean">
+      <li><strong>Works with no connectivity.</strong> The scene may have no signal; the app must be fully functional offline and lose no data.</li>
+      <li><strong>Runs anywhere, installs like an app.</strong> Responders carry heterogeneous devices; one codebase must run on all of them.</li>
+      <li><strong>Interoperates with hospital systems.</strong> Handover output must be a format hospital EHRs already understand.</li>
+      <li><strong>Fast, low-friction capture.</strong> Tap-to-mark injuries; auto-save; no modal "save" step.</li>
+    </ul>
+  </section>
+
+  <section id="s2"><div class="sec-h"><span class="n">02</span><h2>Goals &amp; principles</h2></div>
+    <table><thead><tr><th>Principle</th><th>How it shows up in the code</th></tr></thead><tbody>
+      <tr><td><b>Offline-first</b></td><td>All state lives on-device in IndexedDB; no backend is required for the core workflow</td></tr>
+      <tr><td><b>Portability first</b></td><td>Delivered as a PWA — one static bundle runs on any modern browser and installs to the home screen</td></tr>
+      <tr><td><b>Framework-free core</b></td><td><code>src/domain</code> and <code>src/fhir</code> are plain TypeScript with zero React/Dexie imports — reusable by a future React Native client or backend unchanged</td></tr>
+      <tr><td><b>Single source of truth</b></td><td>The <code>CasualtyRecord</code> type in <code>src/domain/types.ts</code> is the canonical model every other layer maps to/from</td></tr>
+      <tr><td><b>Standards over bespoke formats</b></td><td>Interop is via HL7 FHIR R4 with LOINC-coded vitals, not a proprietary schema</td></tr>
+      <tr><td><b>Local-only by default</b></td><td>No PHI leaves the device unless the user explicitly exports a bundle</td></tr>
+    </tbody></table>
+  </section>
+
+  <section id="s3"><div class="sec-h"><span class="n">03</span><h2>Technology choices</h2></div>
+    <table><thead><tr><th>Concern</th><th>Choice</th><th>Rationale</th></tr></thead><tbody>
+      <tr><td>Client framework</td><td><b>React 18 + TypeScript</b></td><td>Component model for the capture UI; static typing across the domain</td></tr>
+      <tr><td>Build / dev server</td><td><b>Vite 5</b></td><td>Fast dev server, simple static production build</td></tr>
+      <tr><td>Offline storage</td><td><b>IndexedDB via Dexie 4</b></td><td>Durable, async, on-device store with a typed table API; no backend needed</td></tr>
+      <tr><td>Offline shell</td><td><b>vite-plugin-pwa</b> (Workbox)</td><td>Service worker precaches the app so it loads with no network</td></tr>
+      <tr><td>Interop</td><td><b>HL7 FHIR R4</b></td><td>The de-facto hospital EHR exchange standard</td></tr>
+    </tbody></table>
+    <p>There are intentionally <strong>no runtime dependencies</strong> beyond React and Dexie — the domain and mapping logic are hand-written TypeScript.</p>
+  </section>
+
+  <section id="s4"><div class="sec-h"><span class="n">04</span><h2>System structure</h2></div>
+    <p>The app is organised in layers, from a framework-free core outward to the UI. Dependencies point <strong>inward only</strong>: the UI depends on the domain, never the reverse.</p>
+    <figure>
+  <div class="figbody">
+  <svg viewBox="0 0 900 430" role="img" aria-label="As-built layered architecture">
+    <defs><marker id="la" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#5A6675"/></marker></defs>
+    <rect x="238" y="30" width="424" height="108" rx="13" fill="#E9F0FB" stroke="#B9CEEC"/>
+    <text x="256" y="22" class="znlbl" fill="#2563B8">UI LAYER &middot; REACT</text>
+    <g filter="url(#sh)">
+      <rect x="256" y="58" width="192" height="62" class="nodebox" fill="#fff" stroke="#2563B8"/>
+      <rect x="456" y="58" width="190" height="62" class="nodebox" fill="#fff" stroke="#2563B8"/>
+    </g>
+    <text x="270" y="82" class="node-t">App.tsx</text><text x="270" y="100" class="node-s">capture &middot; panels &middot; auto-save</text>
+    <text x="470" y="82" class="node-t">components/BodyChart.tsx</text><text x="470" y="100" class="node-s">injury-marking SVG</text>
+    <rect x="118" y="178" width="304" height="100" rx="12" fill="#EAF4EE" stroke="#9FD3B0"/>
+    <text x="134" y="170" class="znlbl" fill="#1F9D5B">PERSISTENCE</text>
+    <g filter="url(#sh)">
+      <rect x="134" y="206" width="132" height="56" class="nodebox" fill="#fff" stroke="#1F9D5B"/>
+      <rect x="276" y="206" width="130" height="56" class="nodebox" fill="#fff" stroke="#1F9D5B"/>
+    </g>
+    <text x="146" y="228" class="node-t">db/database.ts</text><text x="146" y="246" class="node-s">Dexie schema</text>
+    <text x="288" y="228" class="node-t">db/repository.ts</text><text x="288" y="246" class="node-s">save/get/list</text>
+    <rect x="478" y="178" width="304" height="100" rx="12" fill="#EAF4EE" stroke="#9FD3B0"/>
+    <text x="494" y="170" class="znlbl" fill="#1F9D5B">INTEROP</text>
+    <g filter="url(#sh)">
+      <rect x="494" y="206" width="140" height="56" class="nodebox" fill="#fff" stroke="#1F9D5B"/>
+      <rect x="644" y="206" width="122" height="56" class="nodebox" fill="#fff" stroke="#1F9D5B"/>
+    </g>
+    <text x="506" y="228" class="node-t">fhir/mapping.ts</text><text x="506" y="246" class="node-s">Record &rarr; Bundle</text>
+    <text x="656" y="228" class="node-t">fhir/types.ts</text><text x="656" y="246" class="node-s">R4 subset</text>
+    <rect x="150" y="316" width="600" height="96" rx="12" fill="#FBF2DF" stroke="#E5C98A"/>
+    <text x="166" y="308" class="znlbl" fill="#C9881F">DOMAIN CORE &middot; FRAMEWORK-FREE TYPESCRIPT</text>
+    <g filter="url(#sh)"><rect x="206" y="340" width="488" height="52" class="nodebox" fill="#fff" stroke="#C9881F"/></g>
+    <text x="450" y="362" class="node-t" text-anchor="middle">domain/ &mdash; types &middot; injuries &middot; regions &middot; id</text>
+    <text x="450" y="380" class="node-s" text-anchor="middle">THE SINGLE SOURCE OF TRUTH</text>
+    <g stroke="#5A6675" stroke-width="1.8" marker-end="url(#la)" fill="none">
+      <line x1="360" y1="138" x2="280" y2="176"/>
+      <line x1="545" y1="138" x2="628" y2="176"/>
+      <line x1="270" y1="278" x2="350" y2="316"/>
+      <line x1="630" y1="278" x2="550" y2="316"/>
+    </g>
+  </svg>
+  </div>
+  <figcaption><b>FIG 1</b> &mdash; As-built layered structure. Dependencies point inward only: the UI depends on the domain, never the reverse, so the core is reusable by other clients.</figcaption>
+</figure>
+    <h3>Directory map</h3>
+    <pre class="flow">src/
+  <b>domain/</b>        Framework-free model — reusable everywhere
+    types.ts       CasualtyRecord and all sub-types; triage labels/colours
+    injuries.ts    Catalog of injury types (key, label, colour) + lookups
+    regions.ts     Body-region hit-testing over the SVG coordinate space
+    id.ts          Case-ID and local-ID generation
+  <b>fhir/</b>          HL7 FHIR R4 mapping — framework-free
+    types.ts       Minimal FHIR resource/bundle types
+    mapping.ts     CasualtyRecord -> FHIR Bundle
+  <b>db/</b>            On-device persistence
+    database.ts    Dexie schema (IndexedDB database "triage-link")
+    repository.ts  save / get / list / remove over the records table
+  <b>components/</b>
+    BodyChart.tsx  Interactive anterior/posterior injury-marking SVG
+  App.tsx        Capture UI; wires domain + db + fhir together; auto-save
+  main.tsx       React entry point
+  styles.css     Application styling</pre>
+  </section>
+
+  <section id="s5"><div class="sec-h"><span class="n">05</span><h2>Domain model</h2></div>
+    <p>The entire clinical record for one patient is a single <code>CasualtyRecord</code> (<code>src/domain/types.ts</code>):</p>
+    <pre class="flow"><b>CasualtyRecord</b>
+├── id                      stable case ID (also seeded as the MRN)
+├── tombstone   Tombstone   identity: name, dob, sex, mrn, bloodType, nextOfKin…
+├── incident    Incident    injuryTime, mechanism, location, triage category
+├── injuries    Injury[]    each: view, x/y, region, type, severity, notes
+├── vitals      VitalSign[] each: takenAt + hr/bp/rr/spo2/gcs/pain
+├── treatments  Treatment[] each: performedAt, type, detail, place, provider
+├── handover    Handover?   at, clinician, facility (null until handed over)
+├── createdAt   number
+└── updatedAt   number</pre>
+    <ul class="clean">
+      <li><strong>One record = one unit of sync.</strong> The Dexie store keys on <code>id</code>; the roadmap treats a record as the atomic unit a sync/op-log layer reconciles.</li>
+      <li><strong>"Tombstone" = stable identity layer</strong>, deliberately separated from episode-specific <code>incident</code> data — mirroring how hospitals separate a Patient from an Encounter.</li>
+      <li><strong>Triage</strong> uses the standard START scheme (immediate/delayed/minor/deceased), with labels and colours centralised in <code>TRIAGE_LABELS</code>/<code>TRIAGE_COLORS</code>.</li>
+    </ul>
+    <h3>5.1 Body-region resolution</h3>
+    <p><code>domain/regions.ts</code> divides the silhouette's SVG user space (<code>viewBox 0 0 220 440</code>) into rectangular hit-test zones. On a tap, <code>regionAt(x, y, view)</code> finds the containing region box, applies <strong>anatomical sidedness</strong> (anterior view: image-left is the patient's right; posterior flips it), and falls back to a vertical-band heuristic outside any box. This rectangular model is a placeholder; the roadmap replaces it with a precise anatomical SVG (named bones, burn TBSA).</p>
+  </section>
+
+  <section id="s6"><div class="sec-h"><span class="n">06</span><h2>Persistence</h2></div>
+    <p><code>src/db/</code> provides durable, offline on-device storage. <code>database.ts</code> declares a Dexie database named <code>triage-link</code> with a single <code>records</code> table indexed on <code>id</code> (primary key) and <code>updatedAt</code>. <code>repository.ts</code> is a thin repository exposing <code>save</code>, <code>get</code>, <code>list</code>, <code>remove</code> — <code>save()</code> stamps <code>updatedAt</code> and <code>put</code>s the whole record; <code>list()</code> returns records newest-first.</p>
+    <p>Because IndexedDB is local to the device, the core workflow needs <strong>no server</strong>. The repository is intentionally thin so a future sync layer can wrap it with an operation log without the UI changing.</p>
+  </section>
+
+  <section id="s7"><div class="sec-h"><span class="n">07</span><h2>Runtime data flow</h2></div>
+    <h3>7.1 Capture &amp; auto-save</h3>
+    <pre class="flow">User edits a field / taps the body chart
+   → App mutator builds the next <b>immutable</b> CasualtyRecord
+   → setRecord(next)            React re-renders immediately
+   → debounce <b>400 ms</b>            coalesces rapid edits
+        (after quiet period)
+   → recordRepo.save(next)      writes to IndexedDB
+   → recordRepo.list()          refreshes "Saved casualties"</pre>
+    <p>State updates are immutable (each mutator spreads a new record), keeping React rendering predictable. The 400&nbsp;ms debounce means rapid typing produces one write per quiet period rather than one per keystroke.</p>
+    <h3>7.2 Injury placement</h3>
+    <pre class="flow">Tap on BodyChart SVG
+   → toUserSpace()   screen coords → SVG user space via getScreenCTM().inverse()
+   → bounds check    ignore taps outside the body box
+   → regionAt(x,y,view)   resolve anatomical region
+   → onPlace()       App appends a new Injury (active type, default severity)
+   → marker rendered; injury selected for inline severity/notes editing</pre>
+    <h3>7.3 FHIR export at handover</h3>
+    <pre class="flow">"Export FHIR ↓"
+   → toFhirBundle(record)            pure function, no I/O
+   → JSON.stringify(bundle, null, 2)
+   → Blob (application/fhir+json)
+   → object URL → anchor click → download "&lt;case-id&gt;-fhir-bundle.json"</pre>
+    <p>Export is a pure, client-side transform; nothing is transmitted.</p>
+  </section>
+
+  <section id="s8"><div class="sec-h"><span class="n">08</span><h2>FHIR interoperability</h2></div>
+    <p><code>src/fhir/mapping.ts</code> translates the internal <code>CasualtyRecord</code> into a FHIR R4 <strong>Bundle</strong> (<code>type: collection</code>). The mapping mirrors clinical semantics:</p>
+    <table><thead><tr><th>Domain concept</th><th>FHIR resource</th><th>Notes</th></tr></thead><tbody>
+      <tr><td>Tombstone (identity)</td><td><code>Patient</code></td><td>name, gender, birthDate, contact; identifier system <code>urn:triage-link:case</code></td></tr>
+      <tr><td>Incident / transport episode</td><td><code>Encounter</code></td><td><code>class = EMER</code>; <code>in-progress</code> until handover; mechanism → <code>reasonCode</code></td></tr>
+      <tr><td>Each injury</td><td><code>Condition</code></td><td>category <code>injury</code>; <code>bodySite</code> = region + view; severity; notes</td></tr>
+      <tr><td>Each vital sign</td><td><code>Observation</code></td><td>category <code>vital-signs</code>; LOINC-coded (HR 8867-4, SpO₂ 59408-5, BP 85354-9); value + unit</td></tr>
+      <tr><td>Treatment (non-drug)</td><td><code>Procedure</code></td><td>status <code>completed</code>; performer = provider; detail + place in note</td></tr>
+      <tr><td>Treatment (medication)</td><td><code>MedicationAdministration</code></td><td>chosen when the intervention type matches <code>/medication/i</code></td></tr>
+    </tbody></table>
+    <figure>
+      <div class="figbody">
+      <svg viewBox="0 0 900 320" role="img" aria-label="Data model to FHIR mapping">
+        <defs><marker id="ma" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#1F9D5B"/></marker></defs>
+        <text x="150" y="28" text-anchor="middle" class="znlbl" fill="#C9881F">CAPTURE BLOCK</text>
+        <text x="750" y="28" text-anchor="middle" class="znlbl" fill="#1F9D5B">FHIR RESOURCE</text>
+        <g filter="url(#sh)">
+          <rect x="40" y="46" width="220" height="44" class="nodebox" stroke="#C9881F"/>
+          <rect x="40" y="102" width="220" height="44" class="nodebox" stroke="#C9881F"/>
+          <rect x="40" y="158" width="220" height="44" class="nodebox" stroke="#C9881F"/>
+          <rect x="40" y="214" width="220" height="44" class="nodebox" stroke="#C9881F"/>
+          <rect x="40" y="270" width="220" height="44" class="nodebox" stroke="#C9881F"/>
+          <rect x="640" y="46" width="220" height="44" class="nodebox" stroke="#1F9D5B"/>
+          <rect x="640" y="102" width="220" height="44" class="nodebox" stroke="#1F9D5B"/>
+          <rect x="640" y="158" width="220" height="44" class="nodebox" stroke="#1F9D5B"/>
+          <rect x="640" y="214" width="220" height="44" class="nodebox" stroke="#1F9D5B"/>
+          <rect x="640" y="270" width="220" height="44" class="nodebox" stroke="#1F9D5B"/>
+        </g>
+        <g class="node-t">
+          <text x="56" y="73">Tombstone</text>
+          <text x="56" y="129">Incident &amp; triage</text>
+          <text x="56" y="185">Injuries</text>
+          <text x="56" y="241">Vitals</text>
+          <text x="56" y="297">Treatments</text>
+          <text x="656" y="73">Patient</text>
+          <text x="656" y="129">Encounter</text>
+          <text x="656" y="185">Condition</text>
+          <text x="656" y="241">Observation</text>
+          <text x="656" y="297">Procedure / MedicationAdministration</text>
+        </g>
+        <g stroke="#1F9D5B" stroke-width="1.8" marker-end="url(#ma)" fill="none">
+          <line x1="260" y1="68" x2="638" y2="68"/>
+          <line x1="260" y1="124" x2="638" y2="124"/>
+          <line x1="260" y1="180" x2="638" y2="180"/>
+          <line x1="260" y1="236" x2="638" y2="236"/>
+          <line x1="260" y1="292" x2="638" y2="292"/>
+        </g>
+      </svg>
+      </div>
+      <figcaption><b>FIG 2</b> — Capture blocks → FHIR resources. The injury chart's region and coordinate data attach to <b>Condition</b>; the transport episode is the binding <b>Encounter</b>.</figcaption>
+    </figure>
+    <p>Expanded, the resources form a small graph. <strong>Patient</strong> is the identity anchor and <strong>Encounter</strong> the transport episode that binds everything; every clinical resource references both, so the bundle is self-describing on ingest.</p>
+    <figure>
+      <div class="figbody">
+      <svg viewBox="0 0 900 400" role="img" aria-label="FHIR resource graph">
+        <defs><marker id="fr" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#1F9D5B"/></marker></defs>
+
+        <!-- top hubs -->
+        <g filter="url(#sh)">
+          <rect x="30" y="46" width="250" height="116" class="nodebox" stroke="#1F9D5B"/>
+          <rect x="330" y="46" width="250" height="116" class="nodebox" stroke="#1F9D5B"/>
+        </g>
+        <text x="48" y="72" class="node-t" fill="#1F9D5B" font-size="13.5">Patient</text>
+        <text x="48" y="92" class="node-s">identifier: caseId → MRN</text>
+        <text x="48" y="108" class="node-s">name · birthDate · gender</text>
+        <text x="48" y="124" class="node-s">contact: next of kin · bloodGroup</text>
+        <text x="348" y="72" class="node-t" fill="#1F9D5B" font-size="13.5">Encounter</text>
+        <text x="348" y="92" class="node-s">class: EMER · status</text>
+        <text x="348" y="108" class="node-s">period: transport start → end</text>
+        <text x="348" y="124" class="node-s">reasonCode: mechanism · serviceProvider</text>
+        <!-- subject arrow -->
+        <line x1="330" y1="104" x2="284" y2="104" stroke="#1F9D5B" stroke-width="1.8" marker-end="url(#fr)"/>
+        <text x="307" y="96" text-anchor="middle" class="flbl" fill="#1F9D5B">subject</text>
+
+        <!-- bottom clinical resources -->
+        <g filter="url(#sh)">
+          <rect x="16"  y="244" width="205" height="132" class="nodebox" stroke="#1F9D5B"/>
+          <rect x="237" y="244" width="205" height="132" class="nodebox" stroke="#1F9D5B"/>
+          <rect x="458" y="244" width="205" height="132" class="nodebox" stroke="#1F9D5B"/>
+          <rect x="679" y="244" width="205" height="132" class="nodebox" stroke="#1F9D5B"/>
+        </g>
+        <text x="32" y="270" class="node-t" fill="#1F9D5B">Condition</text><text x="150" y="270" class="node-s">injuries</text>
+        <text x="32" y="292" class="node-s">code: injury type</text>
+        <text x="32" y="309" class="node-s">bodySite: region + laterality</text>
+        <text x="32" y="326" class="node-s">severity · onsetDateTime</text>
+        <text x="32" y="343" class="node-s">note: free text</text>
+
+        <text x="253" y="270" class="node-t" fill="#1F9D5B">Observation</text><text x="386" y="270" class="node-s">vitals</text>
+        <text x="253" y="292" class="node-s">code: HR · BP · RR · SpO₂ · GCS</text>
+        <text x="253" y="309" class="node-s">valueQuantity + unit</text>
+        <text x="253" y="326" class="node-s">effectiveDateTime</text>
+        <text x="253" y="343" class="node-s">(time-series)</text>
+
+        <text x="474" y="270" class="node-t" fill="#1F9D5B">Procedure</text><text x="592" y="270" class="node-s">treatments</text>
+        <text x="474" y="292" class="node-s">code: intervention</text>
+        <text x="474" y="309" class="node-s">performedDateTime</text>
+        <text x="474" y="326" class="node-s">performer · location</text>
+        <text x="474" y="343" class="node-s">scene / en route</text>
+
+        <text x="695" y="270" class="node-t" fill="#1F9D5B">MedicationAdmin</text>
+        <text x="695" y="292" class="node-s">medication + dosage</text>
+        <text x="695" y="309" class="node-s">route · effectiveTime</text>
+        <text x="695" y="326" class="node-s">performer</text>
+        <text x="695" y="343" class="node-s">reasonReference → Condition</text>
+
+        <!-- context arrows converging on Encounter -->
+        <g stroke="#9FCBB1" stroke-width="1.6" marker-end="url(#fr)" fill="none">
+          <line x1="118" y1="244" x2="418" y2="166"/>
+          <line x1="339" y1="244" x2="446" y2="166"/>
+          <line x1="560" y1="244" x2="474" y2="166"/>
+          <line x1="781" y1="244" x2="500" y2="166"/>
+        </g>
+        <text x="455" y="216" text-anchor="middle" class="flbl" fill="#1F9D5B">context: Encounter</text>
+      </svg>
+      </div>
+      <figcaption><b>FIG 3</b> — FHIR resource graph. Patient and Encounter are the two hubs; each clinical resource references both, so the bundle is self-describing on ingest.</figcaption>
+    </figure>
+    <div class="note"><span class="ic">i</span><p><strong>Scope note.</strong> The bundle is a <code>collection</code>, not a <code>transaction</code>, and <code>fhir/types.ts</code> is a pragmatic R4 subset rather than the full schema. A production integration would validate against a FHIR server and likely use profiles (US Core / IPS).</p></div>
+  </section>
+
+  <section id="s9"><div class="sec-h"><span class="n">09</span><h2>Offline &amp; PWA strategy</h2></div>
+    <ul class="clean">
+      <li><strong>App-shell caching.</strong> vite-plugin-pwa (Workbox) generates a service worker that precaches the built assets, so after the first load the app opens with no network.</li>
+      <li><strong>Data offline.</strong> All records persist in IndexedDB; there is no network read path in the core workflow, so being offline is the <em>normal</em> operating mode, not a degraded one.</li>
+      <li><strong>Static deployment.</strong> <code>npm run build</code> type-checks and emits a static <code>/dist</code> bundle deployable to any static host or CDN. No server-side runtime is involved.</li>
+    </ul>
+  </section>
+
+  <div class="part"><div class="pl">Part II</div><h2>Target Architecture — production</h2><p>The prototype is the field client of a larger system. This part describes the production topology it is designed to grow into — central services, conflict-aware sync, hospital integration, and the security/regulatory envelope. None of this is implemented yet; it keeps current decisions aligned with where the system is headed.</p></div>
+
+  <section id="s10"><div class="sec-h"><span class="n">10</span><h2>Three-zone topology</h2></div>
+    <p>Three trust zones — field/edge device, central cloud, and hospital — across two trust boundaries. The field client owns the record offline and syncs to the central system of record when a link returns; the hospital receives it over HL7&nbsp;FHIR at handover.</p>
+    <figure>
+      <div class="figbody">
+      <svg viewBox="0 0 900 560" role="img" aria-label="Tiered architecture diagram">
+        <defs>
+          <marker id="arr" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0 0 L9 4.5 L0 9 z" fill="#5A6675"/>
+          </marker>
+          <marker id="arrg" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0 0 L9 4.5 L0 9 z" fill="#1F9D5B"/>
+          </marker>
+          <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1A2330" flood-opacity="0.10"/>
+          </filter>
+        </defs>
+
+        <!-- zones -->
+        <rect x="14" y="40" width="236" height="500" rx="14" fill="#FBF2DF" stroke="#E5C98A"/>
+        <rect x="296" y="40" width="356" height="500" rx="14" fill="#E9F0FB" stroke="#B9CEEC"/>
+        <rect x="698" y="40" width="188" height="500" rx="14" fill="#F1E9FA" stroke="#D6C2EC"/>
+
+        <text x="32" y="28" class="znlbl" fill="#C9881F">FIELD · EDGE</text>
+        <text x="314" y="28" class="znlbl" fill="#2563B8">CENTRAL · CLOUD</text>
+        <text x="716" y="28" class="znlbl" fill="#7A3FB0">HOSPITAL</text>
+
+        <!-- trust boundaries -->
+        <line x1="273" y1="36" x2="273" y2="544" stroke="#9AA6B4" stroke-width="1.4" stroke-dasharray="5 5"/>
+        <line x1="675" y1="36" x2="675" y2="544" stroke="#9AA6B4" stroke-width="1.4" stroke-dasharray="5 5"/>
+        <text x="273" y="552" text-anchor="middle" class="flbl">⟂ trust boundary (mTLS)</text>
+        <text x="675" y="552" text-anchor="middle" class="flbl">⟂ trust boundary (FHIR/TLS)</text>
+
+        <!-- FIELD nodes -->
+        <g filter="url(#sh)">
+          <rect x="38" y="70" width="188" height="58" class="nodebox" stroke="#C9881F"/>
+          <rect x="38" y="170" width="188" height="58" class="nodebox" stroke="#C9881F"/>
+          <rect x="38" y="270" width="188" height="58" class="nodebox" stroke="#C9881F"/>
+        </g>
+        <text x="52" y="94" class="node-t">Field client (PWA / RN)</text>
+        <text x="52" y="112" class="node-s">body chart · vitals · treatments</text>
+        <text x="52" y="194" class="node-t">On-device store</text>
+        <text x="52" y="212" class="node-s">SQLite / IndexedDB · encrypted</text>
+        <text x="52" y="294" class="node-t">Sync agent</text>
+        <text x="52" y="312" class="node-s">op-log · queued · resumable</text>
+        <line x1="132" y1="128" x2="132" y2="170" stroke="#C9881F" stroke-width="1.6" marker-end="url(#arr)"/>
+        <line x1="132" y1="228" x2="132" y2="270" stroke="#C9881F" stroke-width="1.6" marker-end="url(#arr)"/>
+        <text x="50" y="372" class="node-s" fill="#C9881F">⤳ Works fully offline.</text>
+        <text x="50" y="388" class="node-s" fill="#C9881F">Syncs opportunistically.</text>
+
+        <!-- CENTRAL nodes -->
+        <g filter="url(#sh)">
+          <rect x="320" y="70" width="150" height="52" class="nodebox" stroke="#2563B8"/>
+          <rect x="494" y="70" width="138" height="52" class="nodebox" stroke="#2563B8"/>
+          <rect x="320" y="158" width="150" height="52" class="nodebox" stroke="#2563B8"/>
+          <rect x="494" y="158" width="138" height="52" class="nodebox" stroke="#2563B8"/>
+          <rect x="320" y="246" width="150" height="52" class="nodebox" stroke="#1F9D5B"/>
+          <rect x="494" y="246" width="138" height="52" class="nodebox" stroke="#1F9D5B"/>
+          <rect x="320" y="334" width="312" height="52" class="nodebox" stroke="#1F9D5B"/>
+          <rect x="320" y="422" width="312" height="52" class="nodebox" stroke="#D8434A"/>
+        </g>
+        <text x="334" y="92" class="node-t">API gateway</text><text x="334" y="109" class="node-s">authN · rate limit</text>
+        <text x="508" y="92" class="node-t">Sync service</text><text x="508" y="109" class="node-s">conflict resolver</text>
+        <text x="334" y="180" class="node-t">Casualty service</text><text x="334" y="197" class="node-s">domain logic · MPI</text>
+        <text x="508" y="180" class="node-t">Message queue</text><text x="508" y="197" class="node-s">burst absorption</text>
+        <text x="334" y="268" class="node-t">PostgreSQL</text><text x="334" y="285" class="node-s">system of record · JSONB</text>
+        <text x="508" y="268" class="node-t">Redis</text><text x="508" y="285" class="node-s">read cache · sessions</text>
+        <text x="334" y="356" class="node-t">FHIR server / interop layer</text><text x="334" y="373" class="node-s">Patient · Observation · Condition · Procedure · Encounter</text>
+        <text x="334" y="444" class="node-t" fill="#B5343A">Immutable audit log</text><text x="334" y="461" class="node-s">every PHI read/write · who · when</text>
+
+        <!-- HOSPITAL nodes -->
+        <g filter="url(#sh)">
+          <rect x="714" y="120" width="156" height="58" class="nodebox" stroke="#7A3FB0"/>
+          <rect x="714" y="250" width="156" height="58" class="nodebox" stroke="#7A3FB0"/>
+        </g>
+        <text x="728" y="144" class="node-t">ED workstation</text><text x="728" y="162" class="node-s">scan QR / NFC at handover</text>
+        <text x="728" y="274" class="node-t">Hospital EHR</text><text x="728" y="292" class="node-s">SMART-on-FHIR app / HL7</text>
+        <line x1="792" y1="178" x2="792" y2="250" stroke="#7A3FB0" stroke-width="1.6" marker-end="url(#arr)"/>
+
+        <!-- cross-zone flows -->
+        <path d="M226 199 C260 199 250 96 320 96" fill="none" stroke="#5A6675" stroke-width="1.8" marker-end="url(#arr)"/>
+        <text x="250" y="150" class="flbl">sync ↑</text>
+        <line x1="470" y1="96" x2="494" y2="184" stroke="#5A6675" stroke-width="1.6" marker-end="url(#arr)"/>
+        <line x1="470" y1="184" x2="470" y2="246" stroke="#5A6675" stroke-width="1.6" marker-end="url(#arr)"/>
+        <line x1="470" y1="298" x2="470" y2="334" stroke="#1F9D5B" stroke-width="1.6" marker-end="url(#arrg)"/>
+        <path d="M632 360 C680 360 690 150 714 150" fill="none" stroke="#1F9D5B" stroke-width="1.9" marker-end="url(#arrg)"/>
+        <text x="650" y="250" class="flbl" fill="#1F9D5B">FHIR ↻</text>
+        <line x1="470" y1="386" x2="470" y2="422" stroke="#D8434A" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+      </svg>
+      </div>
+      <div class="legend">
+        <span><i style="background:#C9881F"></i>Field / edge</span>
+        <span><i style="background:#2563B8"></i>Central services</span>
+        <span><i style="background:#1F9D5B"></i>Data &amp; interop</span>
+        <span><i style="background:#D8434A"></i>Audit / security</span>
+        <span><i style="background:#7A3FB0"></i>Hospital</span>
+      </div>
+      <figcaption><b>FIG 4</b> — Three-zone tiered topology. The field device is authoritative offline; the central tier is the system of record; the hospital consumes the record via FHIR at handover.</figcaption>
+    </figure>
+  </section>
+
+  <section id="s11"><div class="sec-h"><span class="n">11</span><h2>Handover data flow</h2></div>
+    <p>The record moves from scene to hospital. The handover scan (QR/NFC of the case ID) pulls it into the receiving facility, where the master patient index reconciles the field case ID to a real MRN. Steps 1–2 require no connectivity.</p>
+    <figure>
+      <div class="figbody">
+      <svg viewBox="0 0 900 240" role="img" aria-label="Handover data flow">
+        <defs>
+          <marker id="fa" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#2563B8"/></marker>
+        </defs>
+        <!-- lane -->
+        <line x1="40" y1="120" x2="860" y2="120" stroke="#D8E0EA" stroke-width="2"/>
+        <!-- steps -->
+        <g font-family="IBM Plex Sans" font-size="12.5" font-weight="600" fill="#1A2330" text-anchor="middle">
+          <g>
+            <circle cx="90" cy="120" r="26" fill="#FBF2DF" stroke="#C9881F" stroke-width="2"/>
+            <text x="90" y="125">1</text><text x="90" y="172">Capture</text>
+            <text x="90" y="188" font-size="9.5" font-weight="400" font-family="IBM Plex Mono" fill="#6B7888">scene / en route</text>
+          </g>
+          <g>
+            <circle cx="246" cy="120" r="26" fill="#FBF2DF" stroke="#C9881F" stroke-width="2"/>
+            <text x="246" y="125">2</text><text x="246" y="172">Offline store</text>
+            <text x="246" y="188" font-size="9.5" font-weight="400" font-family="IBM Plex Mono" fill="#6B7888">on device</text>
+          </g>
+          <g>
+            <circle cx="402" cy="120" r="26" fill="#E9F0FB" stroke="#2563B8" stroke-width="2"/>
+            <text x="402" y="125">3</text><text x="402" y="172">Sync ↑</text>
+            <text x="402" y="188" font-size="9.5" font-weight="400" font-family="IBM Plex Mono" fill="#6B7888">when connected</text>
+          </g>
+          <g>
+            <circle cx="558" cy="120" r="26" fill="#E9F0FB" stroke="#2563B8" stroke-width="2"/>
+            <text x="558" y="125">4</text><text x="558" y="172">Central record</text>
+            <text x="558" y="188" font-size="9.5" font-weight="400" font-family="IBM Plex Mono" fill="#6B7888">system of record</text>
+          </g>
+          <g>
+            <circle cx="714" cy="120" r="26" fill="#E5F3EB" stroke="#1F9D5B" stroke-width="2"/>
+            <text x="714" y="125">5</text><text x="714" y="172">FHIR bundle</text>
+            <text x="714" y="188" font-size="9.5" font-weight="400" font-family="IBM Plex Mono" fill="#6B7888">+ MPI match</text>
+          </g>
+          <g>
+            <circle cx="850" cy="120" r="26" fill="#F1E9FA" stroke="#7A3FB0" stroke-width="2"/>
+            <text x="850" y="125">6</text><text x="850" y="172">Hospital EHR</text>
+            <text x="850" y="60" font-size="9.5" font-weight="400" font-family="IBM Plex Mono" fill="#7A3FB0">scan QR/NFC ↓</text>
+            <line x1="850" y1="68" x2="850" y2="92" stroke="#7A3FB0" stroke-width="1.6" marker-end="url(#fa)"/>
+          </g>
+        </g>
+        <g stroke="#2563B8" stroke-width="1.8" marker-end="url(#fa)">
+          <line x1="120" y1="120" x2="214" y2="120"/>
+          <line x1="276" y1="120" x2="370" y2="120"/>
+          <line x1="432" y1="120" x2="526" y2="120"/>
+          <line x1="588" y1="120" x2="682" y2="120"/>
+          <line x1="744" y1="120" x2="818" y2="120"/>
+        </g>
+      </svg>
+      </div>
+      <figcaption><b>FIG 5</b> — Capture → offline persistence → opportunistic sync → system of record → FHIR exchange → EHR. Steps 1–2 require no connectivity.</figcaption>
+    </figure>
+  </section>
+
+  <section id="s12"><div class="sec-h"><span class="n">12</span><h2>Offline-first &amp; sync</h2></div>
+    <p>The hardest part of the system. Plain <em>last-write-wins</em> is unsafe for medical data — two responders editing the same casualty could silently erase a treatment. The model is an append-only change log per device, merged centrally with deterministic conflict resolution and a full audit trail.</p>
+    <figure>
+      <div class="figbody">
+      <svg viewBox="0 0 900 280" role="img" aria-label="Offline-first sync model">
+        <defs><marker id="sa" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#5A6675"/></marker></defs>
+        <!-- device -->
+        <rect x="20" y="30" width="330" height="220" rx="14" fill="#FBF2DF" stroke="#E5C98A"/>
+        <text x="38" y="22" class="znlbl" fill="#C9881F">DEVICE</text>
+        <g filter="url(#sh)">
+          <rect x="44" y="58" width="130" height="50" class="nodebox" stroke="#C9881F"/>
+          <rect x="44" y="140" width="130" height="50" class="nodebox" stroke="#C9881F"/>
+          <rect x="196" y="99" width="130" height="50" class="nodebox" stroke="#C9881F"/>
+        </g>
+        <text x="58" y="80" class="node-t">Capture UI</text><text x="58" y="97" class="node-s">writes locally first</text>
+        <text x="58" y="162" class="node-t">Local DB</text><text x="58" y="179" class="node-s">encrypted SQLite</text>
+        <text x="210" y="121" class="node-t">Op-log</text><text x="210" y="138" class="node-s">ordered changes</text>
+        <line x1="109" y1="108" x2="109" y2="140" stroke="#C9881F" stroke-width="1.6" marker-end="url(#sa)"/>
+        <line x1="174" y1="160" x2="196" y2="135" stroke="#C9881F" stroke-width="1.6" marker-end="url(#sa)"/>
+
+        <!-- gap -->
+        <text x="450" y="150" text-anchor="middle" class="flbl" fill="#9AA6B4">∿ intermittent link ∿</text>
+        <line x1="326" y1="124" x2="560" y2="124" stroke="#9AA6B4" stroke-width="1.6" stroke-dasharray="6 5" marker-end="url(#sa)"/>
+
+        <!-- server -->
+        <rect x="560" y="30" width="320" height="220" rx="14" fill="#E9F0FB" stroke="#B9CEEC"/>
+        <text x="578" y="22" class="znlbl" fill="#2563B8">CENTRAL</text>
+        <g filter="url(#sh)">
+          <rect x="584" y="58" width="128" height="50" class="nodebox" stroke="#2563B8"/>
+          <rect x="732" y="58" width="128" height="50" class="nodebox" stroke="#2563B8"/>
+          <rect x="584" y="140" width="128" height="50" class="nodebox" stroke="#1F9D5B"/>
+          <rect x="732" y="140" width="128" height="50" class="nodebox" stroke="#D8434A"/>
+        </g>
+        <text x="598" y="80" class="node-t">Ingest</text><text x="598" y="97" class="node-s">idempotent</text>
+        <text x="746" y="80" class="node-t">Conflict resolver</text><text x="746" y="97" class="node-s">merge rules · MPI</text>
+        <text x="598" y="162" class="node-t">System of record</text><text x="598" y="179" class="node-s">PostgreSQL</text>
+        <text x="746" y="162" class="node-t">Audit trail</text><text x="746" y="179" class="node-s">append-only</text>
+        <line x1="712" y1="83" x2="732" y2="83" stroke="#5A6675" stroke-width="1.6" marker-end="url(#sa)"/>
+        <line x1="648" y1="108" x2="648" y2="140" stroke="#5A6675" stroke-width="1.6" marker-end="url(#sa)"/>
+        <line x1="796" y1="108" x2="796" y2="140" stroke="#5A6675" stroke-width="1.6" marker-end="url(#sa)"/>
+      </svg>
+      </div>
+      <figcaption><b>FIG 6</b> — Local-first writes flow through an ordered op-log; the central tier ingests idempotently, resolves conflicts deterministically, and records every merge.</figcaption>
+    </figure>
+  </section>
+
+  <section id="s13"><div class="sec-h"><span class="n">13</span><h2>Deployment topology</h2></div>
+    <p>Stateless services on a managed Kubernetes cluster behind a load balancer and WAF scale out horizontally; data services are managed and stateful. During a mass-casualty incident the queue absorbs the write burst while pods auto-scale, then smooths the reconnection storm. The hospital reaches the FHIR endpoint through the same secured edge via SMART-on-FHIR.</p>
+    <figure>
+      <div class="figbody">
+      <svg viewBox="0 0 900 470" role="img" aria-label="Deployment topology">
+        <defs>
+          <marker id="da" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#5A6675"/></marker>
+          <marker id="dg" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#1F9D5B"/></marker>
+        </defs>
+
+        <!-- external actors -->
+        <g filter="url(#sh)">
+          <rect x="18" y="86" width="120" height="54" class="nodebox" stroke="#C9881F"/>
+          <rect x="18" y="330" width="120" height="54" class="nodebox" stroke="#7A3FB0"/>
+        </g>
+        <text x="32" y="109" class="node-t" font-size="11.5">Field devices</text><text x="32" y="126" class="node-s">offline-first</text>
+        <text x="32" y="353" class="node-t" font-size="11.5">Hospital EHR</text><text x="32" y="370" class="node-s">SMART-on-FHIR</text>
+
+        <!-- edge -->
+        <g filter="url(#sh)">
+          <rect x="168" y="78" width="112" height="46" class="nodebox" stroke="#2563B8"/>
+          <rect x="168" y="152" width="112" height="46" class="nodebox" stroke="#2563B8"/>
+        </g>
+        <text x="182" y="100" class="node-t" font-size="11.5">WAF / CDN</text><text x="182" y="116" class="node-s">edge filtering</text>
+        <text x="182" y="174" class="node-t" font-size="11.5">Load balancer</text><text x="182" y="190" class="node-s">TLS termination</text>
+
+        <!-- cluster -->
+        <rect x="310" y="40" width="362" height="330" rx="14" fill="#EEF4FB" stroke="#9FBDE6" stroke-dasharray="6 5"/>
+        <text x="326" y="32" class="znlbl" fill="#2563B8">KUBERNETES CLUSTER · AUTO-SCALING</text>
+
+        <rect x="328" y="60" width="326" height="38" class="nodebox" fill="#fff" stroke="#2563B8"/>
+        <text x="342" y="84" class="node-t">Ingress · API gateway · authN / rate limit</text>
+
+        <!-- service pods with replica hint -->
+        <g>
+          <rect x="340" y="128" width="142" height="56" rx="9" fill="#DCE8F8" stroke="#9FBDE6"/>
+          <rect x="334" y="122" width="142" height="56" class="nodebox" fill="#fff" stroke="#2563B8"/>
+          <rect x="512" y="128" width="142" height="56" rx="9" fill="#DCE8F8" stroke="#9FBDE6"/>
+          <rect x="506" y="122" width="142" height="56" class="nodebox" fill="#fff" stroke="#2563B8"/>
+          <rect x="340" y="204" width="142" height="56" rx="9" fill="#DCE8F8" stroke="#9FBDE6"/>
+          <rect x="334" y="198" width="142" height="56" class="nodebox" fill="#fff" stroke="#2563B8"/>
+          <rect x="512" y="204" width="142" height="56" rx="9" fill="#DCE8F8" stroke="#9FBDE6"/>
+          <rect x="506" y="198" width="142" height="56" class="nodebox" fill="#fff" stroke="#2563B8"/>
+        </g>
+        <text x="348" y="146" class="node-t">Casualty service</text><text x="348" y="163" class="node-s">domain · MPI · ×N pods</text>
+        <text x="520" y="146" class="node-t">Sync service</text><text x="520" y="163" class="node-s">conflict resolve · ×N</text>
+        <text x="348" y="222" class="node-t">Workers</text><text x="348" y="239" class="node-s">FHIR build · ×N</text>
+        <text x="520" y="222" class="node-t">Notification</text><text x="520" y="239" class="node-s">events · consumers</text>
+
+        <rect x="328" y="300" width="326" height="42" class="nodebox" fill="#E5F3EB" stroke="#1F9D5B"/>
+        <text x="342" y="326" class="node-t" fill="#1A2330">Message queue (Kafka) — burst absorption</text>
+
+        <!-- data tier -->
+        <rect x="700" y="40" width="184" height="408" rx="14" fill="#EAF4EE" stroke="#9FD3B0"/>
+        <text x="716" y="32" class="znlbl" fill="#1F9D5B">MANAGED DATA SERVICES</text>
+        <g filter="url(#sh)">
+          <rect x="712" y="60" width="160" height="46" class="nodebox" fill="#fff" stroke="#1F9D5B"/>
+          <rect x="712" y="116" width="160" height="40" class="nodebox" fill="#fff" stroke="#9FD3B0"/>
+          <rect x="712" y="166" width="160" height="40" class="nodebox" fill="#fff" stroke="#1F9D5B"/>
+          <rect x="712" y="216" width="160" height="46" class="nodebox" fill="#fff" stroke="#1F9D5B"/>
+          <rect x="712" y="272" width="160" height="46" class="nodebox" fill="#fff" stroke="#D8434A"/>
+          <rect x="712" y="328" width="160" height="40" class="nodebox" fill="#fff" stroke="#9AA6B4"/>
+          <rect x="712" y="378" width="160" height="40" class="nodebox" fill="#fff" stroke="#9AA6B4"/>
+        </g>
+        <text x="724" y="80" class="node-t">PostgreSQL primary</text><text x="724" y="97" class="node-s">system of record</text>
+        <text x="724" y="140" class="node-t" font-size="11.5">PostgreSQL replica</text>
+        <text x="724" y="190" class="node-t" font-size="11.5">Redis — read cache</text>
+        <text x="724" y="236" class="node-t">FHIR server</text><text x="724" y="253" class="node-s">interop boundary</text>
+        <text x="724" y="292" class="node-t" fill="#B5343A">Audit / WORM store</text><text x="724" y="309" class="node-s">append-only</text>
+        <text x="724" y="352" class="node-t" font-size="11.5">KMS / secrets</text>
+        <text x="724" y="402" class="node-t" font-size="11.5">Observability</text>
+
+        <!-- arrows -->
+        <g stroke="#5A6675" stroke-width="1.6" marker-end="url(#da)" fill="none">
+          <line x1="138" y1="108" x2="166" y2="100"/>
+          <line x1="224" y1="124" x2="224" y2="152"/>
+          <path d="M280 172 C300 172 308 84 326 80"/>
+          <line x1="405" y1="98" x2="405" y2="122"/>
+          <line x1="560" y1="98" x2="577" y2="122"/>
+          <line x1="405" y1="178" x2="405" y2="300"/>
+          <line x1="577" y1="178" x2="577" y2="300"/>
+        </g>
+        <line x1="430" y1="300" x2="408" y2="254" stroke="#1F9D5B" stroke-width="1.6" marker-end="url(#dg)"/>
+        <!-- cluster to data tier -->
+        <line x1="654" y1="150" x2="710" y2="120" stroke="#5A6675" stroke-width="1.8" marker-end="url(#da)"/>
+        <text x="678" y="138" class="flbl">r/w · mTLS</text>
+        <line x1="654" y1="226" x2="710" y2="232" stroke="#1F9D5B" stroke-width="1.8" marker-end="url(#dg)"/>
+        <line x1="654" y1="321" x2="710" y2="294" stroke="#D8434A" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#da)"/>
+        <!-- hospital to edge (FHIR pull) -->
+        <path d="M138 350 C300 350 240 188 280 178" stroke="#7A3FB0" stroke-width="1.7" fill="none" marker-end="url(#da)"/>
+        <text x="250" y="300" class="flbl" fill="#7A3FB0">FHIR · SMART-on-FHIR</text>
+      </svg>
+      </div>
+      <div class="legend">
+        <span><i style="background:#2563B8"></i>Compute (stateless)</span>
+        <span><i style="background:#1F9D5B"></i>Managed data</span>
+        <span><i style="background:#D8434A"></i>Audit / WORM</span>
+        <span><i style="background:#C9881F"></i>Field</span>
+        <span><i style="background:#7A3FB0"></i>Hospital</span>
+      </div>
+      <figcaption><b>FIG 7</b> — Deployment view. Stateless pods auto-scale inside the cluster; stateful data services are managed; the queue decouples ingest from processing for MCI bursts. Deploy across availability zones with automated backups for resilience.</figcaption>
+    </figure>
+  </section>
+
+  <section id="s14"><div class="sec-h"><span class="n">14</span><h2>Security &amp; privacy</h2></div>
+    <p><strong>Status: not implemented.</strong> Today data is local to the device and unencrypted, with no auth. A real deployment applies defense-in-depth across every layer rather than a perimeter alone.</p>
+    <figure>
+      <div class="figbody">
+      <svg viewBox="0 0 900 300" role="img" aria-label="Defense in depth security layers">
+        <rect x="30" y="24" width="840" height="252" rx="16" fill="#FBECEC" stroke="#E9B6B8"/>
+        <rect x="78" y="56" width="744" height="196" rx="14" fill="#FCF3E3" stroke="#E5C98A"/>
+        <rect x="134" y="86" width="632" height="142" rx="12" fill="#E9F0FB" stroke="#B9CEEC"/>
+        <rect x="196" y="114" width="508" height="88" rx="10" fill="#E5F3EB" stroke="#9FD3B0"/>
+        <rect x="270" y="138" width="360" height="42" rx="8" fill="#fff" stroke="#1F9D5B"/>
+        <g font-family="IBM Plex Mono" font-size="11" font-weight="600">
+          <text x="50" y="46" fill="#B5343A">DEVICE — encryption at rest · biometric lock · remote wipe</text>
+          <text x="96" y="78" fill="#9C6E16">TRANSPORT — TLS 1.3 in transit · mTLS service-to-service</text>
+          <text x="152" y="108" fill="#2563B8">PERIMETER — gateway · OAuth2/OIDC · SMART-on-FHIR · rate limit</text>
+          <text x="214" y="135" fill="#2C7A45">APPLICATION — role-based access control · least privilege</text>
+        </g>
+        <text x="450" y="164" text-anchor="middle" font-family="IBM Plex Sans" font-size="13" font-weight="700" fill="#1A2330">PHI + immutable audit log</text>
+      </svg>
+      </div>
+      <figcaption><b>FIG 8</b> — Defense in depth. Each ring is independently enforced; a breach of one does not expose the PHI at the centre.</figcaption>
+    </figure>
+    <table><thead><tr><th>Domain</th><th>Requirement</th><th></th></tr></thead><tbody>
+      <tr><td><b>Encryption</b></td><td>TLS 1.3 in transit; AES-256 at rest on device, DB, backups; mTLS between services</td><td><span class="pill p-must">Must</span></td></tr>
+      <tr><td><b>Device security</b></td><td>Full-disk encryption, biometric lock, MDM, remote wipe for lost devices</td><td><span class="pill p-must">Must</span></td></tr>
+      <tr><td><b>Authentication</b></td><td>OAuth2/OIDC for users; SMART-on-FHIR for EHR integration; MFA for privileged roles</td><td><span class="pill p-must">Must</span></td></tr>
+      <tr><td><b>Authorisation</b></td><td>RBAC with least privilege; field / dispatch / clinician / admin scoped separately</td><td><span class="pill p-must">Must</span></td></tr>
+      <tr><td><b>Audit logging</b></td><td>Immutable, append-only log of every PHI create/read/update/delete</td><td><span class="pill p-must">Must</span></td></tr>
+      <tr><td><b>Integrity at handover</b></td><td>Signing / provenance on the exported bundle</td><td><span class="pill p-should">Should</span></td></tr>
+      <tr><td><b>Key management</b></td><td>Centralised KMS/HSM; rotation; no secrets in source or images</td><td><span class="pill p-should">Should</span></td></tr>
+      <tr><td><b>Pen testing</b></td><td>Independent security testing and disclosure process before go-live</td><td><span class="pill p-rec">Recommend</span></td></tr>
+    </tbody></table>
+  </section>
+
+  <section id="s15"><div class="sec-h"><span class="n">15</span><h2>Regulatory &amp; compliance</h2></div>
+    <p>Two questions shape the whole lifecycle: <strong>is this a regulated medical device?</strong> (FDA SaMD / EU MDR if it influences clinical decisions) and <strong>which privacy regime applies?</strong> (depends on where patients and data live).</p>
+    <table><thead><tr><th>Area</th><th>What it requires</th><th>Applies when</th></tr></thead><tbody>
+      <tr><td><b>HIPAA</b> (US)</td><td>Privacy &amp; Security Rules; Business Associate Agreements; breach notification</td><td>US patients / providers</td></tr>
+      <tr><td><b>GDPR</b> (EU/UK)</td><td>Lawful basis, data-subject rights, DPIA, residency, 72-hour breach notice</td><td>EU/UK data subjects</td></tr>
+      <tr><td><b>SaMD / EU MDR</b></td><td>Design controls, ISO 14971 risk management, clinical evaluation, validated SDLC</td><td>Software drives clinical decisions</td></tr>
+      <tr><td><b>IEC 62304</b></td><td>Medical-device software lifecycle processes</td><td>Regulated software build</td></tr>
+      <tr><td><b>ISO 27001 / SOC 2</b></td><td>Information-security management system; independent attestation</td><td>Enterprise / hospital procurement</td></tr>
+      <tr><td><b>HL7 FHIR</b></td><td>Interoperability conformance with certified EHRs</td><td>EHR integration (always)</td></tr>
+      <tr><td><b>Data residency &amp; retention</b></td><td>Store PHI in approved jurisdictions; defined retention &amp; destruction</td><td>Jurisdiction-dependent</td></tr>
+    </tbody></table>
+    <div class="note reg"><span class="ic">§</span><p><strong>Decide device classification early.</strong> Whether this is a documentation tool or a clinical-decision device changes cost, timeline and process dramatically — far cheaper to design for the right class than to retrofit.</p></div>
+  </section>
+
+  <section id="s16"><div class="sec-h"><span class="n">16</span><h2>Non-functional targets</h2></div>
+    <table><thead><tr><th>Attribute</th><th>Target</th></tr></thead><tbody>
+      <tr><td><b>Offline capability</b></td><td>100% of capture functions usable with zero connectivity</td></tr>
+      <tr><td><b>Sync latency</b></td><td>Record reaches central tier within seconds of connectivity returning</td></tr>
+      <tr><td><b>Availability</b></td><td>≥ 99.9% for central services; handover path prioritised</td></tr>
+      <tr><td><b>MCI burst</b></td><td>Sustain many concurrent responders without capture-side degradation</td></tr>
+      <tr><td><b>Handover time</b></td><td>Scan-to-EHR transfer in seconds, not minutes</td></tr>
+      <tr><td><b>Data integrity</b></td><td>No silent data loss; all conflicts resolved deterministically &amp; audited</td></tr>
+    </tbody></table>
+  </section>
+
+  <div class="part"><div class="pl">Part III</div><h2>Forward</h2><p>Roadmap, build commands, and the design decisions that tie the two parts together.</p></div>
+
+  <section id="s17"><div class="sec-h"><span class="n">17</span><h2>Roadmap &amp; extensibility</h2></div>
+    <p>Because the domain and FHIR layers are framework-free, several roadmap items can be added without touching the UI:</p>
+    <ul class="clean">
+      <li><strong>Conflict-aware sync.</strong> Wrap <code>recordRepo</code> with an operation log and reconcile records against a central service (§12).</li>
+      <li><strong>Anatomical body chart.</strong> Replace the rectangular <code>regions.ts</code> zones with a precise anatomical SVG (burn TBSA, named bones) — <code>regionAt()</code> is the single seam to swap.</li>
+      <li><strong>Handover scanning.</strong> NFC/QR handover plus master-patient-index reconciliation.</li>
+      <li><strong>Security hardening.</strong> Auth (OAuth2/OIDC, SMART-on-FHIR), audit logging, encryption at rest (§14).</li>
+      <li><strong>Reuse on other clients.</strong> The <code>domain</code> + <code>fhir</code> modules could back a React Native app or a Node sync service unchanged.</li>
+    </ul>
+  </section>
+
+  <section id="s18"><div class="sec-h"><span class="n">18</span><h2>Build, run, deploy</h2></div>
+    <pre class="flow">npm install
+npm run dev        # Vite dev server at http://localhost:5173
+npm run typecheck  # tsc --noEmit
+npm run build      # type-check + production build to /dist
+npm run preview    # serve the production build locally</pre>
+    <p><code>/dist</code> is a self-contained static bundle; the service worker makes it work offline after the first load.</p>
+  </section>
+
+  <section id="s19"><div class="sec-h"><span class="n">19</span><h2>Key design decisions</h2></div>
+    <ul class="clean">
+      <li><strong>PWA over native</strong> — maximum portability from one codebase; installable; offline-capable; static deployment.</li>
+      <li><strong>Framework-free domain &amp; FHIR core</strong> — reusable across future clients and services; the <code>CasualtyRecord</code> is the single source of truth.</li>
+      <li><strong>IndexedDB/Dexie, record-as-sync-unit</strong> — durable offline storage with a clean seam for a future op-log sync layer.</li>
+      <li><strong>FHIR R4 for interop</strong> — speak the hospital's language at handover rather than inventing a format.</li>
+      <li><strong>Immutable state + debounced auto-save</strong> — predictable rendering and low-friction, loss-resistant capture.</li>
+    </ul>
+  </section>
+
+  </main>
+  <footer>TRIAGE-LINK · Technical Architecture · v0.3 Merged — Prototype reference, not for clinical use.<br>Part I reflects the current codebase; Part II is the proposed production target. Device classification, privacy regime and data residency are prerequisites to build.</footer>
+</div>
+</body></html>
