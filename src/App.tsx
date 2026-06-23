@@ -113,7 +113,7 @@ export function App() {
           injury-type marker colours). Quick-set here; persists on the record. */}
       <div
         className="triagebar"
-        style={triage ? { borderLeftColor: TRIAGE_COLORS[triage], background: `color-mix(in srgb, ${TRIAGE_COLORS[triage]} 12%, var(--panel))` } : undefined}
+        style={triage ? { background: `color-mix(in srgb, ${TRIAGE_COLORS[triage]} 16%, var(--panel))` } : undefined}
       >
         <span className="tb-label">Triage</span>
         <div className="tb-opts" role="group" aria-label="Triage category">
