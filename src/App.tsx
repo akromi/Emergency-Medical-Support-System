@@ -131,7 +131,7 @@ export function App() {
               <BodyChart view="anterior" injuries={record.injuries} selectedId={selectedInjury} onPlace={placeInjury} onSelect={setSelectedInjury} />
               <BodyChart view="posterior" injuries={record.injuries} selectedId={selectedInjury} onPlace={placeInjury} onSelect={setSelectedInjury} />
             </div>
-            <p className="hint">Pick an injury type, then tap a location. Tap a marker to edit it below.</p>
+            <p className="hint">Pick an injury type · tap a body area to blow it up · tap again to drop a marker. Tap a marker to edit it below.</p>
           </section>
 
           {/* ---- injury list / editor ---- */}
