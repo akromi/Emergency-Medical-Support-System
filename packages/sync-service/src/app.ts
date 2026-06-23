@@ -47,6 +47,9 @@ export function buildApp({ store }: { store: OpStore }): FastifyInstance {
         if (involvesNewOp) {
           await store.appendAudit({ recordId, opId: c.winningOpId, eventType: 'conflict-resolved', detail: c })
         }
+        const involved = [c.winningOpId, ...c.supersededOpIds]
+        if (!involved.some((id) => inserted.has(id))) continue
+        await store.appendAudit({ recordId, opId: c.winningOpId, eventType: 'conflict-resolved', detail: c })
       }
     }
 

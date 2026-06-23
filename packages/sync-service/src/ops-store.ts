@@ -76,6 +76,9 @@ export class OpStore {
    * pg-mem's divergent `ON CONFLICT … RETURNING` behaviour for already-present
    * rows; the RETURNING check then closes the concurrency window where two
    * requests both pass the pre-check but only one row is actually written.
+   * Append ops idempotently. Returns the ids that were newly inserted.
+   * A fast existence check skips the common replay path; `ON CONFLICT DO
+   * NOTHING RETURNING id` confirms actual insertion under concurrency.
    */
   async insertOps(ops: Op[]): Promise<string[]> {
     const inserted: string[] = []
@@ -87,6 +90,7 @@ export class OpStore {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
          ON CONFLICT (id) DO NOTHING
          RETURNING id`,
+         ON CONFLICT (id) DO NOTHING RETURNING id`,
         [
           op.id, op.recordId, op.clientId, op.lamport, op.ts, op.kind, op.path,
           op.itemId ?? null, op.value === undefined ? null : JSON.stringify(op.value),
