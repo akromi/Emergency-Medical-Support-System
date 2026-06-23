@@ -90,7 +90,6 @@ export class OpStore {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
          ON CONFLICT (id) DO NOTHING
          RETURNING id`,
-         ON CONFLICT (id) DO NOTHING RETURNING id`,
         [
           op.id, op.recordId, op.clientId, op.lamport, op.ts, op.kind, op.path,
           op.itemId ?? null, op.value === undefined ? null : JSON.stringify(op.value),
