@@ -42,18 +42,36 @@ const ellipse = (cx: number, cy: number, rx: number, ry: number, n = 16): Point[
 const trap = (cx: number, yTop: number, yBot: number, wTop: number, wBot: number): Point[] =>
   [[r1(cx - wTop / 2), yTop], [r1(cx + wTop / 2), yTop], [r1(cx + wBot / 2), yBot], [r1(cx - wBot / 2), yBot]]
 
-/** Stack segment boxes downward from yTop; returns one region per segment. */
-function digitDown(
-  cx: number, yTop: number, group: RegionGroup, side: 'left',
-  label: string, segs: Array<{ seg: string; len: number; w: number; tbsa: number }>,
+/**
+ * Slanted quad: a limb segment whose centre line runs from (cxTop, yTop) to
+ * (cxBot, yBot), with independent top/bottom widths. Lets the arm boxes follow
+ * the figure's abducted (spread) arms, which a vertical trapezoid cannot.
+ */
+const quad = (cxTop: number, yTop: number, wTop: number, cxBot: number, yBot: number, wBot: number): Point[] =>
+  [[r1(cxTop - wTop / 2), yTop], [r1(cxTop + wTop / 2), yTop], [r1(cxBot + wBot / 2), yBot], [r1(cxBot - wBot / 2), yBot]]
+
+/**
+ * Stack segment boxes along a fanned axis (angle in degrees from straight-down,
+ * positive = toward +x). Used for the splayed fingers of the open hand.
+ */
+function digitFan(
+  rootX: number, rootY: number, angDeg: number, group: RegionGroup, side: 'left',
+  label: string, w: number, segs: Array<{ seg: string; len: number; tbsa: number }>,
 ): RawSide[] {
-  let y = yTop
+  const a = (angDeg * Math.PI) / 180
+  const dx = Math.sin(a), dy = Math.cos(a)
+  const px = dy, py = -dx // perpendicular (unit)
+  let x = rootX, y = rootY
   return segs.map((s) => {
+    const nx = x + dx * s.len, ny = y + dy * s.len
     const region: RawSide = {
       name: `${label} ${s.seg}`, side, group, tbsa: s.tbsa,
-      points: box(r1(cx - s.w / 2), y, r1(cx + s.w / 2), y + s.len),
+      points: [
+        [r1(x + px * w / 2), r1(y + py * w / 2)], [r1(x - px * w / 2), r1(y - py * w / 2)],
+        [r1(nx - px * w / 2), r1(ny - py * w / 2)], [r1(nx + px * w / 2), r1(ny + py * w / 2)],
+      ],
     }
-    y += s.len
+    x = nx; y = ny
     return region
   })
 }
@@ -78,22 +96,23 @@ function headRegions(view: BodyView): BodyRegion[] {
   const out: BodyRegion[] = []
   if (view === 'anterior') {
     out.push(
-      { name: 'Crown', group: 'head', tbsa: 1, points: box(190, 18, 290, 60) },
-      { name: 'Forehead', group: 'face', tbsa: 1, points: box(184, 60, 296, 102) },
-      { name: 'Nose', group: 'face', tbsa: 0.3, points: box(226, 112, 254, 156) },
-      { name: 'Mouth', group: 'face', tbsa: 0.3, points: box(208, 156, 272, 176) },
-      { name: 'Chin', group: 'face', tbsa: 0.4, points: box(204, 176, 276, 198) },
-      // Paired (image-left; mirrored below).
-      { name: 'Eye', side: 'left', group: 'face', tbsa: 0.3, points: ellipse(208, 116, 20, 11) },
-      { name: 'Cheek', side: 'left', group: 'face', tbsa: 0.6, points: box(176, 116, 208, 172) },
-      { name: 'Ear', side: 'left', group: 'face', tbsa: 0.4, points: ellipse(168, 124, 11, 24) },
+      { name: 'Crown', group: 'head', tbsa: 1, points: box(208, 113, 272, 150) },
+      { name: 'Forehead', group: 'face', tbsa: 1, points: box(206, 150, 274, 167) },
+      { name: 'Nose', group: 'face', tbsa: 0.3, points: box(231, 184, 249, 207) },
+      { name: 'Mouth', group: 'face', tbsa: 0.3, points: box(224, 207, 256, 219) },
+      { name: 'Chin', group: 'face', tbsa: 0.4, points: box(220, 219, 260, 232) },
+      // Paired (image-left; mirrored below). Listed after forehead but placed
+      // below it (no overlap) so each feature resolves to itself.
+      { name: 'Eye', side: 'left', group: 'face', tbsa: 0.3, points: ellipse(223, 172, 12, 7) },
+      { name: 'Cheek', side: 'left', group: 'face', tbsa: 0.6, points: box(204, 170, 224, 205) },
+      { name: 'Ear', side: 'left', group: 'face', tbsa: 0.4, points: ellipse(200, 185, 7, 15) },
     )
   } else {
     out.push(
-      { name: 'Posterior scalp', group: 'head', tbsa: 1.5, points: box(186, 18, 294, 84) },
-      { name: 'Occiput', group: 'head', tbsa: 2, points: box(184, 84, 296, 150) },
-      { name: 'Nape', group: 'neck', tbsa: 0.5, points: box(206, 150, 274, 198) },
-      { name: 'Ear', side: 'left', group: 'face', tbsa: 0.4, points: ellipse(168, 124, 11, 24) },
+      { name: 'Posterior scalp', group: 'head', tbsa: 1.5, points: box(206, 113, 274, 162) },
+      { name: 'Occiput', group: 'head', tbsa: 2, points: box(204, 162, 276, 210) },
+      { name: 'Nape', group: 'neck', tbsa: 0.5, points: box(220, 210, 260, 235) },
+      { name: 'Ear', side: 'left', group: 'face', tbsa: 0.4, points: ellipse(201, 182, 7, 15) },
     )
   }
   // Mirror the image-left head parts to image-right.
@@ -108,11 +127,11 @@ function headRegions(view: BodyView): BodyRegion[] {
 function sharedParts(): SharedPart[] {
   const parts: SharedPart[] = []
 
-  // Central trunk.
+  // Central trunk (coordinates trace the figure image; see chart alignment).
   parts.push(
-    { names: { ant: 'Anterior neck', post: 'Posterior neck' }, group: 'neck', tbsa: 0.5, points: box(206, 198, 274, 230) },
-    { names: { ant: 'Upper abdomen', post: 'Mid back' }, group: 'trunk', tbsa: 3, points: box(190, 340, 290, 402) },
-    { names: { ant: 'Lower abdomen', post: 'Lower back' }, group: 'trunk', tbsa: 3, points: box(196, 402, 284, 456) },
+    { names: { ant: 'Anterior neck', post: 'Posterior neck' }, group: 'neck', tbsa: 0.5, points: box(222, 231, 258, 258) },
+    { names: { ant: 'Upper abdomen', post: 'Mid back' }, group: 'trunk', tbsa: 3, points: box(184, 392, 296, 452) },
+    { names: { ant: 'Lower abdomen', post: 'Lower back' }, group: 'trunk', tbsa: 3, points: box(192, 452, 288, 506) },
   )
 
   // Image-left (mirrored later). Authored as side:'left'.
@@ -121,49 +140,51 @@ function sharedParts(): SharedPart[] {
     left.push({ names, side: 'left', group, tbsa, points })
   }
 
-  L({ ant: 'Shoulder', post: 'Shoulder' }, 'arm', 2, box(120, 230, 178, 290))
-  L({ ant: 'Chest', post: 'Upper back' }, 'trunk', 4.5, box(178, 244, 240, 340))
-  L({ ant: 'Pelvis', post: 'Buttock' }, 'trunk', 2, box(196, 456, 240, 512))
-  L({ ant: 'Upper arm', post: 'Upper arm' }, 'arm', 2, trap(140, 290, 432, 54, 44))
-  L({ ant: 'Elbow', post: 'Elbow' }, 'arm', 0.5, box(114, 432, 166, 472))
-  L({ ant: 'Forearm', post: 'Forearm' }, 'arm', 1.5, trap(132, 472, 602, 46, 36))
-  L({ ant: 'Wrist', post: 'Wrist' }, 'arm', 0.3, box(112, 602, 152, 630))
+  L({ ant: 'Shoulder', post: 'Shoulder' }, 'arm', 2, box(150, 250, 202, 300))
+  L({ ant: 'Chest', post: 'Upper back' }, 'trunk', 4.5, box(176, 258, 240, 392))
+  L({ ant: 'Pelvis', post: 'Buttock' }, 'trunk', 2, box(196, 506, 240, 560))
 
-  // Hand: palm/back, thumb (2 phalanges), four fingers (3 phalanges each).
-  L({ ant: 'Palm', post: 'Back of hand' }, 'hand', 0.5, box(102, 630, 162, 698))
-  L({ ant: 'Thumb proximal', post: 'Thumb proximal' }, 'hand', 0.1, box(78, 614, 104, 650))
-  L({ ant: 'Thumb distal', post: 'Thumb distal' }, 'hand', 0.1, box(72, 586, 98, 620))
-  const fingers: Array<{ label: string; cx: number; w: number; lens: [number, number, number] }> = [
-    { label: 'Index', cx: 112, w: 13, lens: [30, 26, 24] },
-    { label: 'Middle', cx: 128, w: 14, lens: [33, 28, 25] },
-    { label: 'Ring', cx: 144, w: 13, lens: [30, 26, 24] },
-    { label: 'Little', cx: 157, w: 11, lens: [24, 20, 18] },
+  // Arm — abducted (spread), so segments slant out to the hand (see quad()).
+  L({ ant: 'Upper arm', post: 'Upper arm' }, 'arm', 2, quad(146, 300, 50, 90, 432, 40))
+  L({ ant: 'Elbow', post: 'Elbow' }, 'arm', 0.5, quad(90, 432, 40, 80, 458, 38))
+  L({ ant: 'Forearm', post: 'Forearm' }, 'arm', 1.5, quad(80, 458, 36, 52, 498, 32))
+  L({ ant: 'Wrist', post: 'Wrist' }, 'arm', 0.3, quad(52, 498, 30, 48, 510, 28))
+
+  // Open hand: palm/back, thumb (2 phalanges), four splayed fingers.
+  L({ ant: 'Palm', post: 'Back of hand' }, 'hand', 0.5, box(26, 510, 72, 538))
+  L({ ant: 'Thumb proximal', post: 'Thumb proximal' }, 'hand', 0.1, box(58, 514, 78, 534))
+  L({ ant: 'Thumb distal', post: 'Thumb distal' }, 'hand', 0.1, box(62, 494, 80, 516))
+  const fingers: Array<{ label: string; rootX: number; rootY: number; ang: number; w: number; lens: [number, number, number] }> = [
+    { label: 'Index', rootX: 30, rootY: 538, ang: -26, w: 11, lens: [11, 9, 8] },
+    { label: 'Middle', rootX: 43, rootY: 540, ang: -10, w: 12, lens: [12, 10, 9] },
+    { label: 'Ring', rootX: 55, rootY: 540, ang: 4, w: 11, lens: [11, 9, 8] },
+    { label: 'Little', rootX: 65, rootY: 538, ang: 18, w: 10, lens: [10, 8, 7] },
   ]
   for (const f of fingers) {
-    for (const d of digitDown(f.cx, 698, 'hand', 'left', f.label, [
-      { seg: 'proximal', len: f.lens[0], w: f.w, tbsa: 0.06 },
-      { seg: 'middle', len: f.lens[1], w: f.w, tbsa: 0.05 },
-      { seg: 'distal', len: f.lens[2], w: f.w, tbsa: 0.05 },
+    for (const d of digitFan(f.rootX, f.rootY, f.ang, 'hand', 'left', f.label, f.w, [
+      { seg: 'proximal', len: f.lens[0], tbsa: 0.06 },
+      { seg: 'middle', len: f.lens[1], tbsa: 0.05 },
+      { seg: 'distal', len: f.lens[2], tbsa: 0.05 },
     ])) left.push({ names: { ant: d.name, post: d.name }, side: 'left', group: 'hand', tbsa: d.tbsa, points: d.points })
   }
 
-  // Leg.
-  L({ ant: 'Thigh', post: 'Thigh' }, 'leg', 4.5, trap(210, 512, 742, 74, 48))
-  L({ ant: 'Knee', post: 'Back of knee' }, 'leg', 0.5, box(184, 742, 236, 788))
-  L({ ant: 'Shin', post: 'Calf' }, 'leg', 3, trap(206, 788, 950, 48, 34))
-  L({ ant: 'Ankle', post: 'Ankle' }, 'leg', 0.5, box(190, 950, 228, 980))
-  L({ ant: 'Foot dorsum', post: 'Sole' }, 'foot', 1, box(176, 980, 236, 1018))
+  // Leg — apart, nearly vertical with a slight inward taper.
+  L({ ant: 'Thigh', post: 'Thigh' }, 'leg', 4.5, quad(205, 512, 74, 184, 718, 50))
+  L({ ant: 'Knee', post: 'Back of knee' }, 'leg', 0.5, box(158, 718, 212, 760))
+  L({ ant: 'Shin', post: 'Calf' }, 'leg', 3, quad(184, 760, 46, 177, 852, 32))
+  L({ ant: 'Ankle', post: 'Ankle' }, 'leg', 0.5, box(160, 852, 198, 880))
+  L({ ant: 'Foot dorsum', post: 'Sole' }, 'foot', 1, box(148, 880, 210, 910))
 
   // Toes (great toe is medial → larger x on image-left foot).
   const toes: Array<{ label: string; cx: number; w: number; len: number }> = [
-    { label: 'Great toe', cx: 226, w: 18, len: 22 },
-    { label: '2nd toe', cx: 208, w: 12, len: 18 },
-    { label: '3rd toe', cx: 196, w: 11, len: 17 },
-    { label: '4th toe', cx: 185, w: 10, len: 16 },
-    { label: '5th toe', cx: 176, w: 9, len: 14 },
+    { label: 'Great toe', cx: 196, w: 14, len: 16 },
+    { label: '2nd toe', cx: 182, w: 11, len: 15 },
+    { label: '3rd toe', cx: 170, w: 10, len: 14 },
+    { label: '4th toe', cx: 160, w: 9, len: 13 },
+    { label: '5th toe', cx: 151, w: 8, len: 12 },
   ]
   for (const t of toes) {
-    left.push({ names: { ant: t.label, post: t.label }, side: 'left', group: 'foot', tbsa: 0.1, points: box(r1(t.cx - t.w / 2), 1018, r1(t.cx + t.w / 2), 1018 + t.len) })
+    left.push({ names: { ant: t.label, post: t.label }, side: 'left', group: 'foot', tbsa: 0.1, points: box(r1(t.cx - t.w / 2), 910, r1(t.cx + t.w / 2), 910 + t.len) })
   }
 
   parts.push(...left)

@@ -15,32 +15,32 @@ describe('regionAt — anatomical hit-testing', () => {
   })
 
   it('resolves facial features (anterior only)', () => {
-    expect(regionAt(240, 80, 'anterior')).toBe('Forehead')
-    expect(regionAt(226, 130, 'anterior')).toBe('Nose')
-    expect(regionAt(208, 116, 'anterior')).toBe('R Eye') // image-left eye -> patient R
-    expect(regionAt(272, 116, 'anterior')).toBe('L Eye')
+    expect(regionAt(240, 158, 'anterior')).toBe('Forehead')
+    expect(regionAt(240, 195, 'anterior')).toBe('Nose')
+    expect(regionAt(223, 172, 'anterior')).toBe('R Eye') // image-left eye -> patient R
+    expect(regionAt(257, 172, 'anterior')).toBe('L Eye')
   })
 
   it('resolves individual fingers and toes', () => {
-    expect(regionAt(112, 710, 'anterior')).toBe('R Index proximal')
-    expect(regionAt(128, 720, 'anterior')).toBe('R Middle proximal')
-    expect(regionAt(226, 1028, 'anterior')).toBe('R Great toe')
+    expect(regionAt(28, 543, 'anterior')).toBe('R Index proximal')
+    expect(regionAt(42, 546, 'anterior')).toBe('R Middle proximal')
+    expect(regionAt(196, 918, 'anterior')).toBe('R Great toe')
     // Mirror across the midline -> patient's LEFT.
-    expect(regionAt(480 - 112, 710, 'anterior')).toBe('L Index proximal')
+    expect(regionAt(480 - 28, 543, 'anterior')).toBe('L Index proximal')
   })
 
   it('resolves limb and trunk segments with anatomical sidedness', () => {
     expect(regionAt(210, 600, 'anterior')).toBe('R Thigh')
-    expect(regionAt(206, 860, 'anterior')).toBe('R Shin')
-    expect(regionAt(240, 210, 'anterior')).toBe('Anterior neck')
-    expect(regionAt(240, 370, 'anterior')).toBe('Upper abdomen')
+    expect(regionAt(182, 800, 'anterior')).toBe('R Shin')
+    expect(regionAt(240, 245, 'anterior')).toBe('Anterior neck')
+    expect(regionAt(240, 420, 'anterior')).toBe('Upper abdomen')
     expect(regionAt(210, 300, 'anterior')).toBe('R Chest')
   })
 
   it('uses posterior names and flips the side on the back view', () => {
-    expect(regionAt(240, 110, 'posterior')).toBe('Occiput')
+    expect(regionAt(240, 180, 'posterior')).toBe('Occiput')
     expect(regionAt(210, 300, 'posterior')).toBe('L Upper back')
-    expect(regionAt(206, 860, 'posterior')).toBe('L Calf')
+    expect(regionAt(182, 800, 'posterior')).toBe('L Calf')
   })
 
   it('falls back to vertical bands outside the silhouette', () => {
