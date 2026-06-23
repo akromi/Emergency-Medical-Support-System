@@ -3,7 +3,13 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // Static-asset PWA: builds to /dist and runs offline. Deploy anywhere.
+// On GitHub Pages the app is served under /<repo>/, so the deploy workflow
+// sets GITHUB_PAGES=true to build with that base path. Everywhere else
+// (local dev, npm run preview, Netlify drop) it stays at the root "/".
+const base = process.env.GITHUB_PAGES === 'true' ? '/Emergency-Medical-Support-System/' : '/'
+
 export default defineConfig({
+  base,
   plugins: [
     react(),
     VitePWA({
