@@ -13,7 +13,7 @@
 // segments. The whole mesh is emitted as ONE path string so the figure is a
 // few DOM nodes, not thousands. The silhouette is aligned to the core region
 // boxes so the drawn body sits exactly where the lookup table expects it.
-import { BODY_VIEWBOX } from '@triage-link/core'
+import { BODY_VIEWBOX, type BodyView } from '@triage-link/core'
 
 type Pt = readonly [number, number]
 const W = BODY_VIEWBOX.width
@@ -138,4 +138,21 @@ export function figureMeshPath(): string {
 /** Closed silhouette outline ("rim") path. */
 export function figureRimPath(): string {
   return RIM_PATH
+}
+
+// ---- Optional image figure layer --------------------------------------------
+// Drop licensed figure images into  public/figure/anterior.*  and
+// public/figure/posterior.*  and the app uses them automatically; until the
+// files exist, the <image> fails to load and the procedural mesh renders as a
+// fallback (see BodyChart). `align` is an SVG transform that fits the image to
+// the hidden region-lookup coordinates (tuned once the real image is in).
+export interface FigureImageConfig {
+  href: string
+  /** SVG transform applied so the drawn body sits on the region boxes. */
+  align?: string
+}
+
+export const FIGURE_IMAGE: Record<BodyView, FigureImageConfig> = {
+  anterior: { href: '/figure/anterior.png' },
+  posterior: { href: '/figure/posterior.png' },
 }
