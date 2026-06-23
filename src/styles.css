@@ -5,14 +5,19 @@
   --ekg:#3FE08A;
   --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
   --sans:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
+  /* Horizontal inset that aligns full-width bars with the centered 1320px
+     content column (matches .wrap: max-width 1320 + 18px padding). */
+  --col-pad:max(18px, calc((100% - 1320px) / 2 + 18px));
 }
 * { box-sizing:border-box }
 html,body,#root { margin:0; height:100%; }
 body { background:var(--bg); color:var(--txt); font-family:var(--sans); -webkit-font-smoothing:antialiased; }
 button { font-family:inherit; }
 
+/* Full-width sticky bars, but inset content to the same centered 1320px
+   column as .wrap so the logo / triage tag / body all align on one column. */
 .topbar { position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:14px;
-  padding:12px 18px; background:rgba(14,17,22,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); }
+  padding:12px var(--col-pad); background:rgba(14,17,22,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); }
 .brand { display:flex; align-items:baseline; gap:9px; }
 .brand .mark { font-family:var(--mono); font-weight:600; color:var(--ekg); letter-spacing:.4px; }
 .brand .sub { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--txt-faint); }
@@ -25,8 +30,7 @@ button { font-family:inherit; }
 
 /* Triage tag — prominent acuity band under the header (sticky below topbar). */
 .triagebar { position:sticky; top:47px; z-index:35; display:flex; align-items:center; gap:14px;
-  padding:7px 18px 7px 12px; background:var(--panel); border-bottom:1px solid var(--line);
-  border-left:6px solid var(--line); }
+  padding:7px var(--col-pad); background:var(--panel); border-bottom:1px solid var(--line); }
 .tb-label { font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase;
   color:var(--txt-faint); font-weight:600; }
 .tb-opts { display:flex; gap:6px; flex-wrap:wrap; }
@@ -99,11 +103,6 @@ input, select { width:100%; background:var(--panel-2); border:1px solid var(--li
 input:focus, select:focus { border-color:var(--ekg); box-shadow:0 0 0 3px rgba(63,224,138,.12); }
 input.mono { font-family:var(--mono); }
 input::placeholder { color:var(--txt-faint); }
-
-.triage { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
-.triage button { border:1px solid var(--line); background:var(--panel-2); color:var(--txt-dim);
-  padding:8px 4px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; }
-.triage button .swatch { display:block; height:5px; border-radius:3px; margin-bottom:5px; }
 
 .row { display:flex; align-items:flex-start; gap:9px; padding:9px 0; border-top:1px solid var(--line-soft); }
 .row:first-of-type { border-top:0; }

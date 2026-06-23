@@ -113,7 +113,7 @@ export function App() {
           injury-type marker colours). Quick-set here; persists on the record. */}
       <div
         className="triagebar"
-        style={triage ? { borderLeftColor: TRIAGE_COLORS[triage], background: `color-mix(in srgb, ${TRIAGE_COLORS[triage]} 12%, var(--panel))` } : undefined}
+        style={triage ? { background: `color-mix(in srgb, ${TRIAGE_COLORS[triage]} 16%, var(--panel))` } : undefined}
       >
         <span className="tb-label">Triage</span>
         <div className="tb-opts" role="group" aria-label="Triage category">
@@ -216,24 +216,13 @@ export function App() {
             </div>
           </section>
 
-          {/* ---- incident & triage ---- */}
+          {/* ---- incident (triage lives in the header tag) ---- */}
           <section className="panel">
-            <div className="panel-h"><h2>Incident &amp; triage</h2></div>
+            <div className="panel-h"><h2>Incident</h2></div>
             <div className="panel-b grid2">
               <label className="field"><span>Time of injury</span><input type="datetime-local" value={record.incident.injuryTime} onChange={(e) => setInc('injuryTime', e.target.value)} /></label>
               <label className="field"><span>Mechanism</span><input value={record.incident.mechanism} onChange={(e) => setInc('mechanism', e.target.value)} placeholder="Blunt, RTC, GSW…" /></label>
               <label className="field col2"><span>Location of incident</span><input value={record.incident.location} onChange={(e) => setInc('location', e.target.value)} placeholder="Address / grid / GPS" /></label>
-              <div className="field col2"><span>Triage category</span>
-                <div className="triage">
-                  {TRIAGE_ORDER.map((t) => (
-                    <button key={t} className={record.incident.triage === t ? 'on' : ''}
-                      style={record.incident.triage === t ? { background: TRIAGE_COLORS[t], borderColor: TRIAGE_COLORS[t], color: '#0c0c0c' } : undefined}
-                      onClick={() => setInc('triage', t)}>
-                      <span className="swatch" style={{ background: TRIAGE_COLORS[t] }} />{TRIAGE_LABELS[t].split(' ')[0]}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           </section>
 
