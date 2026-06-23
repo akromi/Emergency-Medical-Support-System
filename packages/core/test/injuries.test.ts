@@ -13,10 +13,15 @@ describe('injury catalog', () => {
   })
 
   it('looks up colour and label by key', () => {
-    expect(injuryColor('gsw')).toBe('#D7406B')
+    expect(injuryColor('gsw')).toBe('#3E9BFF')
     expect(injuryLabel('gsw')).toBe('Gunshot')
-    expect(injuryColor('fracture')).toBe('#E2A33B')
+    expect(injuryColor('fracture')).toBe('#E0A52E')
     expect(injuryLabel('fracture')).toBe('Fracture')
+  })
+
+  it('assigns a distinct colour to every injury type', () => {
+    const colors = INJURY_TYPES.map((t) => t.color.toUpperCase())
+    expect(new Set(colors).size).toBe(INJURY_TYPES.length)
   })
 
   it('every catalog entry round-trips through the lookups', () => {
