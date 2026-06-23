@@ -25,15 +25,19 @@ export interface FigureImageConfig {
   align: string
 }
 
+// Base-aware so the images resolve under the app's deploy path (e.g. the
+// GitHub Pages "/<repo>/" sub-path as well as the root "/").
+const ASSET_BASE = import.meta.env.BASE_URL
+
 export const FIGURE_IMAGE: Record<BodyView, FigureImageConfig> = {
   anterior: {
-    href: '/figure/anterior.png',
+    href: `${ASSET_BASE}figure/anterior.png`,
     w: 1086,
     h: 1448,
     align: 'translate(-137.96 21.17) scale(0.69670)',
   },
   posterior: {
-    href: '/figure/posterior.png',
+    href: `${ASSET_BASE}figure/posterior.png`,
     w: 1086,
     h: 1448,
     align: 'translate(-136.91 33.71) scale(0.69670)',
