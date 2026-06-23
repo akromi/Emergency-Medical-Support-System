@@ -38,10 +38,6 @@ const ellipse = (cx: number, cy: number, rx: number, ry: number, n = 16): Point[
     return [r1(cx + rx * Math.cos(a)), r1(cy + ry * Math.sin(a))] as Point
   })
 
-/** Trapezoid centred on cx, tapering from wTop (at yTop) to wBot (at yBot). */
-const trap = (cx: number, yTop: number, yBot: number, wTop: number, wBot: number): Point[] =>
-  [[r1(cx - wTop / 2), yTop], [r1(cx + wTop / 2), yTop], [r1(cx + wBot / 2), yBot], [r1(cx - wBot / 2), yBot]]
-
 /**
  * Slanted quad: a limb segment whose centre line runs from (cxTop, yTop) to
  * (cxBot, yBot), with independent top/bottom widths. Lets the arm boxes follow
