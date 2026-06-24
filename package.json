@@ -19,7 +19,8 @@
     "typecheck": "tsc --noEmit",
     "pretest": "npm run core:build",
     "test": "npm run test --workspaces --if-present",
-    "check": "npm run typecheck && npm run typecheck --workspaces --if-present && npm test && npm run build"
+    "check": "npm run typecheck && npm run typecheck --workspaces --if-present && npm test && npm run build",
+    "sync": "git pull origin main && npm install"
   },
   "dependencies": {
     "@triage-link/core": "*",
