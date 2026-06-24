@@ -50,12 +50,14 @@ test('GCS calculator fills the vitals field and records a set', async ({ page })
   await page.getByLabel('GCS verbal').selectOption('4') // Confused -> total 14
   await expect(page.getByPlaceholder(/3.15/)).toHaveValue('14 (E4 V4 M6)')
   await page.getByRole('button', { name: 'Record vitals' }).click()
-  await expect(page.getByText(/GCS 14/)).toBeVisible()
+  // Shown in both the vitals log and the acuity glance — match either.
+  await expect(page.getByText(/GCS 14/).first()).toBeVisible()
 })
 
 test('triage tag sets the level and the board opens', async ({ page }) => {
   await page.locator('.tb-opt', { hasText: 'Immediate' }).click()
-  await expect(page.getByText('Immediate (Red)')).toBeVisible()
+  // Reflected in the triage bar's current-label and the acuity glance.
+  await expect(page.getByText('Immediate (Red)').first()).toBeVisible()
   await page.getByRole('button', { name: /Board/ }).click()
   await expect(page.locator('.board, .triage-board, [class*="board"]').first()).toBeVisible()
 })
