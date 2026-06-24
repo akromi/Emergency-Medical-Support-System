@@ -5,6 +5,9 @@ dist-ssr
 .DS_Store
 coverage
 .vite
+playwright-report
+test-results
+.playwright
 *.log
 .env
 .env.*

@@ -508,17 +508,17 @@ function GcsCalc({ value, onChange }: { value: string; onChange: (v: string) => 
       <summary>GCS calculator <span className="gcs-total">{value ? value : `= ${total}`}</span></summary>
       <div className="gcs-rows">
         <label className="field"><span>Eye (E)</span>
-          <select value={e} onChange={(ev) => apply(+ev.target.value, v, m)}>
+          <select aria-label="GCS eye" value={e} onChange={(ev) => apply(+ev.target.value, v, m)}>
             {GCS_EYE.map((o) => <option key={o.score} value={o.score}>{o.score} · {o.label}</option>)}
           </select>
         </label>
         <label className="field"><span>Verbal (V)</span>
-          <select value={v} onChange={(ev) => apply(e, +ev.target.value, m)}>
+          <select aria-label="GCS verbal" value={v} onChange={(ev) => apply(e, +ev.target.value, m)}>
             {GCS_VERBAL.map((o) => <option key={o.score} value={o.score}>{o.score} · {o.label}</option>)}
           </select>
         </label>
         <label className="field"><span>Motor (M)</span>
-          <select value={m} onChange={(ev) => apply(e, v, +ev.target.value)}>
+          <select aria-label="GCS motor" value={m} onChange={(ev) => apply(e, v, +ev.target.value)}>
             {GCS_MOTOR.map((o) => <option key={o.score} value={o.score}>{o.score} · {o.label}</option>)}
           </select>
         </label>
