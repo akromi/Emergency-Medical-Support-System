@@ -2,6 +2,8 @@
 // deterministic resolver — the server stores ops and folds them; it does not
 // implement its own (divergent) merge logic.
 import Fastify, { type FastifyInstance } from 'fastify'
+import swagger from '@fastify/swagger'
+import swaggerUi from '@fastify/swagger-ui'
 import { resolve, type Op, type EhrGateway } from '@triage-link/core'
 import { OpStore } from './ops-store.js'
 import { registerEhrRoutes, registerEhrAuditRoute } from './ehr-routes.js'
@@ -13,11 +15,46 @@ interface SyncBody {
 }
 
 export function buildApp(
-  { store, ehr, ehrAudit }: { store: OpStore; ehr?: EhrGateway; ehrAudit?: EhrAuditStore },
+  { store, ehr, ehrAudit, docs = true }: {
+    store: OpStore
+    ehr?: EhrGateway
+    ehrAudit?: EhrAuditStore
+    /** Serve OpenAPI + Swagger UI at /docs (default true). */
+    docs?: boolean
+  },
 ): FastifyInstance {
   const app = Fastify({ logger: false })
 
-  app.get('/health', async () => ({ ok: true }))
+  // OpenAPI doc + interactive Swagger UI. Registered before routes so the
+  // onRoute hook captures every endpoint and its schema. Run the service with
+  // EHR_ALLOW_MOCK=true and open /docs to exercise the (stubbed) EHR API by
+  // hand — no ONE ID credentials or client certificate required.
+  if (docs) {
+    app.register(swagger, {
+      openapi: {
+        info: {
+          title: 'TRIAGE-LINK sync & EHR API',
+          version: '0.1.0',
+          description:
+            'Conflict-aware record sync plus the provincial-EHR integration. In dev the EHR routes ' +
+            'are backed by an in-memory MockGateway (set EHR_ALLOW_MOCK=true), so "Send to EHR" and ' +
+            'patient $match can be tested end-to-end against stubbed data.',
+        },
+        tags: [
+          { name: 'ehr', description: 'Provincial EHR integration (PCR $match, handover contribution, context).' },
+          { name: 'sync', description: 'Op-log sync and record inspection.' },
+        ],
+      },
+    })
+    app.register(swaggerUi, { routePrefix: '/docs' })
+  }
+
+  // All routes live inside a deferred plugin registered AFTER @fastify/swagger,
+  // so its (fastify-plugin) onRoute hook is attached before these routes are
+  // added and every endpoint lands in the OpenAPI document. The inner `app`
+  // shadows the outer instance, so the route bodies below read unchanged.
+  app.register(async (app) => {
+  app.get('/health', { schema: { tags: ['sync'], summary: 'Liveness probe' } }, async () => ({ ok: true }))
 
   // Provincial EHR integration is optional: only mounted when a gateway is wired.
   if (ehr) registerEhrRoutes(app, ehr)
@@ -96,6 +133,7 @@ export function buildApp(
       await store.upsertSnapshot(recordId, snapshot)
     }
     return { snapshot, ops, audit }
+  })
   })
 
   return app

@@ -45,6 +45,15 @@ describe('EHR routes', () => {
     expect(body.matches[0]).toMatchObject({ id: 'pcr-1001', familyName: 'Doe' })
   })
 
+  it('serves an OpenAPI document describing the EHR routes', async () => {
+    const res = await app.inject({ method: 'GET', url: '/docs/json' })
+    expect(res.statusCode).toBe(200)
+    const doc = res.json()
+    expect(doc.openapi).toMatch(/^3\./)
+    expect(Object.keys(doc.paths)).toContain('/ehr/handover')
+    expect(Object.keys(doc.paths)).toContain('/ehr/patient/$match')
+  })
+
   it('rejects a non-object $match body with 400', async () => {
     const res = await app.inject({
       method: 'POST',

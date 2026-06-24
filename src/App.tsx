@@ -19,6 +19,7 @@ import { capturePhoto } from './photo'
 import { PhotoLightbox } from './components/PhotoLightbox'
 import { Tip, OfflineBanner, InstallPrompt, useDismissed } from './components/hints'
 import { Tutorial } from './components/Tutorial'
+import { EhrTestConsole } from './components/EhrTestConsole'
 import { PcrVerify } from './components/PcrVerify'
 import { contributeHandover, EhrUnavailableError } from './ehr/client'
 
@@ -52,6 +53,7 @@ export function App() {
   const [lightbox, setLightbox] = useState<{ photos: string[]; index: number } | null>(null)
   const [photoError, setPhotoError] = useState('')
   const [showTour, setShowTour] = useState(false)
+  const [showEhrLab, setShowEhrLab] = useState(false)
   const [tourOffered, dismissTourOffer] = useDismissed('tour-offered')
   const [backupMsg, setBackupMsg] = useState('')
   const [pendingImport, setPendingImport] = useState<{ backup: Backup; count: number } | null>(null)
@@ -219,6 +221,7 @@ export function App() {
         <button className="topbtn" data-tour="summary" onClick={() => setShowSummary(true)} title="One-page casualty card — print or save as PDF for handover">🖨 Summary</button>
         <button className="topbtn" onClick={() => setShowTour(true)} title="Replay the guided tour">❔ Tour</button>
         <button className="topbtn" onClick={sendToEhr} title="Contribute this handover to the provincial EHR">Send to EHR ↑</button>
+        <button className="topbtn" onClick={() => setShowEhrLab(true)} title="Interactive lab to test the EHR integration against a stubbed gateway">🧪 EHR Test Lab</button>
         <button className="topbtn primary" onClick={exportFhir} title="Download an interoperable FHIR record">Export FHIR ↓</button>
         {ehrStatus && <span className="ehr-status">{ehrStatus}</span>}
       </header>
@@ -446,6 +449,7 @@ export function App() {
         onClose={() => setShowTour(false)}
       />
     )}
+    {showEhrLab && <EhrTestConsole record={record} onClose={() => setShowEhrLab(false)} />}
     </>
   )
 }

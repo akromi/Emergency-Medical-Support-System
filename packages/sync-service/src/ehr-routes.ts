@@ -27,12 +27,40 @@ function statusForCode(code: EhrError['code']): number {
   }
 }
 
+// ---- OpenAPI schemas (drive Swagger UI "Try it out" + request models) ----
+const patientIdentitySchema = {
+  type: 'object',
+  properties: {
+    healthCardNumber: { type: 'string', description: 'OHIP health-card number' },
+    healthCardVersion: { type: 'string' },
+    givenName: { type: 'string' },
+    familyName: { type: 'string' },
+    birthDate: { type: 'string', description: 'ISO-8601 date (YYYY-MM-DD)' },
+    gender: { type: 'string', enum: ['female', 'male', 'other', 'unknown'] },
+  },
+  examples: [{ healthCardNumber: '1234567890' }],
+}
+
 export function registerEhrRoutes(app: FastifyInstance, ehr: EhrGateway): void {
   // Liveness/auth probe for the configured provider.
-  app.get('/ehr/health', async () => ({ provider: ehr.provider, ok: await ehr.ping() }))
+  app.get(
+    '/ehr/health',
+    { schema: { tags: ['ehr'], summary: 'Gateway liveness + provider name' } },
+    async () => ({ provider: ehr.provider, ok: await ehr.ping() }),
+  )
 
   // Resolve a patient against the provincial client registry (Ontario: PCR $match).
-  app.post('/ehr/patient/$match', async (req, reply) => {
+  app.post('/ehr/patient/$match', {
+    // Schema documents the route (Swagger models) but the handler keeps
+    // ownership of validation + error shape, so attachValidation defers to it.
+    attachValidation: true,
+    schema: {
+      tags: ['ehr'],
+      summary: 'Resolve a patient (PCR $match)',
+      description: 'Match a patient against the provincial client registry. Try { "healthCardNumber": "1234567890" } against the mock.',
+      body: patientIdentitySchema,
+    },
+  }, async (req, reply) => {
     const body = req.body
     if (body === null || typeof body !== 'object' || Array.isArray(body)) {
       return reply.code(400).send({ error: 'invalid-request', message: 'Body must be a PatientIdentity object' })
@@ -47,7 +75,15 @@ export function registerEhrRoutes(app: FastifyInstance, ehr: EhrGateway): void {
 
   // Contribute a casualty handover to the EHR (write), where the provider
   // supports it. Restricted in practice to entitled source systems.
-  app.post('/ehr/handover', async (req, reply) => {
+  app.post('/ehr/handover', {
+    attachValidation: true,
+    schema: {
+      tags: ['ehr'],
+      summary: 'Contribute a casualty handover (Send to EHR)',
+      description: 'POST a CasualtyRecord (must have an "id"). Against the mock this returns { accepted, id: "mock-tx-<id>" }.',
+      body: { type: 'object', required: ['id'], properties: { id: { type: 'string' } }, additionalProperties: true, examples: [{ id: 'CAS-9', tombstone: { name: 'Doe, Jane' } }] },
+    },
+  }, async (req, reply) => {
     if (!ehr.contributeHandover) {
       return reply.code(501).send({ error: 'unsupported', message: `${ehr.provider} does not support handover contribution` })
     }
@@ -65,7 +101,14 @@ export function registerEhrRoutes(app: FastifyInstance, ehr: EhrGateway): void {
 
   // Pull clinical context (meds/allergies/labs) for a resolved patient, where
   // the configured provider supports it (Ontario: DHDR / OLIS / Patient Summary).
-  app.get('/ehr/patient/:id/context', async (req, reply) => {
+  app.get('/ehr/patient/:id/context', {
+    schema: {
+      tags: ['ehr'],
+      summary: 'Pull clinical context for a resolved patient',
+      description: 'Returns a FHIR Bundle (meds/allergies/labs). Try id "pcr-1001" against the mock.',
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+    },
+  }, async (req, reply) => {
     if (!ehr.fetchContext) {
       return reply.code(501).send({ error: 'unsupported', message: `${ehr.provider} does not support context fetch` })
     }
@@ -81,7 +124,13 @@ export function registerEhrRoutes(app: FastifyInstance, ehr: EhrGateway): void {
 
 /** Read access to the EHR audit trail (admin/oversight). */
 export function registerEhrAuditRoute(app: FastifyInstance, audit: EhrAuditStore): void {
-  app.get('/ehr/audit', async (req) => {
+  app.get('/ehr/audit', {
+    schema: {
+      tags: ['ehr'],
+      summary: 'Read the EHR access audit trail',
+      querystring: { type: 'object', properties: { patient: { type: 'string' }, limit: { type: 'string' } } },
+    },
+  }, async (req) => {
     const { patient, limit } = (req.query ?? {}) as { patient?: string; limit?: string }
     const entries = await audit.list({
       patientRef: patient,
