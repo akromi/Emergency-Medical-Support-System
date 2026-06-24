@@ -24,6 +24,22 @@ import { PcrVerify } from './components/PcrVerify'
 import { contributeHandover, EhrUnavailableError } from './ehr/client'
 
 const TRIAGE_ORDER: TriageCategory[] = ['immediate', 'delayed', 'minor', 'deceased']
+// The EHR Test Lab is developer/QA furniture (offline, mock-only). Hide it from
+// the field UI in production, but reveal it on demand with a ?lab (or ?lab=1)
+// URL flag — and always show it in dev. The flag persists to sessionStorage so
+// it survives in-app navigation within the tab.
+const labEnabled = (): boolean => {
+  if (import.meta.env.DEV) return true
+  try {
+    const params = new URLSearchParams(window.location.search)
+    if (params.has('lab') && params.get('lab') !== '0') {
+      sessionStorage.setItem('tl.lab', '1')
+    }
+    return sessionStorage.getItem('tl.lab') === '1'
+  } catch {
+    return false
+  }
+}
 const VITALS_META: Record<'hr' | 'bp' | 'rr' | 'spo2' | 'gcs' | 'pain', { label: string; name: string; ph: string }> = {
   hr: { label: 'HR', name: 'Heart rate', ph: 'bpm' },
   bp: { label: 'BP', name: 'Blood pressure', ph: '120/80' },
@@ -54,6 +70,7 @@ export function App() {
   const [photoError, setPhotoError] = useState('')
   const [showTour, setShowTour] = useState(false)
   const [showEhrLab, setShowEhrLab] = useState(false)
+  const [showLab] = useState(labEnabled)
   const [tourOffered, dismissTourOffer] = useDismissed('tour-offered')
   const [backupMsg, setBackupMsg] = useState('')
   const [pendingImport, setPendingImport] = useState<{ backup: Backup; count: number } | null>(null)
@@ -221,7 +238,9 @@ export function App() {
         <button className="topbtn" data-tour="summary" onClick={() => setShowSummary(true)} title="One-page casualty card — print or save as PDF for handover">🖨 Summary</button>
         <button className="topbtn" onClick={() => setShowTour(true)} title="Replay the guided tour">❔ Tour</button>
         <button className="topbtn" onClick={sendToEhr} title="Contribute this handover to the provincial EHR">Send to EHR ↑</button>
-        <button className="topbtn" onClick={() => setShowEhrLab(true)} title="Interactive lab to test the EHR integration against a stubbed gateway">🧪 EHR Test Lab</button>
+        {showLab && (
+          <button className="topbtn" onClick={() => setShowEhrLab(true)} title="Interactive lab to test the EHR integration against a stubbed gateway">🧪 EHR Test Lab</button>
+        )}
         <button className="topbtn primary" onClick={exportFhir} title="Download an interoperable FHIR record">Export FHIR ↓</button>
         {ehrStatus && <span className="ehr-status">{ehrStatus}</span>}
       </header>
@@ -449,7 +468,7 @@ export function App() {
         onClose={() => setShowTour(false)}
       />
     )}
-    {showEhrLab && <EhrTestConsole record={record} onClose={() => setShowEhrLab(false)} />}
+    {showLab && showEhrLab && <EhrTestConsole record={record} onClose={() => setShowEhrLab(false)} />}
     </>
   )
 }
