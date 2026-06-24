@@ -2,18 +2,22 @@
 // deterministic resolver — the server stores ops and folds them; it does not
 // implement its own (divergent) merge logic.
 import Fastify, { type FastifyInstance } from 'fastify'
-import { resolve, type Op } from '@triage-link/core'
+import { resolve, type Op, type EhrGateway } from '@triage-link/core'
 import { OpStore } from './ops-store.js'
+import { registerEhrRoutes } from './ehr-routes.js'
 
 interface SyncBody {
   clientId?: string
   ops?: Op[]
 }
 
-export function buildApp({ store }: { store: OpStore }): FastifyInstance {
+export function buildApp({ store, ehr }: { store: OpStore; ehr?: EhrGateway }): FastifyInstance {
   const app = Fastify({ logger: false })
 
   app.get('/health', async () => ({ ok: true }))
+
+  // Provincial EHR integration is optional: only mounted when a gateway is wired.
+  if (ehr) registerEhrRoutes(app, ehr)
 
   // Push a batch of ops and pull back the resolved state + full op set.
   app.post('/sync', async (req, reply) => {
