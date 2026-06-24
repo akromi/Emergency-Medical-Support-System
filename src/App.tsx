@@ -13,11 +13,20 @@ import { BodyChart, type NewInjuryPlacement } from './components/BodyChart'
 import { CasualtySummary } from './components/CasualtySummary'
 import { TriageBoard } from './components/TriageBoard'
 import { capturePhoto } from './photo'
+import { PhotoLightbox } from './components/PhotoLightbox'
 import { Tip, OfflineBanner, InstallPrompt } from './components/hints'
 import { PcrVerify } from './components/PcrVerify'
 import { contributeHandover, EhrUnavailableError } from './ehr/client'
 
 const TRIAGE_ORDER: TriageCategory[] = ['immediate', 'delayed', 'minor', 'deceased']
+const VITALS_META: Record<'hr' | 'bp' | 'rr' | 'spo2' | 'gcs' | 'pain', { label: string; name: string; ph: string }> = {
+  hr: { label: 'HR', name: 'Heart rate', ph: 'bpm' },
+  bp: { label: 'BP', name: 'Blood pressure', ph: '120/80' },
+  rr: { label: 'RR', name: 'Respiratory rate', ph: '/min' },
+  spo2: { label: 'SpO₂', name: 'Oxygen saturation', ph: '%' },
+  gcs: { label: 'GCS', name: 'Glasgow Coma Scale', ph: '3–15' },
+  pain: { label: 'Pain', name: 'Pain score', ph: '0–10' },
+}
 const TREATMENT_TYPES = [
   'Tourniquet', 'Hemostatic dressing', 'Pressure dressing', 'Airway (NPA/OPA)',
   'Needle decompression', 'IV access / fluids', 'Medication', 'Splint / immobilisation',
@@ -36,7 +45,7 @@ export function App() {
   const [showSummary, setShowSummary] = useState(false)
   const [showBoard, setShowBoard] = useState(false)
   const [ehrStatus, setEhrStatus] = useState('')
-  const [lightbox, setLightbox] = useState<string | null>(null)
+  const [lightbox, setLightbox] = useState<{ photos: string[]; index: number } | null>(null)
   const [photoError, setPhotoError] = useState('')
   const saveTimer = useRef<number | undefined>(undefined)
 
@@ -255,7 +264,7 @@ export function App() {
                     {photoError && <span className="hint-inline photo-err">{photoError}</span>}
                     {selected.photos.map((src, i) => (
                       <div className="thumb" key={i}>
-                        <img src={src} alt={`injury photo ${i + 1}`} onClick={() => setLightbox(src)} />
+                        <img src={src} alt={`injury photo ${i + 1}`} onClick={() => setLightbox({ photos: selected.photos, index: i })} />
                         <button type="button" className="rm" aria-label="Remove photo" onClick={() => removePhoto(selected.id, i)}>×</button>
                       </div>
                     ))}
@@ -344,9 +353,7 @@ export function App() {
       <TriageBoard records={saved} currentId={record.id} onSelect={loadCase} onClose={() => setShowBoard(false)} />
     )}
     {lightbox && (
-      <div className="lightbox" onClick={() => setLightbox(null)}>
-        <img src={lightbox} alt="injury photo" />
-      </div>
+      <PhotoLightbox photos={lightbox.photos} index={lightbox.index} onClose={() => setLightbox(null)} />
     )}
     </>
   )
@@ -371,7 +378,10 @@ function VitalsPanel({ vitals, onAdd, onRemove }: {
       <div className="panel-b">
         <div className="grid3">
           {(['hr', 'bp', 'rr', 'spo2', 'gcs', 'pain'] as const).map((k) => (
-            <label className="field" key={k}><span>{k.toUpperCase()}</span><input className="mono" value={f[k]} onChange={(e) => set(k, e.target.value)} /></label>
+            <label className="field" key={k} title={`${VITALS_META[k].name} (${VITALS_META[k].ph})`}>
+              <span>{VITALS_META[k].label}</span>
+              <input className="mono" value={f[k]} onChange={(e) => set(k, e.target.value)} placeholder={VITALS_META[k].ph} />
+            </label>
           ))}
         </div>
         <button className="btn full" onClick={submit}>Record vitals</button>
