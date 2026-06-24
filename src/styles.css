@@ -240,3 +240,7 @@ input::placeholder { color:var(--txt-faint); }
 .sm-photos figure { margin:0; width:140px; }
 .sm-photos img { width:140px; height:140px; object-fit:cover; border:1px solid #ccc; border-radius:4px; }
 .sm-photos figcaption { font-size:10.5px; color:#666; margin-top:3px; }
+
+/* Inline contextual hints (discoverability). */
+.hint-inline { font-size:11px; color:var(--txt-faint); font-style:italic; }
+.select-hint { display:block; margin-top:8px; padding-top:8px; border-top:1px solid var(--line-soft); }
