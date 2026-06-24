@@ -11,6 +11,7 @@ import {
 import { recordRepo } from './db/repository'
 import { BodyChart, type NewInjuryPlacement } from './components/BodyChart'
 import { CasualtySummary } from './components/CasualtySummary'
+import { TriageBoard } from './components/TriageBoard'
 
 const TRIAGE_ORDER: TriageCategory[] = ['immediate', 'delayed', 'minor', 'deceased']
 const TREATMENT_TYPES = [
@@ -29,6 +30,7 @@ export function App() {
   const [activeType, setActiveType] = useState<InjuryTypeKey>('laceration')
   const [selectedInjury, setSelectedInjury] = useState<string | null>(null)
   const [showSummary, setShowSummary] = useState(false)
+  const [showBoard, setShowBoard] = useState(false)
   const saveTimer = useRef<number | undefined>(undefined)
 
   useEffect(() => {
@@ -111,6 +113,7 @@ export function App() {
         <div className="brand"><span className="mark">◇ TRIAGE-LINK</span><span className="sub">Field Casualty Record</span></div>
         <div className="pid">CASE <b>{record.id}</b></div>
         <button className="topbtn" onClick={newCase}>+ New casualty</button>
+        <button className="topbtn" onClick={() => setShowBoard(true)}>🚩 Board{saved.length > 0 ? ` · ${saved.length}` : ''}</button>
         <button className="topbtn" onClick={() => setShowSummary(true)}>🖨 Summary</button>
         <button className="topbtn primary" onClick={exportFhir}>Export FHIR ↓</button>
       </header>
@@ -274,6 +277,9 @@ export function App() {
       <p className="footnote">Prototype — not a medical device, not for clinical use. Data is stored locally on this device only.</p>
     </div>
     {showSummary && <CasualtySummary record={record} onClose={() => setShowSummary(false)} />}
+    {showBoard && (
+      <TriageBoard records={saved} currentId={record.id} onSelect={loadCase} onClose={() => setShowBoard(false)} />
+    )}
     </>
   )
 }

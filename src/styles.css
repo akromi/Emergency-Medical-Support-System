@@ -186,3 +186,30 @@ input::placeholder { color:var(--txt-faint); }
   .summary-actions { display:none !important; }
   .summary-sheet { max-width:none; box-shadow:none; border-radius:0; padding:0; }
 }
+
+/* ---- Multi-casualty triage board ---- */
+.board-overlay { position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.6); overflow:auto; padding:20px; }
+.board { max-width:1280px; margin:0 auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px; }
+.board-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.board-title { font-size:14px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--txt); }
+.board-total { margin-left:12px; font-family:var(--mono); font-size:12px; color:var(--txt-dim); }
+.board-cols { display:grid; grid-template-columns:repeat(5, 1fr); gap:10px; }
+@media (max-width:900px){ .board-cols{ grid-template-columns:repeat(2,1fr);} }
+@media (max-width:560px){ .board-cols{ grid-template-columns:1fr;} }
+.board-col { background:var(--panel-2); border:1px solid var(--line-soft); border-radius:8px; padding:8px; min-height:80px; }
+.board-colhead { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:var(--txt);
+  text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid; padding-bottom:6px; margin-bottom:8px; }
+.board-colhead .dot { width:10px; height:10px; border-radius:3px; }
+.board-colhead .n { margin-left:auto; font-family:var(--mono); background:var(--raised); border-radius:999px; padding:1px 8px; font-size:12px; color:var(--txt-dim); }
+.board-cards { display:flex; flex-direction:column; gap:6px; }
+.board-empty { color:var(--txt-faint); text-align:center; padding:6px; }
+.board-card { text-align:left; width:100%; background:var(--raised); border:1px solid var(--line); border-left:3px solid;
+  border-radius:6px; padding:7px 9px; cursor:pointer; color:var(--txt); font-family:inherit; }
+.board-card:hover { background:#2a3440; }
+.board-card.active { outline:1px solid var(--ekg); }
+.bc-name { font-weight:600; font-size:13px; }
+.bc-meta { font-family:var(--mono); font-size:10.5px; color:var(--txt-faint); margin:1px 0 4px; }
+.bc-stats { display:flex; flex-wrap:wrap; gap:8px; font-size:11px; color:var(--txt-dim); }
+.bc-tbsa { color:#F2820F; font-weight:600; }
+.bc-ho { color:var(--ekg); }
+.board-none { text-align:center; color:var(--txt-faint); padding:24px; }
