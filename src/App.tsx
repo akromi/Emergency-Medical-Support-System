@@ -13,7 +13,7 @@ import { BodyChart, type NewInjuryPlacement } from './components/BodyChart'
 import { CasualtySummary } from './components/CasualtySummary'
 import { TriageBoard } from './components/TriageBoard'
 import { capturePhoto } from './photo'
-import { Tip, OfflineBanner } from './components/hints'
+import { Tip, OfflineBanner, InstallPrompt } from './components/hints'
 import { PcrVerify } from './components/PcrVerify'
 import { contributeHandover, EhrUnavailableError } from './ehr/client'
 
@@ -37,6 +37,7 @@ export function App() {
   const [showBoard, setShowBoard] = useState(false)
   const [ehrStatus, setEhrStatus] = useState('')
   const [lightbox, setLightbox] = useState<string | null>(null)
+  const [photoError, setPhotoError] = useState('')
   const saveTimer = useRef<number | undefined>(undefined)
 
   useEffect(() => {
@@ -74,10 +75,15 @@ export function App() {
     persist({ ...record, injuries: record.injuries.map((i) => (i.id === id ? { ...i, ...patch } : i)) })
   }
   async function addPhoto(id: string) {
-    const dataUrl = await capturePhoto()
-    if (!dataUrl) return
-    const inj = record.injuries.find((i) => i.id === id)
-    if (inj) updateInjury(id, { photos: [...inj.photos, dataUrl] })
+    try {
+      const dataUrl = await capturePhoto()
+      if (!dataUrl) return
+      const inj = record.injuries.find((i) => i.id === id)
+      if (inj) updateInjury(id, { photos: [...inj.photos, dataUrl] })
+    } catch {
+      setPhotoError('Couldn’t capture a photo — allow camera access in your browser/app settings.')
+      window.setTimeout(() => setPhotoError(''), 6000)
+    }
   }
   const removePhoto = (id: string, idx: number) => {
     const inj = record.injuries.find((i) => i.id === id)
@@ -177,6 +183,7 @@ export function App() {
       </div>
 
       <OfflineBanner />
+      <InstallPrompt />
 
       <div className="wrap">
         <main>
@@ -244,7 +251,8 @@ export function App() {
                   />
                   <div className="photos">
                     <button type="button" className="addphoto" onClick={() => addPhoto(selected.id)}>📷 Add photo</button>
-                    {selected.photos.length === 0 && <span className="hint-inline">Photograph the wound — saved with this injury</span>}
+                    {selected.photos.length === 0 && !photoError && <span className="hint-inline">Photograph the wound — saved with this injury</span>}
+                    {photoError && <span className="hint-inline photo-err">{photoError}</span>}
                     {selected.photos.map((src, i) => (
                       <div className="thumb" key={i}>
                         <img src={src} alt={`injury photo ${i + 1}`} onClick={() => setLightbox(src)} />
@@ -311,6 +319,9 @@ export function App() {
             <div className="panel-h"><h2>Saved casualties</h2><span className="count">{saved.length}</span></div>
             <div className="panel-b">
               {saved.length === 0 && <div className="empty">Records auto-save as you type.</div>}
+              {saved.length > 1 && (
+                <Tip id="handover-features">🚩 <b>Board</b> (top bar) shows every casualty grouped by triage · 🖨 <b>Summary</b> prints a one-page handover card.</Tip>
+              )}
               {saved.map((r) => (
                 <div className={`rec${r.id === record.id ? ' active' : ''}`} key={r.id}>
                   <span className="tri" style={{ background: r.incident.triage ? TRIAGE_COLORS[r.incident.triage] : '#2A3340' }} />
@@ -364,6 +375,7 @@ function VitalsPanel({ vitals, onAdd, onRemove }: {
           ))}
         </div>
         <button className="btn full" onClick={submit}>Record vitals</button>
+        {vitals.length === 0 && <p className="hint-inline panel-hint">Enter any fields and tap Record — log a fresh timestamped set at each reassessment.</p>}
         {vitals.slice().reverse().map((v) => (
           <div className="row" key={v.id}>
             <div className="body">
@@ -411,6 +423,7 @@ function TreatmentPanel({ treatments, onAdd, onRemove }: {
         <label className="field"><span>Provider</span><input value={provider} onChange={(e) => setProvider(e.target.value)} placeholder="Initials / unit" /></label>
         <div className="col2"><button className="btn full" onClick={submit}>Log intervention</button></div>
         <div className="col2">
+          {treatments.length === 0 && <p className="hint-inline panel-hint">Logged interventions appear here with time, place, and provider.</p>}
           {treatments.slice().reverse().map((t) => (
             <div className="row" key={t.id}>
               <span className="tag" style={{ background: '#3FE08A' }} />

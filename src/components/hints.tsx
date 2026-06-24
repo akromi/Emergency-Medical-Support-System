@@ -29,6 +29,33 @@ export function Tip({ id, children }: { id: string; children: ReactNode }) {
   )
 }
 
+interface InstallEvent extends Event {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
+
+/** "Add to Home Screen" prompt (Chrome/Android, when installable & not installed). */
+export function InstallPrompt() {
+  const [evt, setEvt] = useState<InstallEvent | null>(null)
+  const [dismissed, dismiss] = useDismissed('install')
+  useEffect(() => {
+    const handler = (e: Event) => { e.preventDefault(); setEvt(e as InstallEvent) }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+  if (!evt || dismissed) return null
+  const install = async () => { await evt.prompt(); dismiss(); setEvt(null) }
+  return (
+    <div className="install-bar">
+      <span>📲 Install TRIAGE-LINK to your home screen — runs fully offline.</span>
+      <span className="install-actions">
+        <button type="button" className="btn" onClick={install}>Install</button>
+        <button type="button" className="tip-x" aria-label="Dismiss" onClick={dismiss}>×</button>
+      </span>
+    </div>
+  )
+}
+
 /** Banner shown only while the device is offline (reassurance, not an error). */
 export function OfflineBanner() {
   const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && !navigator.onLine)
