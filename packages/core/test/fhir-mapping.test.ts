@@ -32,8 +32,8 @@ function sampleRecord(): CasualtyRecord {
       ageBand: 'adult',
     },
     injuries: [
-      { id: 'inj-1', view: 'anterior', x: 100, y: 120, region: 'Chest', type: 'gsw', severity: 'critical', notes: 'penetrating' },
-      { id: 'inj-2', view: 'posterior', x: 90, y: 280, region: 'L Thigh', type: 'laceration', severity: 'moderate', notes: '' },
+      { id: 'inj-1', view: 'anterior', x: 100, y: 120, region: 'Chest', type: 'gsw', severity: 'critical', notes: 'penetrating', photos: [] },
+      { id: 'inj-2', view: 'posterior', x: 90, y: 280, region: 'L Thigh', type: 'laceration', severity: 'moderate', notes: '', photos: [] },
     ],
     vitals: [
       { id: 'v-1', takenAt: 1_700_000_000_000, hr: '120', bp: '90/60', rr: '24', spo2: '88', gcs: '13', pain: '7' },

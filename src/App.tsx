@@ -12,6 +12,7 @@ import { recordRepo } from './db/repository'
 import { BodyChart, type NewInjuryPlacement } from './components/BodyChart'
 import { CasualtySummary } from './components/CasualtySummary'
 import { TriageBoard } from './components/TriageBoard'
+import { capturePhoto } from './photo'
 import { PcrVerify } from './components/PcrVerify'
 import { contributeHandover, EhrUnavailableError } from './ehr/client'
 
@@ -34,6 +35,7 @@ export function App() {
   const [showSummary, setShowSummary] = useState(false)
   const [showBoard, setShowBoard] = useState(false)
   const [ehrStatus, setEhrStatus] = useState('')
+  const [lightbox, setLightbox] = useState<string | null>(null)
   const saveTimer = useRef<number | undefined>(undefined)
 
   useEffect(() => {
@@ -61,7 +63,7 @@ export function App() {
     const id = genLocalId('inj-')
     persist({
       ...record,
-      injuries: [...record.injuries, { id, ...p, type: activeType, severity: 'moderate', notes: '' }],
+      injuries: [...record.injuries, { id, ...p, type: activeType, severity: 'moderate', notes: '', photos: [] }],
     })
     setSelectedInjury(id)
   }
@@ -69,6 +71,16 @@ export function App() {
     persist({ ...record, injuries: record.injuries.filter((i) => i.id !== id) })
   function updateInjury(id: string, patch: Partial<CasualtyRecord['injuries'][number]>) {
     persist({ ...record, injuries: record.injuries.map((i) => (i.id === id ? { ...i, ...patch } : i)) })
+  }
+  async function addPhoto(id: string) {
+    const dataUrl = await capturePhoto()
+    if (!dataUrl) return
+    const inj = record.injuries.find((i) => i.id === id)
+    if (inj) updateInjury(id, { photos: [...inj.photos, dataUrl] })
+  }
+  const removePhoto = (id: string, idx: number) => {
+    const inj = record.injuries.find((i) => i.id === id)
+    if (inj) updateInjury(id, { photos: inj.photos.filter((_, i) => i !== idx) })
   }
 
   const addVital = (v: Omit<VitalSign, 'id' | 'takenAt'>) =>
@@ -224,6 +236,15 @@ export function App() {
                     value={selected.notes}
                     onChange={(e) => updateInjury(selected.id, { notes: e.target.value })}
                   />
+                  <div className="photos">
+                    <button type="button" className="addphoto" onClick={() => addPhoto(selected.id)}>📷 Add photo</button>
+                    {selected.photos.map((src, i) => (
+                      <div className="thumb" key={i}>
+                        <img src={src} alt={`injury photo ${i + 1}`} onClick={() => setLightbox(src)} />
+                        <button type="button" className="rm" aria-label="Remove photo" onClick={() => removePhoto(selected.id, i)}>×</button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -300,6 +321,11 @@ export function App() {
     {showSummary && <CasualtySummary record={record} onClose={() => setShowSummary(false)} />}
     {showBoard && (
       <TriageBoard records={saved} currentId={record.id} onSelect={loadCase} onClose={() => setShowBoard(false)} />
+    )}
+    {lightbox && (
+      <div className="lightbox" onClick={() => setLightbox(null)}>
+        <img src={lightbox} alt="injury photo" />
+      </div>
     )}
     </>
   )

@@ -21,7 +21,7 @@ const base = (): CasualtyRecord => createEmptyRecord('CAS-1')
 
 const injury = (id: string, over: Partial<CasualtyRecord['injuries'][number]> = {}) => ({
   id, view: 'anterior' as const, x: 1, y: 2, region: 'Chest',
-  type: 'gsw' as const, severity: 'critical' as const, notes: '', ...over,
+  type: 'gsw' as const, severity: 'critical' as const, notes: '', photos: [] as string[], ...over,
 })
 
 describe('diffToOps', () => {

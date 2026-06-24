@@ -147,6 +147,9 @@ export function BodyChart({ view, injuries, selectedId, onPlace, onSelect }: Bod
                 {inj.id === selectedId && <circle className="ring" cx={inj.x} cy={inj.y} r={9 * k} />}
                 <line className="x" x1={inj.x - a} y1={inj.y - a} x2={inj.x + a} y2={inj.y + a} stroke={injuryColor(inj.type)} />
                 <line className="x" x1={inj.x - a} y1={inj.y + a} x2={inj.x + a} y2={inj.y - a} stroke={injuryColor(inj.type)} />
+                {inj.photos.length > 0 && (
+                  <text className="cam" x={inj.x + a + 1.5 * k} y={inj.y - a} fontSize={9 * k}>📷</text>
+                )}
               </g>
             )
           })}
