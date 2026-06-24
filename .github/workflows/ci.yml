@@ -21,5 +21,13 @@ jobs:
       - run: npm run typecheck --workspace @triage-link/core
       - run: npm run typecheck --workspace @triage-link/ehr-gateway
       - run: npm run typecheck --workspace @triage-link/sync-service
-      - run: npm test
+      # Runs the whole suite (all packages + app) in one pass AND emits the
+      # browsable HTML report to ./html, published below as an artifact.
+      - run: npm run test:report
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: test-report
+          path: html/
+          retention-days: 14
       - run: npm run build

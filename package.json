@@ -20,6 +20,8 @@
     "pretest": "npm run core:build",
     "test": "npm run test --workspaces --if-present && npm run test:app",
     "test:app": "vitest run",
+    "test:ui": "npm run core:build && vitest --ui --config vitest.all.config.ts",
+    "test:report": "npm run core:build && vitest run --config vitest.report.config.ts",
     "test:e2e": "playwright test",
     "check": "npm run typecheck && npm run typecheck --workspaces --if-present && npm test && npm run build",
     "sync": "git pull origin main && npm install"
@@ -39,6 +41,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^6.0.3",
+    "@vitest/ui": "^4.1.9",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^29.1.1",
     "typescript": "^5.6.3",
