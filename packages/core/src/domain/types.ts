@@ -44,6 +44,8 @@ export interface Injury {
   type: InjuryTypeKey
   severity: InjurySeverity
   notes: string
+  /** Attached photos as (downscaled) image data URLs. */
+  photos: string[]
 }
 
 export interface VitalSign {

@@ -94,6 +94,13 @@ export function CasualtySummary({ record, onClose }: { record: CasualtyRecord; o
           {burns > 0 && (
             <div className="sm-tbsa">Burn TBSA: <b>{tbsa}%</b> <span className="sm-dim">(Lund–Browder, {AGE_BAND_LABELS[inc.ageBand]})</span></div>
           )}
+          {injuries.some((i) => i.photos.length > 0) && (
+            <div className="sm-photos">
+              {injuries.flatMap((i) => i.photos.map((src, k) => (
+                <figure key={`${i.id}-${k}`}><img src={src} alt={i.region} /><figcaption>{i.region}</figcaption></figure>
+              )))}
+            </div>
+          )}
         </Section>
 
         <Section title="Vitals" count={vitals.length}>

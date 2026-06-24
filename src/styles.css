@@ -222,3 +222,21 @@ input::placeholder { color:var(--txt-faint); }
 .pcr-ctx { margin-top:6px; display:flex; flex-direction:column; gap:4px; }
 .ehr-status { font-size:11px; color:var(--txt-dim); font-family:var(--mono); align-self:center; }
 .btn:disabled { opacity:.5; cursor:not-allowed; }
+
+/* ---- Injury photos (capture, thumbnails, lightbox, summary gallery) ---- */
+.editor .photos { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:8px; }
+.addphoto { border:1px solid var(--line); background:var(--panel-2); color:var(--txt); padding:7px 11px;
+  border-radius:8px; font-size:12.5px; font-weight:600; cursor:pointer; }
+.addphoto:hover { background:var(--raised); border-color:#5fb0e0; }
+.thumb { position:relative; width:54px; height:54px; }
+.thumb img { width:54px; height:54px; object-fit:cover; border-radius:6px; border:1px solid var(--line); cursor:pointer; }
+.thumb .rm { position:absolute; top:-6px; right:-6px; width:18px; height:18px; line-height:16px; text-align:center;
+  border-radius:50%; border:1px solid var(--line); background:var(--raised); color:var(--txt); font-size:12px; cursor:pointer; padding:0; }
+.marker .cam { pointer-events:none; }
+.lightbox { position:fixed; inset:0; z-index:120; background:rgba(0,0,0,.85); display:flex;
+  align-items:center; justify-content:center; padding:20px; cursor:zoom-out; }
+.lightbox img { max-width:100%; max-height:100%; border-radius:6px; }
+.sm-photos { display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
+.sm-photos figure { margin:0; width:140px; }
+.sm-photos img { width:140px; height:140px; object-fit:cover; border:1px solid #ccc; border-radius:4px; }
+.sm-photos figcaption { font-size:10.5px; color:#666; margin-top:3px; }
