@@ -321,6 +321,9 @@ export function App() {
           <TreatmentPanel onAdd={addTreatment} treatments={record.treatments} onRemove={removeTreatment} />
           </div>
 
+          {/* right column: acuity glance above the injury list */}
+          <div className="workcol">
+          <AcuityGlance record={record} tbsa={tbsa} />
           {/* ---- injury list / editor ---- */}
           <section className="panel">
             <div className="panel-h">
@@ -374,6 +377,7 @@ export function App() {
               )}
             </div>
           </section>
+          </div>
           </div>
         </main>
 
@@ -476,6 +480,42 @@ export function App() {
     )}
     {showLab && showEhrLab && <EhrTestConsole record={record} onClose={() => setShowEhrLab(false)} />}
     </>
+  )
+}
+
+// ---- acuity glance: triage + latest vitals, above the logged-injuries list ----
+function AcuityGlance({ record, tbsa }: { record: CasualtyRecord; tbsa: number }) {
+  const triage = record.incident.triage
+  const latest = record.vitals[record.vitals.length - 1]
+  return (
+    <aside className="glance">
+      <div className="glance-h">Acuity at a glance</div>
+      <div
+        className="glance-triage"
+        style={triage ? { background: TRIAGE_COLORS[triage], color: '#0c0c0c', borderColor: TRIAGE_COLORS[triage] } : undefined}
+      >
+        {triage ? TRIAGE_LABELS[triage] : 'Triage not set'}
+      </div>
+      <div className="glance-sec">
+        <span className="glance-k">Latest vitals</span>
+        {latest ? (
+          <>
+            <div className="glance-chips">
+              {latest.hr && <span>HR {latest.hr}</span>}{latest.bp && <span>BP {latest.bp}</span>}
+              {latest.rr && <span>RR {latest.rr}</span>}{latest.spo2 && <span>SpO₂ {latest.spo2}</span>}
+              {latest.gcs && <span>GCS {latest.gcs}</span>}{latest.pain && <span>Pain {latest.pain}</span>}
+            </div>
+            <div className="glance-time">{fmtTime(latest.takenAt)}</div>
+          </>
+        ) : (
+          <span className="glance-empty">None recorded yet</span>
+        )}
+      </div>
+      <div className="glance-stats">
+        <div><b>{record.injuries.length}</b> injur{record.injuries.length === 1 ? 'y' : 'ies'}</div>
+        {tbsa > 0 && <div className="glance-tbsa">🔥 {tbsa}% TBSA</div>}
+      </div>
+    </aside>
   )
 }
 
