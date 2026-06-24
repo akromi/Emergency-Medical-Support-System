@@ -71,30 +71,18 @@ button { font-family:inherit; }
   padding:5px 9px; border-radius:18px; font-size:12px; font-weight:600; cursor:pointer; }
 .tool .dot { width:9px; height:9px; border-radius:50%; }
 .tool.active { background:var(--raised); color:var(--txt); border-color:currentColor; }
-/* Charts + a compact acuity panel share the panel body. The body figure is
-   very tall (480x1040 ≈ 1:2.17), so cap each view's width to keep it from
-   dominating the screen; precise placement still happens in zoom mode. */
-.chartzone { display:grid; grid-template-columns:minmax(0,1fr) 230px; gap:14px; padding:14px; align-items:start; }
-@media (max-width:900px) { .chartzone { grid-template-columns:1fr; } }
-.charts { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+/* The body charts and the logged-injuries panel sit side by side (charts left,
+   the list/editor right) so the panel you edit is next to the markers. The
+   treatment log spans full width below. Collapses to one column when narrow. */
+.workzone { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:16px; align-items:start; margin-bottom:16px; }
+.workzone > .panel + .panel { margin-top:0; }
+@media (max-width:1180px) { .workzone { grid-template-columns:1fr; } }
+
+/* The body figure is very tall (480x1040 ≈ 1:2.17), so cap each view's width to
+   keep it from dominating; precise placement still happens in zoom mode. */
+.charts { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:14px; }
 .charts .bodyview { max-width:270px; margin:0 auto; width:100%; }
 @media (max-width:520px) { .charts { grid-template-columns:1fr; } .charts .bodyview { max-width:none; } }
-
-/* Acuity glance — triage + latest vitals beside the charts. */
-.glance { border:1px solid var(--line); border-radius:10px; background:var(--panel-2); padding:12px; }
-.glance-h { font-size:11px; letter-spacing:1.2px; text-transform:uppercase; color:var(--txt-dim); font-weight:700; margin-bottom:10px; }
-.glance-triage { text-align:center; font-weight:700; font-size:13px; padding:8px; border-radius:8px;
-  border:1px solid var(--line); color:var(--txt-dim); margin-bottom:12px; }
-.glance-sec { margin-bottom:12px; }
-.glance-k { display:block; font-size:10px; letter-spacing:.6px; text-transform:uppercase; color:var(--txt-faint); font-weight:700; margin-bottom:6px; }
-.glance-chips { display:flex; flex-wrap:wrap; gap:5px; }
-.glance-chips span { font-family:var(--mono); font-size:11px; color:var(--txt-dim); border:1px solid var(--line); border-radius:6px; padding:2px 6px; }
-.glance-empty { font-size:12px; color:var(--txt-faint); }
-.glance-time { font-family:var(--mono); font-size:10px; color:var(--txt-faint); margin-top:6px; }
-.glance-stats { display:flex; flex-wrap:wrap; gap:12px; align-items:center; font-size:13px; color:var(--txt);
-  border-top:1px solid var(--line-soft); padding-top:10px; }
-.glance-stats b { color:var(--ekg); font-family:var(--mono); }
-.glance-tbsa { font-family:var(--mono); font-size:12px; color:#F2820F; }
 
 .bodyview { position:relative; background:var(--panel-2); border:1px solid var(--line-soft); border-radius:10px; padding:8px; }
 .bodyview .vlabel { position:absolute; top:8px; left:10px; font-family:var(--mono); font-size:10px; letter-spacing:1px; color:var(--txt-faint); text-transform:uppercase; }

@@ -287,6 +287,8 @@ export function App() {
 
       <div className="wrap">
         <main>
+          {/* charts + injury list sit side by side; treatment log spans below */}
+          <div className="workzone">
           {/* ---- injury chart ---- */}
           <section className="panel">
             <div className="chart-head">
@@ -304,12 +306,9 @@ export function App() {
                 ))}
               </div>
             </div>
-            <div className="chartzone">
-              <div className="charts" data-tour="charts">
-                <BodyChart view="anterior" injuries={record.injuries} selectedId={selectedInjury} onPlace={placeInjury} onSelect={setSelectedInjury} />
-                <BodyChart view="posterior" injuries={record.injuries} selectedId={selectedInjury} onPlace={placeInjury} onSelect={setSelectedInjury} />
-              </div>
-              <AcuityGlance record={record} tbsa={tbsa} />
+            <div className="charts" data-tour="charts">
+              <BodyChart view="anterior" injuries={record.injuries} selectedId={selectedInjury} onPlace={placeInjury} onSelect={setSelectedInjury} />
+              <BodyChart view="posterior" injuries={record.injuries} selectedId={selectedInjury} onPlace={placeInjury} onSelect={setSelectedInjury} />
             </div>
             <p className="hint">Pick an injury type · tap a body area to blow it up · tap again to drop a marker. Tap a marker to edit it below.</p>
             <div className="hintwrap">
@@ -370,6 +369,7 @@ export function App() {
               )}
             </div>
           </section>
+          </div>
 
           <TreatmentPanel onAdd={addTreatment} treatments={record.treatments} onRemove={removeTreatment} />
         </main>
@@ -473,43 +473,6 @@ export function App() {
     )}
     {showLab && showEhrLab && <EhrTestConsole record={record} onClose={() => setShowEhrLab(false)} />}
     </>
-  )
-}
-
-// ---- acuity glance: compact triage + latest vitals beside the (smaller)
-// charts, so the key acuity picture is visible without scrolling to the aside ----
-function AcuityGlance({ record, tbsa }: { record: CasualtyRecord; tbsa: number }) {
-  const triage = record.incident.triage
-  const latest = record.vitals[record.vitals.length - 1]
-  return (
-    <aside className="glance">
-      <div className="glance-h">Acuity at a glance</div>
-      <div
-        className="glance-triage"
-        style={triage ? { background: TRIAGE_COLORS[triage], color: '#0c0c0c', borderColor: TRIAGE_COLORS[triage] } : undefined}
-      >
-        {triage ? TRIAGE_LABELS[triage] : 'Triage not set'}
-      </div>
-      <div className="glance-sec">
-        <span className="glance-k">Latest vitals</span>
-        {latest ? (
-          <>
-            <div className="glance-chips">
-              {latest.hr && <span>HR {latest.hr}</span>}{latest.bp && <span>BP {latest.bp}</span>}
-              {latest.rr && <span>RR {latest.rr}</span>}{latest.spo2 && <span>SpO₂ {latest.spo2}</span>}
-              {latest.gcs && <span>GCS {latest.gcs}</span>}{latest.pain && <span>Pain {latest.pain}</span>}
-            </div>
-            <div className="glance-time">{fmtTime(latest.takenAt)}</div>
-          </>
-        ) : (
-          <span className="glance-empty">None recorded yet</span>
-        )}
-      </div>
-      <div className="glance-stats">
-        <div><b>{record.injuries.length}</b> injur{record.injuries.length === 1 ? 'y' : 'ies'}</div>
-        {tbsa > 0 && <div className="glance-tbsa">🔥 {tbsa}% TBSA</div>}
-      </div>
-    </aside>
   )
 }
 
