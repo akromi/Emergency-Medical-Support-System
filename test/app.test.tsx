@@ -22,7 +22,8 @@ describe('App — core flows (jsdom)', () => {
     render(<App />)
     await user.type(screen.getByPlaceholderText('bpm'), '120')
     await user.click(screen.getByRole('button', { name: 'Record vitals' }))
-    expect(await screen.findByText('HR 120')).toBeInTheDocument()
+    // Shown both in the vitals log and the acuity glance.
+    expect((await screen.findAllByText('HR 120')).length).toBeGreaterThan(0)
   })
 
   it('computes GCS from eye/verbal/motor into the vitals field', async () => {
@@ -49,6 +50,7 @@ describe('App — core flows (jsdom)', () => {
     render(<App />)
     const triagebar = screen.getByLabelText('Triage category')
     await user.click(within(triagebar).getByRole('button', { name: /Immediate/ }))
-    expect(await screen.findByText(/Immediate \(Red\)/)).toBeInTheDocument()
+    // Reflected in the triage bar's current-label and the acuity glance.
+    expect((await screen.findAllByText(/Immediate \(Red\)/)).length).toBeGreaterThan(0)
   })
 })
