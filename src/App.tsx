@@ -286,9 +286,51 @@ export function App() {
       )}
 
       <div className="wrap">
-        <main>
-          {/* left column (charts + treatment log) beside the injuries list, so
-              the list can grow without pushing the treatment log down */}
+        {/* Patient + Incident — top of the workflow: who, and what happened */}
+        <div className="idband">
+          {/* ---- tombstone ---- */}
+          <section className="panel">
+            <div className="panel-h"><h2>Tombstone — identity</h2></div>
+            <div className="panel-b grid2">
+              <label className="field col2"><span>Full name</span><input value={record.tombstone.name} onChange={(e) => setTomb('name', e.target.value)} placeholder="Surname, Given" /></label>
+              <label className="field"><span>Date of birth</span><input type="date" value={record.tombstone.dob} onChange={(e) => setDob(e.target.value)} /></label>
+              <label className="field"><span>Sex</span>
+                <select value={record.tombstone.sex} onChange={(e) => setTomb('sex', e.target.value)}>
+                  <option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option><option value="unknown">Unknown</option>
+                </select>
+              </label>
+              <label className="field"><span>Patient ID / MRN</span><input className="mono" value={record.tombstone.mrn} onChange={(e) => setTomb('mrn', e.target.value)} /></label>
+              <label className="field"><span>Blood type</span><input value={record.tombstone.bloodType} onChange={(e) => setTomb('bloodType', e.target.value)} placeholder="Unknown" /></label>
+              <label className="field"><span>Next of kin</span><input value={record.tombstone.nextOfKin} onChange={(e) => setTomb('nextOfKin', e.target.value)} /></label>
+              <label className="field"><span>NOK phone</span><input className="mono" value={record.tombstone.nextOfKinPhone} onChange={(e) => setTomb('nextOfKinPhone', e.target.value)} /></label>
+            </div>
+            <div className="panel-b">
+              <PcrVerify tombstone={record.tombstone} onApply={applyTomb} />
+            </div>
+          </section>
+
+          {/* ---- incident (triage lives in the header tag) ---- */}
+          <section className="panel">
+            <div className="panel-h"><h2>Incident</h2></div>
+            <div className="panel-b grid2">
+              <label className="field"><span>Time of injury</span><input type="datetime-local" value={record.incident.injuryTime} onChange={(e) => setInc('injuryTime', e.target.value)} /></label>
+              <label className="field"><span>Mechanism</span><input value={record.incident.mechanism} onChange={(e) => setInc('mechanism', e.target.value)} placeholder="Blunt, RTC, GSW…" /></label>
+              <label className="field col2"><span>Location of incident</span><input value={record.incident.location} onChange={(e) => setInc('location', e.target.value)} placeholder="Address / grid / GPS" /></label>
+              <div className="field col2"><span>Age band <em>· adjusts burn TBSA (Lund–Browder)</em>
+                {dobAge != null && <em className="derived">· {dobAge}y from DOB</em>}</span>
+                <div className="ageband" role="group" aria-label="Patient age band">
+                  {AGE_BAND_ORDER.map((b) => (
+                    <button key={b} type="button" className={record.incident.ageBand === b ? 'on' : ''} onClick={() => setInc('ageBand', b)}>
+                      {AGE_BAND_LABELS[b]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        {/* Assessment: charts (injuries) · acuity + vitals (signs) · injury list */}
           <div className="workzone">
           <div className="workcol">
           {/* ---- injury chart ---- */}
@@ -321,9 +363,14 @@ export function App() {
           <TreatmentPanel onAdd={addTreatment} treatments={record.treatments} onRemove={removeTreatment} />
           </div>
 
-          {/* right column: acuity glance above the injury list */}
+          {/* middle column: acuity glance + vitals (signs) */}
           <div className="workcol">
           <AcuityGlance record={record} tbsa={tbsa} />
+          <VitalsPanel onAdd={addVital} vitals={record.vitals} onRemove={removeVital} />
+          </div>
+
+          {/* right column: the logged-injury list / editor */}
+          <div className="workcol">
           {/* ---- injury list / editor ---- */}
           <section className="panel">
             <div className="panel-h">
@@ -379,53 +426,8 @@ export function App() {
           </section>
           </div>
           </div>
-        </main>
 
-        <aside>
-          {/* ---- tombstone ---- */}
-          <section className="panel">
-            <div className="panel-h"><h2>Tombstone — identity</h2></div>
-            <div className="panel-b grid2">
-              <label className="field col2"><span>Full name</span><input value={record.tombstone.name} onChange={(e) => setTomb('name', e.target.value)} placeholder="Surname, Given" /></label>
-              <label className="field"><span>Date of birth</span><input type="date" value={record.tombstone.dob} onChange={(e) => setDob(e.target.value)} /></label>
-              <label className="field"><span>Sex</span>
-                <select value={record.tombstone.sex} onChange={(e) => setTomb('sex', e.target.value)}>
-                  <option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option><option value="unknown">Unknown</option>
-                </select>
-              </label>
-              <label className="field"><span>Patient ID / MRN</span><input className="mono" value={record.tombstone.mrn} onChange={(e) => setTomb('mrn', e.target.value)} /></label>
-              <label className="field"><span>Blood type</span><input value={record.tombstone.bloodType} onChange={(e) => setTomb('bloodType', e.target.value)} placeholder="Unknown" /></label>
-              <label className="field"><span>Next of kin</span><input value={record.tombstone.nextOfKin} onChange={(e) => setTomb('nextOfKin', e.target.value)} /></label>
-              <label className="field"><span>NOK phone</span><input className="mono" value={record.tombstone.nextOfKinPhone} onChange={(e) => setTomb('nextOfKinPhone', e.target.value)} /></label>
-            </div>
-            <div className="panel-b">
-              <PcrVerify tombstone={record.tombstone} onApply={applyTomb} />
-            </div>
-          </section>
-
-          {/* ---- incident (triage lives in the header tag) ---- */}
-          <section className="panel">
-            <div className="panel-h"><h2>Incident</h2></div>
-            <div className="panel-b grid2">
-              <label className="field"><span>Time of injury</span><input type="datetime-local" value={record.incident.injuryTime} onChange={(e) => setInc('injuryTime', e.target.value)} /></label>
-              <label className="field"><span>Mechanism</span><input value={record.incident.mechanism} onChange={(e) => setInc('mechanism', e.target.value)} placeholder="Blunt, RTC, GSW…" /></label>
-              <label className="field col2"><span>Location of incident</span><input value={record.incident.location} onChange={(e) => setInc('location', e.target.value)} placeholder="Address / grid / GPS" /></label>
-              <div className="field col2"><span>Age band <em>· adjusts burn TBSA (Lund–Browder)</em>
-                {dobAge != null && <em className="derived">· {dobAge}y from DOB</em>}</span>
-                <div className="ageband" role="group" aria-label="Patient age band">
-                  {AGE_BAND_ORDER.map((b) => (
-                    <button key={b} type="button" className={record.incident.ageBand === b ? 'on' : ''} onClick={() => setInc('ageBand', b)}>
-                      {AGE_BAND_LABELS[b]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <VitalsPanel onAdd={addVital} vitals={record.vitals} onRemove={removeVital} />
-
-          {/* ---- saved ---- */}
+          {/* ---- saved casualties (navigation, end of the record) ---- */}
           <section className="panel">
             <div className="panel-h"><h2>Saved casualties</h2>
               <button type="button" className="minibtn" onClick={exportAllRecords} title="Download a backup file of every saved record">⬇ Backup</button>
@@ -460,7 +462,6 @@ export function App() {
               ))}
             </div>
           </section>
-        </aside>
       </div>
 
       <p className="footnote">Prototype — not a medical device, not for clinical use. Data is stored locally on this device only.</p>
