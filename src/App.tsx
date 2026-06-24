@@ -11,6 +11,7 @@ import {
   toFhirBundle,
 } from '@triage-link/core'
 import { recordRepo } from './db/repository'
+import { exportAll, parseBackup, importBackup, type Backup, type ImportMode } from './db/backup'
 import { BodyChart, type NewInjuryPlacement } from './components/BodyChart'
 import { CasualtySummary } from './components/CasualtySummary'
 import { TriageBoard } from './components/TriageBoard'
@@ -52,6 +53,8 @@ export function App() {
   const [photoError, setPhotoError] = useState('')
   const [showTour, setShowTour] = useState(false)
   const [tourOffered, dismissTourOffer] = useDismissed('tour-offered')
+  const [backupMsg, setBackupMsg] = useState('')
+  const [pendingImport, setPendingImport] = useState<{ backup: Backup; count: number } | null>(null)
   const saveTimer = useRef<number | undefined>(undefined)
 
   useEffect(() => {
@@ -137,6 +140,45 @@ export function App() {
     await recordRepo.remove(id)
     setSaved(await recordRepo.list())
     if (id === record.id) newCase()
+  }
+
+  // ---- backup / restore (all records) ----
+  const flashBackup = (msg: string) => { setBackupMsg(msg); window.setTimeout(() => setBackupMsg(''), 5000) }
+  async function exportAllRecords() {
+    try {
+      const backup = await exportAll()
+      const blob = new Blob([JSON.stringify(backup)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `triage-link-backup-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      flashBackup(`Backed up ${backup.records.length} record${backup.records.length === 1 ? '' : 's'}.`)
+    } catch { flashBackup('Backup failed.') }
+  }
+  function pickBackupFile() {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'application/json,.json'
+    input.onchange = async () => {
+      const file = input.files?.[0]
+      if (!file) return
+      try {
+        const backup = parseBackup(await file.text())
+        setPendingImport({ backup, count: backup.records.length })
+      } catch (e) { flashBackup((e as Error).message) }
+    }
+    input.click()
+  }
+  async function runImport(mode: ImportMode) {
+    if (!pendingImport) return
+    try {
+      const n = await importBackup(pendingImport.backup, mode)
+      setSaved(await recordRepo.list())
+      flashBackup(`Imported ${n} record${n === 1 ? '' : 's'} (${mode}).`)
+    } catch { flashBackup('Import failed.') }
+    setPendingImport(null)
   }
 
   async function sendToEhr() {
@@ -353,8 +395,23 @@ export function App() {
 
           {/* ---- saved ---- */}
           <section className="panel">
-            <div className="panel-h"><h2>Saved casualties</h2><span className="count">{saved.length}</span></div>
+            <div className="panel-h"><h2>Saved casualties</h2>
+              <button type="button" className="minibtn" onClick={exportAllRecords} title="Download a backup file of every saved record">⬇ Backup</button>
+              <button type="button" className="minibtn" onClick={pickBackupFile} title="Restore records from a backup file">⬆ Restore</button>
+              <span className="count">{saved.length}</span>
+            </div>
             <div className="panel-b">
+              {backupMsg && <div className="backup-msg">{backupMsg}</div>}
+              {pendingImport && (
+                <div className="import-confirm">
+                  <span>Import {pendingImport.count} record{pendingImport.count === 1 ? '' : 's'}?</span>
+                  <span className="import-actions">
+                    <button type="button" className="btn" onClick={() => runImport('merge')} title="Add these records, keeping the newer copy of any duplicates">Merge</button>
+                    <button type="button" className="btn danger" onClick={() => runImport('replace')} title="Delete all current records first, then import">Replace all</button>
+                    <button type="button" className="tip-x" aria-label="Cancel import" onClick={() => setPendingImport(null)}>×</button>
+                  </span>
+                </div>
+              )}
               {saved.length === 0 && <div className="empty">Records auto-save as you type.</div>}
               {saved.length > 1 && (
                 <Tip id="handover-features">🚩 <b>Board</b> (top bar) shows every casualty grouped by triage · 🖨 <b>Summary</b> prints a one-page handover card.</Tip>

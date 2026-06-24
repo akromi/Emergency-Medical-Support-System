@@ -7,11 +7,18 @@ export interface MetaRow {
   value: string
 }
 
+/** A wound photo's bytes, stored out-of-line from the record (see db/photos.ts). */
+export interface PhotoRow {
+  id: string
+  blob: Blob
+}
+
 // IndexedDB store. Works fully offline; the unit of sync is one record.
 export class TriageDB extends Dexie {
   records!: Table<CasualtyRecord, string>
   ops!: Table<Op, string>
   meta!: Table<MetaRow, string>
+  photos!: Table<PhotoRow, string>
 
   constructor() {
     super('triage-link')
@@ -49,6 +56,14 @@ export class TriageDB extends Dexie {
           { key: 'lamport', value: String(lamport) },
         ])
       })
+    // v3: out-of-line photo blob store. New empty table; existing records keep
+    // their embedded data URLs and migrate to blobs on their next save.
+    this.version(3).stores({
+      records: 'id, updatedAt',
+      ops: 'id, recordId, lamport',
+      meta: 'key',
+      photos: 'id',
+    })
   }
 }
 
