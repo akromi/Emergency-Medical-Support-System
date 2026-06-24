@@ -29,6 +29,7 @@ function sampleRecord(): CasualtyRecord {
       mechanism: 'RTC — blunt trauma',
       location: 'Junction 14',
       triage: 'immediate',
+      ageBand: 'adult',
     },
     injuries: [
       { id: 'inj-1', view: 'anterior', x: 100, y: 120, region: 'Chest', type: 'gsw', severity: 'critical', notes: 'penetrating' },

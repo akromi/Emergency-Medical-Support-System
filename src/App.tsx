@@ -3,6 +3,7 @@ import {
   type CasualtyRecord, type InjuryTypeKey, type TriageCategory,
   type VitalSign, type Treatment, type TreatmentPlace,
   createEmptyRecord, TRIAGE_LABELS, TRIAGE_COLORS,
+  AGE_BAND_ORDER, AGE_BAND_LABELS, estimateBurnTBSA,
   genCaseId, genLocalId,
   INJURY_TYPES, injuryColor, injuryLabel,
   toFhirBundle,
@@ -99,6 +100,7 @@ export function App() {
 
   const selected = record.injuries.find((i) => i.id === selectedInjury) ?? null
   const triage = record.incident.triage
+  const tbsa = estimateBurnTBSA(record.injuries, record.incident.ageBand)
 
   return (
     <div className="app">
@@ -164,7 +166,15 @@ export function App() {
 
           {/* ---- injury list / editor ---- */}
           <section className="panel">
-            <div className="panel-h"><h2>Logged injuries</h2><span className="count">{record.injuries.length}</span></div>
+            <div className="panel-h">
+              <h2>Logged injuries</h2>
+              {tbsa > 0 && (
+                <span className="tbsa" title={`Burn TBSA · Lund–Browder, ${AGE_BAND_LABELS[record.incident.ageBand]}`}>
+                  🔥 {tbsa}% TBSA
+                </span>
+              )}
+              <span className="count">{record.injuries.length}</span>
+            </div>
             <div className="panel-b">
               {record.injuries.length === 0 && <div className="empty">No injuries marked yet.</div>}
               {record.injuries.map((i) => (
@@ -223,6 +233,15 @@ export function App() {
               <label className="field"><span>Time of injury</span><input type="datetime-local" value={record.incident.injuryTime} onChange={(e) => setInc('injuryTime', e.target.value)} /></label>
               <label className="field"><span>Mechanism</span><input value={record.incident.mechanism} onChange={(e) => setInc('mechanism', e.target.value)} placeholder="Blunt, RTC, GSW…" /></label>
               <label className="field col2"><span>Location of incident</span><input value={record.incident.location} onChange={(e) => setInc('location', e.target.value)} placeholder="Address / grid / GPS" /></label>
+              <div className="field col2"><span>Age band <em>· adjusts burn TBSA (Lund–Browder)</em></span>
+                <div className="ageband" role="group" aria-label="Patient age band">
+                  {AGE_BAND_ORDER.map((b) => (
+                    <button key={b} type="button" className={record.incident.ageBand === b ? 'on' : ''} onClick={() => setInc('ageBand', b)}>
+                      {AGE_BAND_LABELS[b]}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </section>
 

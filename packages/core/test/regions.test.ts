@@ -92,3 +92,29 @@ describe('burn TBSA estimation', () => {
     expect(estimateBurnTBSA(everything)).toBeLessThanOrEqual(100)
   })
 })
+
+describe('Lund–Browder age adjustment', () => {
+  it('scales head up and legs down for children; adult is the base', () => {
+    // Adult = unchanged base values.
+    expect(regionTBSA('Forehead', 'adult')).toBe(1)
+    expect(regionTBSA('R Thigh', 'adult')).toBe(4.5)
+    // Infant: head larger, legs smaller (Lund–Browder).
+    expect(regionTBSA('Forehead', 'infant')).toBeCloseTo(2.71, 2) // ×9.5/3.5
+    expect(regionTBSA('R Thigh', 'infant')).toBeCloseTo(2.61, 2) // ×2.75/4.75
+    expect(regionTBSA('R Shin', 'infant')).toBeCloseTo(2.14, 2) // ×2.5/3.5
+    // Trunk is constant across ages.
+    expect(regionTBSA('R Chest', 'infant')).toBe(regionTBSA('R Chest', 'adult'))
+  })
+
+  it('makes infant head burns count more and leg burns less than adult', () => {
+    const head = [{ type: 'burn', region: 'Forehead', view: 'anterior' as const }]
+    expect(estimateBurnTBSA(head, 'infant')).toBeGreaterThan(estimateBurnTBSA(head, 'adult'))
+    const leg = [{ type: 'burn', region: 'R Thigh', view: 'anterior' as const }]
+    expect(estimateBurnTBSA(leg, 'infant')).toBeLessThan(estimateBurnTBSA(leg, 'adult'))
+  })
+
+  it('defaults to adult when no age band is given', () => {
+    const b = [{ type: 'burn', region: 'R Thigh', view: 'anterior' as const }]
+    expect(estimateBurnTBSA(b)).toBe(estimateBurnTBSA(b, 'adult'))
+  })
+})
