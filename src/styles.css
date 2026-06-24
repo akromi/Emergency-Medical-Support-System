@@ -50,6 +50,18 @@ button { font-family:inherit; }
 .panel-h { display:flex; align-items:center; gap:10px; padding:12px 15px; border-bottom:1px solid var(--line-soft); }
 .panel-h h2 { margin:0; font-size:12px; letter-spacing:1.6px; text-transform:uppercase; color:var(--txt-dim); font-weight:600; }
 .panel-h .count, .chart-head .count { margin-left:auto; font-family:var(--mono); font-size:12px; color:var(--txt-faint); }
+/* Burn TBSA readout chip (burn-orange), sits with the count at the right. */
+.panel-h .tbsa { margin-left:auto; font-family:var(--mono); font-size:12px; font-weight:700;
+  color:#F2820F; background:rgba(242,130,15,.12); border:1px solid rgba(242,130,15,.4);
+  padding:3px 9px; border-radius:999px; }
+.panel-h .tbsa ~ .count { margin-left:8px; }
+/* Age-band segmented selector. */
+.ageband { display:flex; gap:5px; flex-wrap:wrap; }
+.ageband button { border:1px solid var(--line); background:var(--panel-2); color:var(--txt-dim);
+  padding:6px 11px; border-radius:7px; font-size:12px; font-weight:600; cursor:pointer; }
+.ageband button:hover { background:var(--raised); }
+.ageband button.on { background:#163040; border-color:#3f9bd6; color:#bfe2fb; }
+.field em { color:var(--txt-faint); font-style:normal; font-weight:400; }
 .panel-b { padding:14px; }
 
 .chart-head { display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; padding:12px 15px; border-bottom:1px solid var(--line-soft); }

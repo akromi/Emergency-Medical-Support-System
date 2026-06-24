@@ -2,6 +2,8 @@
 // Framework-free. This module is the shared source of truth for the system.
 
 export type TriageCategory = 'immediate' | 'delayed' | 'minor' | 'deceased'
+/** Lund–Browder age bands — drive age-adjusted burn TBSA. */
+export type AgeBand = 'infant' | 'age1' | 'age5' | 'age10' | 'age15' | 'adult'
 export type BodyView = 'anterior' | 'posterior'
 export type InjurySeverity = 'minor' | 'moderate' | 'severe' | 'critical'
 export type Sex = '' | 'female' | 'male' | 'other' | 'unknown'
@@ -29,6 +31,8 @@ export interface Incident {
   mechanism: string
   location: string
   triage: TriageCategory | ''
+  /** Patient age band for Lund–Browder TBSA (defaults to adult). */
+  ageBand: AgeBand
 }
 
 export interface Injury {
@@ -88,7 +92,7 @@ export function createEmptyRecord(id: string): CasualtyRecord {
       name: '', dob: '', sex: '', mrn: id, bloodType: '',
       address: '', nextOfKin: '', nextOfKinPhone: '',
     },
-    incident: { injuryTime: '', mechanism: '', location: '', triage: '' },
+    incident: { injuryTime: '', mechanism: '', location: '', triage: '', ageBand: 'adult' },
     injuries: [],
     vitals: [],
     treatments: [],
@@ -110,4 +114,15 @@ export const TRIAGE_COLORS: Record<TriageCategory, string> = {
   delayed: '#E2A33B',
   minor: '#48B25C',
   deceased: '#7C8794',
+}
+
+/** Age bands in display order, with short labels for the selector. */
+export const AGE_BAND_ORDER: AgeBand[] = ['infant', 'age1', 'age5', 'age10', 'age15', 'adult']
+export const AGE_BAND_LABELS: Record<AgeBand, string> = {
+  infant: '<1y',
+  age1: '1y',
+  age5: '5y',
+  age10: '10y',
+  age15: '15y',
+  adult: 'Adult',
 }

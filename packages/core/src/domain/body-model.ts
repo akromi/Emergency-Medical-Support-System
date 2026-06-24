@@ -6,7 +6,7 @@
 // with individual finger phalanges, legs with individual toes) generated from
 // primitives so the ~150 regions stay consistent. Image-left parts are authored
 // once and mirrored to image-right.
-import type { BodyView } from './types.js'
+import type { BodyView, AgeBand } from './types.js'
 
 export const BODY_VIEWBOX = { width: 480, height: 1040 } as const
 
@@ -322,20 +322,53 @@ export const REGION_TBSA: Readonly<Record<string, number>> = (() => {
   return m
 })()
 
-/** TBSA % for a single region's marked aspect (side prefix ignored). */
-export function regionTBSA(region: string): number {
+// ---- Lund–Browder age adjustment ------------------------------------------
+// Children aren't small adults: the head is proportionally much larger and the
+// legs smaller, shifting with age. Lund–Browder gives per-surface % for the
+// three age-varying body parts; the rest of the body is constant. We scale a
+// region's adult % by (ageValue / adultValue) for its part — so adult inputs
+// are unchanged (ratio 1) and a region keeps its share of the part.
+const LUND_BROWDER: Record<'head' | 'thigh' | 'lowerLeg', Record<AgeBand, number>> = {
+  head: { infant: 9.5, age1: 8.5, age5: 6.5, age10: 5.5, age15: 4.5, adult: 3.5 },
+  thigh: { infant: 2.75, age1: 3.25, age5: 4.0, age10: 4.25, age15: 4.5, adult: 4.75 },
+  lowerLeg: { infant: 2.5, age1: 2.5, age5: 2.75, age10: 3.0, age15: 3.25, adult: 3.5 },
+}
+
+// Base region name -> the age-varying Lund–Browder part it belongs to.
+const REGION_AGE_PART: Readonly<Record<string, 'head' | 'thigh' | 'lowerLeg'>> = (() => {
+  const m: Record<string, 'head' | 'thigh' | 'lowerLeg'> = {}
+  for (const r of [...ANTERIOR, ...POSTERIOR]) {
+    if (r.group === 'head' || r.group === 'face') m[r.name] = 'head'
+    else if (r.name === 'Thigh') m[r.name] = 'thigh'
+    else if (r.name === 'Shin' || r.name === 'Calf') m[r.name] = 'lowerLeg'
+  }
+  m['Head'] = 'head' // coarse off-silhouette fallback label
+  return m
+})()
+
+function ageFactor(base: string, ageBand: AgeBand): number {
+  const part = REGION_AGE_PART[base]
+  if (!part || ageBand === 'adult') return 1
+  return LUND_BROWDER[part][ageBand] / LUND_BROWDER[part].adult
+}
+
+/** TBSA % for a single region's marked aspect (side prefix ignored, age-adjusted). */
+export function regionTBSA(region: string, ageBand: AgeBand = 'adult'): number {
   const base = region.replace(/^[LR]\s+/, '')
-  return REGION_TBSA[base] ?? 0
+  const v = (REGION_TBSA[base] ?? 0) * ageFactor(base, ageBand)
+  return Math.round(v * 100) / 100
 }
 
 /**
- * Estimate total burn surface area from marked injuries (rule-of-nines style).
- * Only `burn` injuries count; each distinct region+view is counted once, so
- * anterior and posterior of one region add up while left/right count separately.
- * Capped at 100%.
+ * Estimate total burn surface area from marked injuries. Only `burn` injuries
+ * count; each distinct region+view is counted once, so anterior and posterior
+ * of one region add up while left/right count separately. Percentages are
+ * Lund–Browder age-adjusted (head larger / legs smaller for children). Capped
+ * at 100%.
  */
 export function estimateBurnTBSA(
   injuries: ReadonlyArray<{ type: string; region: string; view: BodyView }>,
+  ageBand: AgeBand = 'adult',
 ): number {
   const counted = new Set<string>()
   let total = 0
@@ -344,7 +377,7 @@ export function estimateBurnTBSA(
     const key = `${inj.view}|${inj.region}`
     if (counted.has(key)) continue
     counted.add(key)
-    total += regionTBSA(inj.region)
+    total += regionTBSA(inj.region, ageBand)
   }
   return Math.min(100, Math.round(total * 10) / 10)
 }
