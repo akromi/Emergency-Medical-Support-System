@@ -37,6 +37,8 @@ export class OneIdClient {
   private readonly now: () => number
   private readonly skewMs: number
   private cached?: { token: string; expiresAtMs: number }
+  /** In-flight fetch shared by concurrent callers, so we mint at most one token. */
+  private pending?: Promise<string>
 
   constructor(cfg: OneIdConfig) {
     this.cfg = cfg
@@ -50,7 +52,16 @@ export class OneIdClient {
     if (this.cached && this.cached.expiresAtMs - this.skewMs > this.now()) {
       return this.cached.token
     }
+    // Coalesce concurrent refreshes onto a single in-flight request.
+    if (!this.pending) {
+      this.pending = this.fetchToken().finally(() => {
+        this.pending = undefined
+      })
+    }
+    return this.pending
+  }
 
+  private async fetchToken(): Promise<string> {
     const form = new URLSearchParams({
       grant_type: 'client_credentials',
       client_id: this.cfg.clientId,

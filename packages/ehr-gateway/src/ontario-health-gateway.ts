@@ -14,9 +14,12 @@ import {
   buildPatientMatchParameters,
   parsePatientMatchBundle,
   buildAccessAuditEvent,
+  toOntarioContributionBundle,
   type EhrGateway,
   type PatientIdentity,
   type MatchResult,
+  type ContributionResult,
+  type CasualtyRecord,
   type FhirResource,
   type FhirBundle,
 } from '@triage-link/core'
@@ -102,6 +105,8 @@ export class OntarioHealthGateway implements EhrGateway {
     try {
       const bundle = await this.authedRequest<unknown>('/Patient/$match', {
         method: 'POST',
+        // $match is a read modelled as POST — safe to retry on transient failure.
+        idempotent: true,
         headers: { 'content-type': 'application/fhir+json', accept: 'application/fhir+json' },
         body: JSON.stringify(params),
       })
@@ -155,10 +160,33 @@ export class OntarioHealthGateway implements EhrGateway {
     }
   }
 
+  async contributeHandover(record: CasualtyRecord): Promise<ContributionResult> {
+    const bundle = toOntarioContributionBundle(record)
+    let outcome: '0' | '8' = '0'
+    let result: ContributionResult = { accepted: false }
+    try {
+      // A transaction Bundle is POSTed to the FHIR base. This is a write, so it
+      // is NOT retried (idempotent: false) to avoid duplicate contributions.
+      const response = await this.authedRequest<{ id?: string } & Record<string, unknown>>('', {
+        method: 'POST',
+        idempotent: false,
+        headers: { 'content-type': 'application/fhir+json', accept: 'application/fhir+json' },
+        body: JSON.stringify(bundle),
+      })
+      result = { accepted: true, id: typeof response?.id === 'string' ? response.id : undefined, outcome: response }
+      return result
+    } catch (err) {
+      outcome = '8'
+      throw err
+    } finally {
+      await this.audit({ action: 'C', outcome, query: 'contribute handover (transaction)', patientId: record.id })
+    }
+  }
+
   /** Authenticated request with a single transparent retry on a stale token. */
   private async authedRequest<T>(
     path: string,
-    init: { method?: string; headers?: Record<string, string>; body?: string },
+    init: { method?: string; headers?: Record<string, string>; body?: string; idempotent?: boolean },
   ): Promise<T> {
     const send = async () => {
       const token = await this.cfg.oneId.getAccessToken()
@@ -178,7 +206,7 @@ export class OntarioHealthGateway implements EhrGateway {
     }
   }
 
-  private async audit(params: { action: 'R'; outcome: '0' | '8'; query: string; patientId?: string }): Promise<void> {
+  private async audit(params: { action: 'C' | 'R'; outcome: '0' | '8'; query: string; patientId?: string }): Promise<void> {
     if (!this.cfg.onAudit) return
     const event = buildAccessAuditEvent({
       action: params.action,

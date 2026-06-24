@@ -8,7 +8,7 @@
 // Framework-free on purpose: no fetch, no Fastify, no secrets here. Transport
 // and auth live in the adapter package (@triage-link/ehr-gateway).
 
-import type { Tombstone } from '../domain/types.js'
+import type { Tombstone, CasualtyRecord } from '../domain/types.js'
 
 /** Demographics used to look a patient up in a provincial client registry. */
 export interface PatientIdentity {
@@ -107,6 +107,22 @@ export interface EhrGateway {
    * Returns a FHIR Bundle. Undefined on adapters that don't support it.
    */
   fetchContext?(patientId: string): Promise<unknown>
+
+  /**
+   * Optional (write): contribute a casualty handover to the provincial EHR.
+   * Restricted in practice — only entitled source systems may write. Undefined
+   * on adapters that don't support contribution.
+   */
+  contributeHandover?(record: CasualtyRecord): Promise<ContributionResult>
+}
+
+/** Outcome of a handover contribution. */
+export interface ContributionResult {
+  accepted: boolean
+  /** Server-assigned id / transaction reference, when returned. */
+  id?: string
+  /** Raw OperationOutcome / response, for diagnostics. */
+  outcome?: unknown
 }
 
 /** Build a registry query straight from a casualty record's tombstone. */

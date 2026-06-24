@@ -13,7 +13,9 @@
 //   PCR FHIR Implementation Guide — ehealthontario.on.ca
 //   ONE Access Gateway Transport Specification — ehealthontario.on.ca
 
-import type { FhirResource } from '../fhir/types.js'
+import type { FhirResource, FhirBundle } from '../fhir/types.js'
+import type { CasualtyRecord } from '../domain/types.js'
+import { toFhirBundle } from '../fhir/mapping.js'
 import type { PatientIdentity, PatientMatch, MatchResult } from './port.js'
 
 /**
@@ -133,6 +135,43 @@ export function parsePatientMatchBundle(bundle: unknown): MatchResult {
 
   const certain = matches.filter((m) => (m.score ?? GRADE_SCORE[m.grade ?? 'certainly-not']) >= 0.95)
   return { matches, resolved: certain.length === 1 }
+}
+
+/**
+ * Re-stamp a Patient resource with the OHIP health-card identifier system, so a
+ * record captured in the field (where MRN holds the health-card number) conforms
+ * to what Ontario's repositories expect on contribution.
+ */
+function applyOhipIdentifier(patient: FhirResource): void {
+  const ids = Array.isArray(patient.identifier) ? (patient.identifier as Array<Record<string, unknown>>) : []
+  for (const id of ids) {
+    // The field mapping tags case identifiers as urn:triage-link:case; promote
+    // those to the OHIP system for the registry.
+    if (id.system === 'urn:triage-link:case') id.system = ONTARIO_SYSTEMS.healthCard
+  }
+}
+
+/**
+ * Build a FHIR **transaction** Bundle to contribute a casualty handover to the
+ * provincial EHR, profiled for Ontario (OHIP patient identifier; each resource
+ * carries a POST request entry).
+ *
+ * NOTE: contribution to Ontario's province-wide EHR is restricted and normally
+ * flows through approved source systems — this models the shape an entitled
+ * source would submit, not an open write path.
+ */
+export function toOntarioContributionBundle(record: CasualtyRecord): FhirBundle {
+  const base = toFhirBundle(record)
+  const entry = base.entry.map((e) => {
+    const resource = e.resource
+    if (resource.resourceType === 'Patient') applyOhipIdentifier(resource)
+    return {
+      fullUrl: e.fullUrl,
+      resource,
+      request: { method: 'POST' as const, url: resource.resourceType },
+    }
+  })
+  return { resourceType: 'Bundle', type: 'transaction', timestamp: base.timestamp, entry }
 }
 
 /**

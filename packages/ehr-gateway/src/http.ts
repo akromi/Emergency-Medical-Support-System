@@ -80,12 +80,17 @@ export class HttpClient {
   /** Perform a request, parsing JSON on success and throwing EhrError otherwise. */
   async request<T = unknown>(
     path: string,
-    init: { method?: string; headers?: Record<string, string>; body?: string } = {},
+    init: { method?: string; headers?: Record<string, string>; body?: string; idempotent?: boolean } = {},
   ): Promise<T> {
     const url = path.startsWith('http') ? path : `${this.baseUrl}${path.startsWith('/') ? '' : '/'}${path}`
+    // Only retry requests that are safe to repeat. Defaults to GET-only so a
+    // non-idempotent write (e.g. contributing a handover) is never replayed
+    // after a timeout; callers can opt a safe POST in (e.g. PCR $match).
+    const idempotent = init.idempotent ?? (init.method ?? 'GET').toUpperCase() === 'GET'
+    const maxAttempts = idempotent ? this.maxAttempts : 1
     let lastErr: EhrError | undefined
 
-    for (let attempt = 1; attempt <= this.maxAttempts; attempt++) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), this.timeoutMs)
       try {
@@ -111,7 +116,7 @@ export class HttpClient {
         clearTimeout(timer)
       }
 
-      if (!lastErr.retryable || attempt === this.maxAttempts) break
+      if (!lastErr.retryable || attempt === maxAttempts) break
       await this.sleep(this.backoffBaseMs * 2 ** (attempt - 1))
     }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { EhrError, ONTARIO_SYSTEMS, type FhirResource } from '@triage-link/core'
+import { EhrError, ONTARIO_SYSTEMS, createEmptyRecord, type FhirResource } from '@triage-link/core'
 import { OneIdClient, OntarioHealthGateway, type FetchLike } from '../src/index.js'
 
 interface Recorded {
@@ -82,6 +82,15 @@ describe('OneIdClient', () => {
     expect(calls[0].method).toBe('POST')
     expect(calls[0].body).toContain('grant_type=client_credentials')
   })
+
+  it('coalesces concurrent first calls onto a single token fetch', async () => {
+    const { fetch, calls } = fakeFetch(() => ({ status: 200, body: { access_token: 'tok-1', expires_in: 300 } }))
+    const client = new OneIdClient({ tokenUrl: TOKEN_URL, clientId: 'cid', clientSecret: 'secret', fetchImpl: fetch, now: () => 0 })
+
+    const [a, b, c] = await Promise.all([client.getAccessToken(), client.getAccessToken(), client.getAccessToken()])
+    expect([a, b, c]).toEqual(['tok-1', 'tok-1', 'tok-1'])
+    expect(calls).toHaveLength(1) // not three
+  })
 })
 
 describe('OntarioHealthGateway.matchPatient', () => {
@@ -147,6 +156,44 @@ describe('OntarioHealthGateway.matchPatient', () => {
     const ids = bundle.entry.map((e) => (e.resource as { id?: string }).id)
     expect(ids).toEqual(['md-1', 'obs-1']) // allergy repo (403) skipped, others merged
     expect(seen.some((u) => u.includes('patient=pcr-1001'))).toBe(true)
+  })
+
+  it('contributes a handover as a transaction Bundle without retrying', async () => {
+    const audits: FhirResource[] = []
+    let posts = 0
+    const { gw, calls } = buildGateway((req) => {
+      if (req.url === TOKEN_URL) return { status: 200, body: { access_token: 'tok-1', expires_in: 300 } }
+      posts++
+      return { status: 200, body: { resourceType: 'Bundle', type: 'transaction-response', id: 'tx-9' } }
+    }, (e) => audits.push(e))
+
+    const record = createEmptyRecord('CAS-1')
+    record.tombstone.name = 'Doe, Jane'
+    const result = await gw.contributeHandover(record)
+
+    expect(result).toMatchObject({ accepted: true, id: 'tx-9' })
+    const post = calls.find((c) => c.url !== TOKEN_URL && c.method === 'POST')!
+    expect(post.url.startsWith(FHIR_BASE)).toBe(true)
+    const bundle = JSON.parse(post.body!)
+    expect(bundle.type).toBe('transaction')
+    expect(bundle.entry[0].request).toMatchObject({ method: 'POST' })
+    // Patient identifier promoted to the OHIP system.
+    const patient = bundle.entry.find((e: { resource: FhirResource }) => e.resource.resourceType === 'Patient').resource
+    expect(patient.identifier[0].system).toBe(ONTARIO_SYSTEMS.healthCard)
+    // Audited as a create.
+    expect(audits[0]).toMatchObject({ action: 'C', outcome: '0' })
+    expect(posts).toBe(1)
+  })
+
+  it('does not retry a failed contribution (no duplicate write)', async () => {
+    let posts = 0
+    const { gw } = buildGateway((req) => {
+      if (req.url === TOKEN_URL) return { status: 200, body: { access_token: 'tok-1', expires_in: 300 } }
+      posts++
+      return { status: 503, body: { resourceType: 'OperationOutcome' } }
+    })
+    await expect(gw.contributeHandover(createEmptyRecord('CAS-2'))).rejects.toBeInstanceOf(EhrError)
+    expect(posts).toBe(1) // 503 is retryable, but writes are not retried
   })
 
   it('audits a failure outcome and rethrows on a hard error', async () => {

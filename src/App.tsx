@@ -13,6 +13,7 @@ import { BodyChart, type NewInjuryPlacement } from './components/BodyChart'
 import { CasualtySummary } from './components/CasualtySummary'
 import { TriageBoard } from './components/TriageBoard'
 import { PcrVerify } from './components/PcrVerify'
+import { contributeHandover, EhrUnavailableError } from './ehr/client'
 
 const TRIAGE_ORDER: TriageCategory[] = ['immediate', 'delayed', 'minor', 'deceased']
 const TREATMENT_TYPES = [
@@ -32,6 +33,7 @@ export function App() {
   const [selectedInjury, setSelectedInjury] = useState<string | null>(null)
   const [showSummary, setShowSummary] = useState(false)
   const [showBoard, setShowBoard] = useState(false)
+  const [ehrStatus, setEhrStatus] = useState('')
   const saveTimer = useRef<number | undefined>(undefined)
 
   useEffect(() => {
@@ -94,6 +96,17 @@ export function App() {
     if (id === record.id) newCase()
   }
 
+  async function sendToEhr() {
+    setEhrStatus('Sending…')
+    try {
+      const res = await contributeHandover(record)
+      setEhrStatus(res.accepted ? `Sent ✓ (${res.provider}${res.id ? ` · ${res.id}` : ''})` : 'Rejected')
+    } catch (err) {
+      setEhrStatus(err instanceof EhrUnavailableError ? 'EHR unreachable' : `Failed: ${(err as Error).message}`)
+    }
+    window.setTimeout(() => setEhrStatus(''), 5000)
+  }
+
   function exportFhir() {
     const bundle = toFhirBundle(record)
     const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/fhir+json' })
@@ -118,7 +131,9 @@ export function App() {
         <button className="topbtn" onClick={newCase}>+ New casualty</button>
         <button className="topbtn" onClick={() => setShowBoard(true)}>🚩 Board{saved.length > 0 ? ` · ${saved.length}` : ''}</button>
         <button className="topbtn" onClick={() => setShowSummary(true)}>🖨 Summary</button>
+        <button className="topbtn" onClick={sendToEhr} title="Contribute this handover to the provincial EHR">Send to EHR ↑</button>
         <button className="topbtn primary" onClick={exportFhir}>Export FHIR ↓</button>
+        {ehrStatus && <span className="ehr-status">{ehrStatus}</span>}
       </header>
 
       {/* Prominent, always-visible triage tag (acuity channel, distinct from

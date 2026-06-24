@@ -220,4 +220,5 @@ input::placeholder { color:var(--txt-faint); }
 .pcr .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
 .pcr .chips .btn { padding:5px 9px; font-size:12px; }
 .pcr-ctx { margin-top:6px; display:flex; flex-direction:column; gap:4px; }
+.ehr-status { font-size:11px; color:var(--txt-dim); font-family:var(--mono); align-self:center; }
 .btn:disabled { opacity:.5; cursor:not-allowed; }

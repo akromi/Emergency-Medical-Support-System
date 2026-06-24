@@ -5,11 +5,12 @@ import type { EhrGateway } from '@triage-link/core'
 import { MockGateway, OneIdClient, OntarioHealthGateway } from '@triage-link/ehr-gateway'
 import { buildApp } from './app.js'
 import { OpStore, migrate } from './ops-store.js'
+import { EhrAuditStore, migrateEhrAudit } from './ehr-audit-store.js'
 
 // Select the provincial EHR adapter from the environment. With no ONE ID
 // credentials configured we fall back to an in-memory mock so the service runs
 // end-to-end in dev without a sandbox connection.
-function buildEhrGateway(): EhrGateway {
+function buildEhrGateway(audit: EhrAuditStore): EhrGateway {
   const {
     ONE_ID_TOKEN_URL,
     ONE_ID_CLIENT_ID,
@@ -32,9 +33,12 @@ function buildEhrGateway(): EhrGateway {
       oneId,
       requestingAgentId: OH_AGENT_ID ?? 'triage-link-service',
       onAudit: (event) => {
-        // Forward to your audit store / SIEM. Logged here as a safe default.
-        // eslint-disable-next-line no-console
-        console.log('[ehr-audit]', JSON.stringify(event))
+        // Durably persist every EHR access; surface storage failures in logs
+        // but never let an audit-write failure mask the clinical response.
+        audit.record(event).catch((err) => {
+          // eslint-disable-next-line no-console
+          console.error('[ehr-audit] failed to persist AuditEvent', err)
+        })
       },
     })
   }
@@ -47,7 +51,9 @@ function buildEhrGateway(): EhrGateway {
 async function main(): Promise<void> {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL })
   await migrate(pool)
-  const app = buildApp({ store: new OpStore(pool), ehr: buildEhrGateway() })
+  await migrateEhrAudit(pool)
+  const ehrAudit = new EhrAuditStore(pool)
+  const app = buildApp({ store: new OpStore(pool), ehr: buildEhrGateway(ehrAudit), ehrAudit })
   const port = Number(process.env.PORT ?? 8080)
   await app.listen({ port, host: '0.0.0.0' })
   // eslint-disable-next-line no-console

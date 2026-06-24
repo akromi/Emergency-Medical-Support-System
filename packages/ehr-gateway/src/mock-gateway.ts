@@ -10,6 +10,8 @@ import {
   type EhrGateway,
   type PatientIdentity,
   type MatchResult,
+  type ContributionResult,
+  type CasualtyRecord,
   type FhirBundle,
   type FhirResource,
 } from '@triage-link/core'
@@ -40,6 +42,8 @@ function grade(patient: MockPatient, query: PatientIdentity): number {
 export class MockGateway implements EhrGateway {
   readonly provider = 'mock'
   private readonly patients: MockPatient[]
+  /** Handovers contributed during this process — inspectable in tests/dev. */
+  readonly contributed: CasualtyRecord[] = []
 
   constructor(patients: MockPatient[] = DEFAULT_SEED) {
     this.patients = patients
@@ -78,6 +82,11 @@ export class MockGateway implements EhrGateway {
       timestamp: '1970-01-01T00:00:00.000Z',
       entry: resources.map((resource) => ({ resource })),
     }
+  }
+
+  async contributeHandover(record: CasualtyRecord): Promise<ContributionResult> {
+    this.contributed.push(record)
+    return { accepted: true, id: `mock-tx-${record.id}` }
   }
 }
 

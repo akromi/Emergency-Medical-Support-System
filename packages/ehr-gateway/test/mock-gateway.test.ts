@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { createEmptyRecord } from '@triage-link/core'
 import { MockGateway } from '../src/index.js'
 
 describe('MockGateway', () => {
@@ -34,5 +35,14 @@ describe('MockGateway', () => {
   it('returns an empty context bundle for a patient with none', async () => {
     const bundle = await gw.fetchContext('pcr-1002')
     expect(bundle.entry).toHaveLength(0)
+  })
+
+  it('accepts a contributed handover and records it', async () => {
+    const local = new MockGateway()
+    const record = createEmptyRecord('CAS-XYZ')
+    const result = await local.contributeHandover(record)
+    expect(result).toMatchObject({ accepted: true, id: 'mock-tx-CAS-XYZ' })
+    expect(local.contributed).toHaveLength(1)
+    expect(local.contributed[0].id).toBe('CAS-XYZ')
   })
 })

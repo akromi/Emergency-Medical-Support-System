@@ -28,7 +28,13 @@ PWA ──HTTP──▶ sync-service /ehr/* ──▶ EhrGateway ──▶ ONE A
 |---|---|---|
 | `matchPatient` | **PCR `Patient/$match`** (resolve identity by OHIP health-card #) | ✅ implemented |
 | `ping` | CapabilityStatement (`/metadata`) | ✅ |
-| `fetchContext` | DHDR / OLIS / Ontario Patient Summary | extension point |
+| `fetchContext` | DHDR / OLIS / Ontario Patient Summary (search + merge) | ✅ implemented |
+| `contributeHandover` | transaction Bundle POST (write — restricted) | ✅ implemented |
+
+Writes (`contributeHandover`) are **never retried** — a transient failure won't
+silently double-contribute. Reads (`matchPatient`, `fetchContext`) retry with
+backoff. Every access emits an ATNA `AuditEvent`; sync-service persists these to
+the `ehr_audit` table and serves them at `GET /ehr/audit`.
 
 - **`OntarioHealthGateway`** — the real adapter against the ONE Access Gateway.
 - **`OneIdClient`** — OAuth 2.0 client-credentials (OIDC) token client with caching/refresh.
