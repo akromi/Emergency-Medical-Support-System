@@ -14,7 +14,8 @@ import { CasualtySummary } from './components/CasualtySummary'
 import { TriageBoard } from './components/TriageBoard'
 import { capturePhoto } from './photo'
 import { PhotoLightbox } from './components/PhotoLightbox'
-import { Tip, OfflineBanner, InstallPrompt } from './components/hints'
+import { Tip, OfflineBanner, InstallPrompt, useDismissed } from './components/hints'
+import { Tutorial } from './components/Tutorial'
 import { PcrVerify } from './components/PcrVerify'
 import { contributeHandover, EhrUnavailableError } from './ehr/client'
 
@@ -47,6 +48,8 @@ export function App() {
   const [ehrStatus, setEhrStatus] = useState('')
   const [lightbox, setLightbox] = useState<{ photos: string[]; index: number } | null>(null)
   const [photoError, setPhotoError] = useState('')
+  const [showTour, setShowTour] = useState(false)
+  const [tourOffered, dismissTourOffer] = useDismissed('tour-offered')
   const saveTimer = useRef<number | undefined>(undefined)
 
   useEffect(() => {
@@ -157,8 +160,9 @@ export function App() {
         <div className="brand"><span className="mark">◇ TRIAGE-LINK</span><span className="sub">Field Casualty Record</span></div>
         <div className="pid">CASE <b>{record.id}</b></div>
         <button className="topbtn" onClick={newCase} title="Start a fresh record (the current one is auto-saved)">+ New casualty</button>
-        <button className="topbtn" onClick={() => setShowBoard(true)} title="All saved casualties grouped by triage (scene picture)">🚩 Board{saved.length > 0 ? ` · ${saved.length}` : ''}</button>
-        <button className="topbtn" onClick={() => setShowSummary(true)} title="One-page casualty card — print or save as PDF for handover">🖨 Summary</button>
+        <button className="topbtn" data-tour="board" onClick={() => setShowBoard(true)} title="All saved casualties grouped by triage (scene picture)">🚩 Board{saved.length > 0 ? ` · ${saved.length}` : ''}</button>
+        <button className="topbtn" data-tour="summary" onClick={() => setShowSummary(true)} title="One-page casualty card — print or save as PDF for handover">🖨 Summary</button>
+        <button className="topbtn" onClick={() => setShowTour(true)} title="Replay the guided tour">❔ Tour</button>
         <button className="topbtn" onClick={sendToEhr} title="Contribute this handover to the provincial EHR">Send to EHR ↑</button>
         <button className="topbtn primary" onClick={exportFhir} title="Download an interoperable FHIR record">Export FHIR ↓</button>
         {ehrStatus && <span className="ehr-status">{ehrStatus}</span>}
@@ -168,6 +172,7 @@ export function App() {
           injury-type marker colours). Quick-set here; persists on the record. */}
       <div
         className="triagebar"
+        data-tour="triage"
         style={triage ? { background: `color-mix(in srgb, ${TRIAGE_COLORS[triage]} 16%, var(--panel))` } : undefined}
       >
         <span className="tb-label">Triage</span>
@@ -193,6 +198,15 @@ export function App() {
 
       <OfflineBanner />
       <InstallPrompt />
+      {!tourOffered && !showTour && (
+        <div className="tour-offer">
+          <span>👋 New here? Take a 60-second guided tour with voice-over.</span>
+          <span className="tour-offer-actions">
+            <button type="button" className="btn primary" onClick={() => { setShowTour(true); dismissTourOffer() }}>Start tour</button>
+            <button type="button" className="tip-x" aria-label="Dismiss" onClick={dismissTourOffer}>×</button>
+          </span>
+        </div>
+      )}
 
       <div className="wrap">
         <main>
@@ -200,7 +214,7 @@ export function App() {
           <section className="panel">
             <div className="chart-head">
               <h2>Injury chart — anterior / posterior</h2>
-              <div className="palette">
+              <div className="palette" data-tour="palette">
                 {INJURY_TYPES.map((t) => (
                   <button
                     key={t.key}
@@ -213,7 +227,7 @@ export function App() {
                 ))}
               </div>
             </div>
-            <div className="charts">
+            <div className="charts" data-tour="charts">
               <BodyChart view="anterior" injuries={record.injuries} selectedId={selectedInjury} onPlace={placeInjury} onSelect={setSelectedInjury} />
               <BodyChart view="posterior" injuries={record.injuries} selectedId={selectedInjury} onPlace={placeInjury} onSelect={setSelectedInjury} />
             </div>
@@ -247,7 +261,7 @@ export function App() {
                 </div>
               ))}
               {selected && (
-                <div className="editor">
+                <div className="editor" data-tour="editor">
                   <div className="sev">
                     {(['minor', 'moderate', 'severe', 'critical'] as const).map((s) => (
                       <button key={s} className={selected.severity === s ? 'on' : ''} onClick={() => updateInjury(selected.id, { severity: s })}>{s}</button>
@@ -355,6 +369,12 @@ export function App() {
     {lightbox && (
       <PhotoLightbox photos={lightbox.photos} index={lightbox.index} onClose={() => setLightbox(null)} />
     )}
+    {showTour && (
+      <Tutorial
+        signals={{ hasInjury: record.injuries.length > 0, hasTriage: !!record.incident.triage }}
+        onClose={() => setShowTour(false)}
+      />
+    )}
     </>
   )
 }
@@ -373,7 +393,7 @@ function VitalsPanel({ vitals, onAdd, onRemove }: {
     setF({ hr: '', bp: '', rr: '', spo2: '', gcs: '', pain: '' })
   }
   return (
-    <section className="panel">
+    <section className="panel" data-tour="vitals">
       <div className="panel-h"><h2>Vitals</h2><span className="count">{vitals.length}</span></div>
       <div className="panel-b">
         <div className="grid3">
