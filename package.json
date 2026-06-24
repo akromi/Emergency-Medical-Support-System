@@ -18,7 +18,8 @@
     "pretypecheck": "npm run core:build",
     "typecheck": "tsc --noEmit",
     "pretest": "npm run core:build",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present",
+    "check": "npm run typecheck && npm run typecheck --workspaces --if-present && npm test && npm run build"
   },
   "dependencies": {
     "@triage-link/core": "*",
