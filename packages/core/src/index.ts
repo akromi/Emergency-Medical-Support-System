@@ -3,6 +3,8 @@
 // or a backend sync service without any React/Dexie dependency.
 export * from './domain/types.js'
 export * from './domain/injuries.js'
+export * from './domain/clinical.js'
+export * from './domain/handover.js'
 export * from './domain/regions.js'
 export * from './domain/body-model.js'
 export * from './domain/id.js'

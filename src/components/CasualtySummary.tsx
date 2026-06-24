@@ -1,6 +1,6 @@
 import {
   type CasualtyRecord,
-  injuryLabel, estimateBurnTBSA,
+  injuryLabel, estimateBurnTBSA, buildAtMist,
   TRIAGE_LABELS, TRIAGE_COLORS, AGE_BAND_LABELS,
 } from '@triage-link/core'
 
@@ -32,6 +32,7 @@ export function CasualtySummary({ record, onClose }: { record: CasualtyRecord; o
   const { tombstone: t, incident: inc, injuries, vitals, treatments, handover } = record
   const tbsa = estimateBurnTBSA(injuries, inc.ageBand)
   const burns = injuries.filter((i) => i.type === 'burn').length
+  const mist = buildAtMist(record, Date.now())
 
   return (
     <div className="summary-overlay" onClick={onClose}>
@@ -52,6 +53,17 @@ export function CasualtySummary({ record, onClose }: { record: CasualtyRecord; o
             </div>
           )}
         </header>
+
+        <Section title="AT-MIST handover">
+          <dl className="sm-mist">
+            <div><dt>A</dt><dd><b>Age / sex</b> — {mist.age}</dd></div>
+            <div><dt>T</dt><dd><b>Time of incident</b> — {mist.time}</dd></div>
+            <div><dt>M</dt><dd><b>Mechanism</b> — {mist.mechanism}</dd></div>
+            <div><dt>I</dt><dd><b>Injuries</b> — {mist.injuries}</dd></div>
+            <div><dt>S</dt><dd><b>Signs</b> — {mist.signs}</dd></div>
+            <div><dt>T</dt><dd><b>Treatment</b> — {mist.treatment}</dd></div>
+          </dl>
+        </Section>
 
         <Section title="Patient">
           <div className="sm-grid">
