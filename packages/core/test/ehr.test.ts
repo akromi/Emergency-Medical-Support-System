@@ -101,6 +101,35 @@ describe('parsePatientMatchBundle', () => {
     expect(parsePatientMatchBundle(undefined)).toEqual({ matches: [], resolved: false })
     expect(parsePatientMatchBundle({})).toEqual({ matches: [], resolved: false })
   })
+
+  it('uses the FHIR match-grade extension over the numeric score', () => {
+    const matchGrade = (code: string) => ({
+      extension: [{ url: 'http://hl7.org/fhir/StructureDefinition/match-grade', valueCode: code }],
+    })
+    const result = parsePatientMatchBundle({
+      entry: [
+        // Authoritative `certain` grade despite a modest score → must resolve.
+        { resource: { resourceType: 'Patient', id: 'pcr-1' }, search: { score: 0.42, ...matchGrade('certain') } },
+        { resource: { resourceType: 'Patient', id: 'pcr-2' }, search: { score: 0.9, ...matchGrade('possible') } },
+      ],
+    })
+    expect(result.matches[0]).toMatchObject({ id: 'pcr-1', grade: 'certain' })
+    expect(result.matches[1]).toMatchObject({ id: 'pcr-2', grade: 'possible' })
+    expect(result.resolved).toBe(true)
+  })
+
+  it('does not resolve when the grade extension says certainly-not despite a high score', () => {
+    const result = parsePatientMatchBundle({
+      entry: [
+        {
+          resource: { resourceType: 'Patient', id: 'pcr-1' },
+          search: { score: 0.99, extension: [{ url: 'http://hl7.org/fhir/StructureDefinition/match-grade', valueCode: 'certainly-not' }] },
+        },
+      ],
+    })
+    expect(result.matches[0].grade).toBe('certainly-not')
+    expect(result.resolved).toBe(false)
+  })
 })
 
 describe('buildAccessAuditEvent', () => {

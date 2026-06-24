@@ -84,9 +84,30 @@ export function buildPatientMatchParameters(
   return { resourceType: 'Parameters', parameter }
 }
 
+/** FHIR match-grade extension — the authoritative confidence on a $match candidate. */
+const MATCH_GRADE_URL = 'http://hl7.org/fhir/StructureDefinition/match-grade'
+
+type SearchExtension = { url?: string; valueCode?: string }
 interface Bundleish {
   resourceType?: string
-  entry?: Array<{ resource?: Record<string, unknown>; search?: { mode?: string; score?: number } }>
+  entry?: Array<{
+    resource?: Record<string, unknown>
+    search?: { mode?: string; score?: number; extension?: SearchExtension[] }
+  }>
+}
+
+const VALID_GRADES: ReadonlySet<string> = new Set(['certain', 'probable', 'possible', 'certainly-not'])
+
+/**
+ * Resolve a candidate's match grade. The MPI's own `match-grade` extension is
+ * authoritative when present; only fall back to thresholding the numeric score
+ * when it isn't (so a `certain` grade with a modest score still resolves).
+ */
+function resolveGrade(search: { score?: number; extension?: SearchExtension[] } | undefined): PatientMatch['grade'] {
+  const ext = Array.isArray(search?.extension) ? search!.extension : []
+  const graded = ext.find((e) => e?.url === MATCH_GRADE_URL)?.valueCode
+  if (graded && VALID_GRADES.has(graded)) return graded as PatientMatch['grade']
+  return gradeFromScore(typeof search?.score === 'number' ? search.score : undefined)
 }
 
 function gradeFromScore(score?: number): PatientMatch['grade'] {
@@ -127,13 +148,17 @@ export function parsePatientMatchBundle(bundle: unknown): MatchResult {
       birthDate: typeof res.birthDate === 'string' ? res.birthDate : undefined,
       gender: typeof res.gender === 'string' ? res.gender : undefined,
       score: typeof score === 'number' ? score : undefined,
-      grade: gradeFromScore(typeof score === 'number' ? score : undefined),
+      grade: resolveGrade(entry.search),
     })
   }
 
-  matches.sort((a, b2) => (b2.score ?? 0) - (a.score ?? 0))
+  // Sort by effective confidence — the explicit grade outranks a numeric score
+  // so an extension-graded `certain` candidate isn't buried under a higher score.
+  const confidence = (m: PatientMatch) => Math.max(GRADE_SCORE[m.grade ?? 'certainly-not'], m.score ?? 0)
+  matches.sort((a, b2) => confidence(b2) - confidence(a))
 
-  const certain = matches.filter((m) => (m.score ?? GRADE_SCORE[m.grade ?? 'certainly-not']) >= 0.95)
+  // Identity is resolved only when exactly one candidate is graded `certain`.
+  const certain = matches.filter((m) => m.grade === 'certain')
   return { matches, resolved: certain.length === 1 }
 }
 

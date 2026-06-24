@@ -47,8 +47,13 @@ required by Ontario Health's privacy & security policy.
 
 ## Configuration (env, read in `sync-service/src/server.ts`)
 
-With ONE ID unset, the service falls back to `MockGateway` so it runs end-to-end
-in dev. To target Ontario:
+Selection **fails closed** so fabricated mock patients are never served by
+accident:
+
+- all Ontario vars present → real `OntarioHealthGateway`
+- some but not all present → startup throws (a misconfigured prod deploy)
+- none present + `EHR_ALLOW_MOCK=true` → `MockGateway` (explicit dev opt-in)
+- none present → EHR routes are not mounted
 
 | Variable | Meaning |
 |---|---|
@@ -57,6 +62,7 @@ in dev. To target Ontario:
 | `ONE_ID_SCOPE` | granted scopes (e.g. `pcr/Patient.read`) |
 | `OH_FHIR_BASE_URL` | ONE Access Gateway FHIR base |
 | `OH_AGENT_ID` | requesting clinician id for the audit trail |
+| `EHR_ALLOW_MOCK` | set `true` to serve the in-memory mock in dev |
 
 Mutual TLS: construct an undici `Agent` with your client certificate and pass it
 as `dispatcher` to `OneIdClient` / `OntarioHealthGateway` (see the comment in

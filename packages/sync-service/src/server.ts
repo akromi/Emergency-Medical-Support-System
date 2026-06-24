@@ -7,10 +7,15 @@ import { buildApp } from './app.js'
 import { OpStore, migrate } from './ops-store.js'
 import { EhrAuditStore, migrateEhrAudit } from './ehr-audit-store.js'
 
-// Select the provincial EHR adapter from the environment. With no ONE ID
-// credentials configured we fall back to an in-memory mock so the service runs
-// end-to-end in dev without a sandbox connection.
-function buildEhrGateway(audit: EhrAuditStore): EhrGateway {
+// Select the provincial EHR adapter from the environment.
+//
+// Fails closed: the seeded MockGateway returns fabricated patients, so it is
+// NEVER used implicitly. The selection is:
+//   - all Ontario/ONE ID vars present  → real OntarioHealthGateway
+//   - some but not all present          → throw (a misconfigured prod deploy)
+//   - none present + EHR_ALLOW_MOCK=true → MockGateway (explicit dev opt-in)
+//   - none present                      → undefined (EHR routes are not mounted)
+function buildEhrGateway(audit: EhrAuditStore): EhrGateway | undefined {
   const {
     ONE_ID_TOKEN_URL,
     ONE_ID_CLIENT_ID,
@@ -18,18 +23,23 @@ function buildEhrGateway(audit: EhrAuditStore): EhrGateway {
     ONE_ID_SCOPE,
     OH_FHIR_BASE_URL,
     OH_AGENT_ID,
+    EHR_ALLOW_MOCK,
   } = process.env
 
-  if (ONE_ID_TOKEN_URL && ONE_ID_CLIENT_ID && ONE_ID_CLIENT_SECRET && OH_FHIR_BASE_URL) {
+  const required = { ONE_ID_TOKEN_URL, ONE_ID_CLIENT_ID, ONE_ID_CLIENT_SECRET, OH_FHIR_BASE_URL }
+  const present = Object.entries(required).filter(([, v]) => v)
+  const fullyConfigured = present.length === Object.keys(required).length
+
+  if (fullyConfigured) {
     const oneId = new OneIdClient({
-      tokenUrl: ONE_ID_TOKEN_URL,
-      clientId: ONE_ID_CLIENT_ID,
-      clientSecret: ONE_ID_CLIENT_SECRET,
+      tokenUrl: ONE_ID_TOKEN_URL!,
+      clientId: ONE_ID_CLIENT_ID!,
+      clientSecret: ONE_ID_CLIENT_SECRET!,
       scope: ONE_ID_SCOPE,
       // dispatcher: <undici Agent with the mTLS client cert> — supply in deploy.
     })
     return new OntarioHealthGateway({
-      fhirBaseUrl: OH_FHIR_BASE_URL,
+      fhirBaseUrl: OH_FHIR_BASE_URL!,
       oneId,
       requestingAgentId: OH_AGENT_ID ?? 'triage-link-service',
       onAudit: (event) => {
@@ -43,9 +53,26 @@ function buildEhrGateway(audit: EhrAuditStore): EhrGateway {
     })
   }
 
+  // Partial config is almost certainly a broken production deploy — fail loudly
+  // rather than silently degrade to fake data.
+  if (present.length > 0) {
+    const missing = Object.keys(required).filter((k) => !required[k as keyof typeof required])
+    throw new Error(
+      `Incomplete Ontario Health / ONE ID configuration (missing: ${missing.join(', ')}). ` +
+        'Set all of ONE_ID_TOKEN_URL, ONE_ID_CLIENT_ID, ONE_ID_CLIENT_SECRET, OH_FHIR_BASE_URL — ' +
+        'or none, with EHR_ALLOW_MOCK=true for a dev mock.',
+    )
+  }
+
+  if (EHR_ALLOW_MOCK === 'true') {
+    // eslint-disable-next-line no-console
+    console.warn('EHR_ALLOW_MOCK=true — serving an in-memory MockGateway with FABRICATED patients. Not for production.')
+    return new MockGateway()
+  }
+
   // eslint-disable-next-line no-console
-  console.warn('ONE ID not configured — using in-memory MockGateway for the EHR routes')
-  return new MockGateway()
+  console.warn('No EHR provider configured (and EHR_ALLOW_MOCK!=true) — EHR routes will not be mounted.')
+  return undefined
 }
 
 async function main(): Promise<void> {
