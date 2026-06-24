@@ -19,6 +19,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run typecheck --workspace @triage-link/core
+      - run: npm run typecheck --workspace @triage-link/ehr-gateway
       - run: npm run typecheck --workspace @triage-link/sync-service
       - run: npm test
       - run: npm run build

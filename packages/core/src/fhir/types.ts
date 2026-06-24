@@ -8,11 +8,15 @@ export interface FhirResource {
 export interface FhirBundleEntry {
   fullUrl?: string
   resource: FhirResource
+  /** Present on transaction/batch bundles — how the server should apply the entry. */
+  request?: { method: 'POST' | 'PUT' | 'GET' | 'DELETE'; url: string }
 }
+
+export type FhirBundleType = 'collection' | 'transaction' | 'searchset'
 
 export interface FhirBundle {
   resourceType: 'Bundle'
-  type: 'collection'
+  type: FhirBundleType
   timestamp: string
   entry: FhirBundleEntry[]
 }

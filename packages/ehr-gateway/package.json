@@ -1,0 +1,22 @@
+{
+  "name": "@triage-link/ehr-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Provincial EHR adapter for TRIAGE-LINK — Ontario Health (ONE Access Gateway / PCR) implementation of the EhrGateway port",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@triage-link/core": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.6.3",
+    "vitest": "^4.1.9"
+  }
+}
