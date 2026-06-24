@@ -238,6 +238,7 @@ export function App() {
                   />
                   <div className="photos">
                     <button type="button" className="addphoto" onClick={() => addPhoto(selected.id)}>📷 Add photo</button>
+                    {selected.photos.length === 0 && <span className="hint-inline">Photograph the wound — saved with this injury</span>}
                     {selected.photos.map((src, i) => (
                       <div className="thumb" key={i}>
                         <img src={src} alt={`injury photo ${i + 1}`} onClick={() => setLightbox(src)} />
@@ -246,6 +247,9 @@ export function App() {
                     ))}
                   </div>
                 </div>
+              )}
+              {!selected && record.injuries.length > 0 && (
+                <div className="hint-inline select-hint">Tap an injury marker (or a row above) to edit it or attach a 📷 photo.</div>
               )}
             </div>
           </section>
