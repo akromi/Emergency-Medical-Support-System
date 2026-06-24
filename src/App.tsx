@@ -287,8 +287,10 @@ export function App() {
 
       <div className="wrap">
         <main>
-          {/* charts + injury list sit side by side; treatment log spans below */}
+          {/* left column (charts + treatment log) beside the injuries list, so
+              the list can grow without pushing the treatment log down */}
           <div className="workzone">
+          <div className="workcol">
           {/* ---- injury chart ---- */}
           <section className="panel">
             <div className="chart-head">
@@ -315,6 +317,9 @@ export function App() {
               <Tip id="chart-flow">After dropping a marker, tap it to set <b>severity</b>, add notes, and <b>📷 attach wound photos</b>. When zoomed in, use <b>← Full body</b> to zoom back out.</Tip>
             </div>
           </section>
+
+          <TreatmentPanel onAdd={addTreatment} treatments={record.treatments} onRemove={removeTreatment} />
+          </div>
 
           {/* ---- injury list / editor ---- */}
           <section className="panel">
@@ -370,8 +375,6 @@ export function App() {
             </div>
           </section>
           </div>
-
-          <TreatmentPanel onAdd={addTreatment} treatments={record.treatments} onRemove={removeTreatment} />
         </main>
 
         <aside>
