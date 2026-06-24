@@ -13,6 +13,7 @@ import { BodyChart, type NewInjuryPlacement } from './components/BodyChart'
 import { CasualtySummary } from './components/CasualtySummary'
 import { TriageBoard } from './components/TriageBoard'
 import { capturePhoto } from './photo'
+import { Tip, OfflineBanner } from './components/hints'
 import { PcrVerify } from './components/PcrVerify'
 import { contributeHandover, EhrUnavailableError } from './ehr/client'
 
@@ -140,11 +141,11 @@ export function App() {
       <header className="topbar">
         <div className="brand"><span className="mark">◇ TRIAGE-LINK</span><span className="sub">Field Casualty Record</span></div>
         <div className="pid">CASE <b>{record.id}</b></div>
-        <button className="topbtn" onClick={newCase}>+ New casualty</button>
-        <button className="topbtn" onClick={() => setShowBoard(true)}>🚩 Board{saved.length > 0 ? ` · ${saved.length}` : ''}</button>
-        <button className="topbtn" onClick={() => setShowSummary(true)}>🖨 Summary</button>
+        <button className="topbtn" onClick={newCase} title="Start a fresh record (the current one is auto-saved)">+ New casualty</button>
+        <button className="topbtn" onClick={() => setShowBoard(true)} title="All saved casualties grouped by triage (scene picture)">🚩 Board{saved.length > 0 ? ` · ${saved.length}` : ''}</button>
+        <button className="topbtn" onClick={() => setShowSummary(true)} title="One-page casualty card — print or save as PDF for handover">🖨 Summary</button>
         <button className="topbtn" onClick={sendToEhr} title="Contribute this handover to the provincial EHR">Send to EHR ↑</button>
-        <button className="topbtn primary" onClick={exportFhir}>Export FHIR ↓</button>
+        <button className="topbtn primary" onClick={exportFhir} title="Download an interoperable FHIR record">Export FHIR ↓</button>
         {ehrStatus && <span className="ehr-status">{ehrStatus}</span>}
       </header>
 
@@ -171,9 +172,11 @@ export function App() {
           ))}
         </div>
         <span className="tb-current" style={triage ? { color: TRIAGE_COLORS[triage] } : undefined}>
-          {triage ? TRIAGE_LABELS[triage] : 'Not set'}
+          {triage ? TRIAGE_LABELS[triage] : 'Not set — tap a level'}
         </span>
       </div>
+
+      <OfflineBanner />
 
       <div className="wrap">
         <main>
@@ -199,6 +202,9 @@ export function App() {
               <BodyChart view="posterior" injuries={record.injuries} selectedId={selectedInjury} onPlace={placeInjury} onSelect={setSelectedInjury} />
             </div>
             <p className="hint">Pick an injury type · tap a body area to blow it up · tap again to drop a marker. Tap a marker to edit it below.</p>
+            <div className="hintwrap">
+              <Tip id="chart-flow">After dropping a marker, tap it to set <b>severity</b>, add notes, and <b>📷 attach wound photos</b>. When zoomed in, use <b>← Full body</b> to zoom back out.</Tip>
+            </div>
           </section>
 
           {/* ---- injury list / editor ---- */}
