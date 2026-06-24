@@ -4,6 +4,8 @@ import {
   type VitalSign, type Treatment, type TreatmentPlace,
   createEmptyRecord, TRIAGE_LABELS, TRIAGE_COLORS,
   AGE_BAND_ORDER, AGE_BAND_LABELS, estimateBurnTBSA,
+  ageFromDob, ageBandFromDob,
+  GCS_EYE, GCS_VERBAL, GCS_MOTOR, formatGcs,
   genCaseId, genLocalId,
   INJURY_TYPES, injuryColor, injuryLabel,
   toFhirBundle,
@@ -72,6 +74,16 @@ export function App() {
     persist({ ...record, tombstone: { ...record.tombstone, ...patch } })
   const setInc = (key: keyof CasualtyRecord['incident'], value: string) =>
     persist({ ...record, incident: { ...record.incident, [key]: value } })
+  // Entering a DOB auto-derives the Lund–Browder age band (clinician can still
+  // override it manually afterwards); clearing the DOB leaves the band as-is.
+  function setDob(value: string) {
+    const band = ageBandFromDob(value, Date.now())
+    persist({
+      ...record,
+      tombstone: { ...record.tombstone, dob: value },
+      incident: { ...record.incident, ...(band ? { ageBand: band } : {}) },
+    })
+  }
 
   function placeInjury(p: NewInjuryPlacement) {
     const id = genLocalId('inj-')
@@ -152,6 +164,7 @@ export function App() {
   const selected = record.injuries.find((i) => i.id === selectedInjury) ?? null
   const triage = record.incident.triage
   const tbsa = estimateBurnTBSA(record.injuries, record.incident.ageBand)
+  const dobAge = ageFromDob(record.tombstone.dob, Date.now())
 
   return (
     <>
@@ -300,7 +313,7 @@ export function App() {
             <div className="panel-h"><h2>Tombstone — identity</h2></div>
             <div className="panel-b grid2">
               <label className="field col2"><span>Full name</span><input value={record.tombstone.name} onChange={(e) => setTomb('name', e.target.value)} placeholder="Surname, Given" /></label>
-              <label className="field"><span>Date of birth</span><input type="date" value={record.tombstone.dob} onChange={(e) => setTomb('dob', e.target.value)} /></label>
+              <label className="field"><span>Date of birth</span><input type="date" value={record.tombstone.dob} onChange={(e) => setDob(e.target.value)} /></label>
               <label className="field"><span>Sex</span>
                 <select value={record.tombstone.sex} onChange={(e) => setTomb('sex', e.target.value)}>
                   <option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option><option value="unknown">Unknown</option>
@@ -323,7 +336,8 @@ export function App() {
               <label className="field"><span>Time of injury</span><input type="datetime-local" value={record.incident.injuryTime} onChange={(e) => setInc('injuryTime', e.target.value)} /></label>
               <label className="field"><span>Mechanism</span><input value={record.incident.mechanism} onChange={(e) => setInc('mechanism', e.target.value)} placeholder="Blunt, RTC, GSW…" /></label>
               <label className="field col2"><span>Location of incident</span><input value={record.incident.location} onChange={(e) => setInc('location', e.target.value)} placeholder="Address / grid / GPS" /></label>
-              <div className="field col2"><span>Age band <em>· adjusts burn TBSA (Lund–Browder)</em></span>
+              <div className="field col2"><span>Age band <em>· adjusts burn TBSA (Lund–Browder)</em>
+                {dobAge != null && <em className="derived">· {dobAge}y from DOB</em>}</span>
                 <div className="ageband" role="group" aria-label="Patient age band">
                   {AGE_BAND_ORDER.map((b) => (
                     <button key={b} type="button" className={record.incident.ageBand === b ? 'on' : ''} onClick={() => setInc('ageBand', b)}>
@@ -404,6 +418,7 @@ function VitalsPanel({ vitals, onAdd, onRemove }: {
             </label>
           ))}
         </div>
+        <GcsCalc value={f.gcs} onChange={(v) => set('gcs', v)} />
         <button className="btn full" onClick={submit}>Record vitals</button>
         {vitals.length === 0 && <p className="hint-inline panel-hint">Enter any fields and tap Record — log a fresh timestamped set at each reassessment.</p>}
         {vitals.slice().reverse().map((v) => (
@@ -420,6 +435,38 @@ function VitalsPanel({ vitals, onAdd, onRemove }: {
         ))}
       </div>
     </section>
+  )
+}
+
+// ---- GCS calculator: E/V/M selectors that compute the total into the vitals
+// GCS field as e.g. "14 (E4 V4 M6)". Collapsed by default. ----
+function GcsCalc({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [e, setE] = useState(4)
+  const [v, setV] = useState(5)
+  const [m, setM] = useState(6)
+  const apply = (ne: number, nv: number, nm: number) => { setE(ne); setV(nv); setM(nm); onChange(formatGcs(ne, nv, nm)) }
+  const total = e + v + m
+  return (
+    <details className="gcs-calc">
+      <summary>GCS calculator <span className="gcs-total">{value ? value : `= ${total}`}</span></summary>
+      <div className="gcs-rows">
+        <label className="field"><span>Eye (E)</span>
+          <select value={e} onChange={(ev) => apply(+ev.target.value, v, m)}>
+            {GCS_EYE.map((o) => <option key={o.score} value={o.score}>{o.score} · {o.label}</option>)}
+          </select>
+        </label>
+        <label className="field"><span>Verbal (V)</span>
+          <select value={v} onChange={(ev) => apply(e, +ev.target.value, m)}>
+            {GCS_VERBAL.map((o) => <option key={o.score} value={o.score}>{o.score} · {o.label}</option>)}
+          </select>
+        </label>
+        <label className="field"><span>Motor (M)</span>
+          <select value={m} onChange={(ev) => apply(e, v, +ev.target.value)}>
+            {GCS_MOTOR.map((o) => <option key={o.score} value={o.score}>{o.score} · {o.label}</option>)}
+          </select>
+        </label>
+      </div>
+    </details>
   )
 }
 
