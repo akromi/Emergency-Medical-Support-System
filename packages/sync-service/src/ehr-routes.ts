@@ -37,11 +37,35 @@ export function registerEhrRoutes(app: FastifyInstance, ehr: EhrGateway): void {
       const result = await ehr.matchPatient(query)
       return reply.send({ provider: ehr.provider, ...result })
     } catch (err) {
-      if (err instanceof EhrError) {
-        return reply.code(statusForCode(err.code)).send({ error: err.code, message: err.message, retryable: err.retryable })
-      }
-      req.log.error(err)
-      return reply.code(500).send({ error: 'unknown', message: 'Unexpected EHR error' })
+      return handleEhrError(err, reply, req)
     }
   })
+
+  // Pull clinical context (meds/allergies/labs) for a resolved patient, where
+  // the configured provider supports it (Ontario: DHDR / OLIS / Patient Summary).
+  app.get('/ehr/patient/:id/context', async (req, reply) => {
+    if (!ehr.fetchContext) {
+      return reply.code(501).send({ error: 'unsupported', message: `${ehr.provider} does not support context fetch` })
+    }
+    const { id } = req.params as { id: string }
+    try {
+      const bundle = await ehr.fetchContext(id)
+      return reply.send(bundle)
+    } catch (err) {
+      return handleEhrError(err, reply, req)
+    }
+  })
+}
+
+function handleEhrError(err: unknown, reply: ReplyLike, req: { log: { error: (e: unknown) => void } }) {
+  if (err instanceof EhrError) {
+    return reply.code(statusForCode(err.code)).send({ error: err.code, message: err.message, retryable: err.retryable })
+  }
+  req.log.error(err)
+  return reply.code(500).send({ error: 'unknown', message: 'Unexpected EHR error' })
+}
+
+interface ReplyLike {
+  code(status: number): { send(payload: unknown): unknown }
+  send(payload: unknown): unknown
 }

@@ -12,6 +12,7 @@ import { recordRepo } from './db/repository'
 import { BodyChart, type NewInjuryPlacement } from './components/BodyChart'
 import { CasualtySummary } from './components/CasualtySummary'
 import { TriageBoard } from './components/TriageBoard'
+import { PcrVerify } from './components/PcrVerify'
 
 const TRIAGE_ORDER: TriageCategory[] = ['immediate', 'delayed', 'minor', 'deceased']
 const TREATMENT_TYPES = [
@@ -49,6 +50,8 @@ export function App() {
   // ---- mutators ----
   const setTomb = (key: keyof CasualtyRecord['tombstone'], value: string) =>
     persist({ ...record, tombstone: { ...record.tombstone, [key]: value } })
+  const applyTomb = (patch: Partial<CasualtyRecord['tombstone']>) =>
+    persist({ ...record, tombstone: { ...record.tombstone, ...patch } })
   const setInc = (key: keyof CasualtyRecord['incident'], value: string) =>
     persist({ ...record, incident: { ...record.incident, [key]: value } })
 
@@ -230,6 +233,9 @@ export function App() {
               <label className="field"><span>Blood type</span><input value={record.tombstone.bloodType} onChange={(e) => setTomb('bloodType', e.target.value)} placeholder="Unknown" /></label>
               <label className="field"><span>Next of kin</span><input value={record.tombstone.nextOfKin} onChange={(e) => setTomb('nextOfKin', e.target.value)} /></label>
               <label className="field"><span>NOK phone</span><input className="mono" value={record.tombstone.nextOfKinPhone} onChange={(e) => setTomb('nextOfKinPhone', e.target.value)} /></label>
+            </div>
+            <div className="panel-b">
+              <PcrVerify tombstone={record.tombstone} onApply={applyTomb} />
             </div>
           </section>
 

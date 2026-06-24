@@ -10,6 +10,8 @@ import {
   type EhrGateway,
   type PatientIdentity,
   type MatchResult,
+  type FhirBundle,
+  type FhirResource,
 } from '@triage-link/core'
 
 export interface MockPatient {
@@ -19,6 +21,8 @@ export interface MockPatient {
   familyName?: string
   birthDate?: string
   gender?: string
+  /** Optional seeded clinical context returned by fetchContext(). */
+  context?: FhirResource[]
 }
 
 /** A deliberately tiny matcher: exact HCN → certain, else name+dob → probable. */
@@ -64,9 +68,31 @@ export class MockGateway implements EhrGateway {
     // (sorting, resolved flag) is identical to production.
     return parsePatientMatchBundle({ resourceType: 'Bundle', type: 'searchset', entry })
   }
+
+  async fetchContext(patientId: string): Promise<FhirBundle> {
+    const patient = this.patients.find((p) => p.id === patientId)
+    const resources = patient?.context ?? []
+    return {
+      resourceType: 'Bundle',
+      type: 'collection',
+      timestamp: '1970-01-01T00:00:00.000Z',
+      entry: resources.map((resource) => ({ resource })),
+    }
+  }
 }
 
 const DEFAULT_SEED: MockPatient[] = [
-  { id: 'pcr-1001', healthCardNumber: '1234567890', givenName: 'Jane', familyName: 'Doe', birthDate: '1990-04-01', gender: 'female' },
+  {
+    id: 'pcr-1001',
+    healthCardNumber: '1234567890',
+    givenName: 'Jane',
+    familyName: 'Doe',
+    birthDate: '1990-04-01',
+    gender: 'female',
+    context: [
+      { resourceType: 'AllergyIntolerance', id: 'al-1', code: { text: 'Penicillin' }, criticality: 'high' },
+      { resourceType: 'MedicationDispense', id: 'md-1', status: 'completed', medicationCodeableConcept: { text: 'Warfarin 5mg' } },
+    ],
+  },
   { id: 'pcr-1002', healthCardNumber: '9876543210', givenName: 'John', familyName: 'Roe', birthDate: '1985-11-23', gender: 'male' },
 ]

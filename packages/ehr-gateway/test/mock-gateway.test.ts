@@ -22,4 +22,17 @@ describe('MockGateway', () => {
     expect(res.matches).toHaveLength(0)
     expect(res.resolved).toBe(false)
   })
+
+  it('returns seeded clinical context for a known patient', async () => {
+    const bundle = await gw.fetchContext('pcr-1001')
+    expect(bundle.type).toBe('collection')
+    const types = bundle.entry.map((e) => (e.resource as { resourceType: string }).resourceType)
+    expect(types).toContain('AllergyIntolerance')
+    expect(types).toContain('MedicationDispense')
+  })
+
+  it('returns an empty context bundle for a patient with none', async () => {
+    const bundle = await gw.fetchContext('pcr-1002')
+    expect(bundle.entry).toHaveLength(0)
+  })
 })

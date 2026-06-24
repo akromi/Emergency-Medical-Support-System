@@ -18,9 +18,27 @@ import {
   type PatientIdentity,
   type MatchResult,
   type FhirResource,
+  type FhirBundle,
 } from '@triage-link/core'
 import { HttpClient, type FetchLike } from './http.js'
 import { OneIdClient } from './one-id.js'
+
+/** DHDR meds, allergies, OLIS labs — the common provincial context repositories. */
+const DEFAULT_CONTEXT_TYPES = ['MedicationDispense', 'AllergyIntolerance', 'Observation']
+
+/** Pull resource entries out of a FHIR searchset Bundle, tolerating bad shapes. */
+function bundleEntries(bundle: unknown): Array<{ fullUrl?: string; resource: FhirResource }> {
+  const entry = (bundle as { entry?: unknown })?.entry
+  if (!Array.isArray(entry)) return []
+  const out: Array<{ fullUrl?: string; resource: FhirResource }> = []
+  for (const e of entry) {
+    const resource = (e as { resource?: unknown })?.resource
+    if (resource && typeof (resource as FhirResource).resourceType === 'string') {
+      out.push({ fullUrl: (e as { fullUrl?: string }).fullUrl, resource: resource as FhirResource })
+    }
+  }
+  return out
+}
 
 export interface OntarioHealthGatewayConfig {
   /** ONE Access Gateway FHIR base URL (e.g. https://.../fhir/r4). */
@@ -33,6 +51,14 @@ export interface OntarioHealthGatewayConfig {
   onAudit?: (event: FhirResource) => void | Promise<void>
   /** Only return certain matches from PCR (default true — safest for identity). */
   onlyCertainMatches?: boolean
+  /**
+   * Resource types fetched by fetchContext(), each searched as
+   * `{type}?patient={id}`. Defaults cover the common provincial repositories:
+   * DHDR (MedicationDispense), allergies, and OLIS labs (Observation). The exact
+   * search parameters each repository accepts are fixed by its FHIR IG — adjust
+   * this list (and parameters) to match the repositories you are entitled to.
+   */
+  contextResourceTypes?: string[]
   fetchImpl?: FetchLike
   /** undici Dispatcher carrying the mTLS client certificate. */
   dispatcher?: unknown
@@ -91,6 +117,41 @@ export class OntarioHealthGateway implements EhrGateway {
         query: query.healthCardNumber ? 'Patient/$match by HCN' : 'Patient/$match by demographics',
         patientId: result.resolved ? result.matches[0]?.id : undefined,
       })
+    }
+  }
+
+  async fetchContext(patientId: string): Promise<FhirBundle> {
+    if (!patientId) throw new EhrError('invalid-request', 'fetchContext requires a patient id')
+    const types = this.cfg.contextResourceTypes ?? DEFAULT_CONTEXT_TYPES
+    const entries: Array<{ fullUrl?: string; resource: FhirResource }> = []
+    let outcome: '0' | '8' = '0'
+
+    try {
+      for (const type of types) {
+        // A repository the caller isn't entitled to (403) shouldn't sink the
+        // whole context fetch — skip it and keep what we can return.
+        let bundle: unknown
+        try {
+          bundle = await this.authedRequest<unknown>(`/${type}?patient=${encodeURIComponent(patientId)}`, { method: 'GET' })
+        } catch (err) {
+          if (err instanceof EhrError && (err.code === 'forbidden' || err.code === 'not-found')) continue
+          throw err
+        }
+        for (const entry of bundleEntries(bundle)) {
+          entries.push({ fullUrl: entry.fullUrl, resource: entry.resource })
+        }
+      }
+      return {
+        resourceType: 'Bundle',
+        type: 'collection',
+        timestamp: new Date(this.now()).toISOString(),
+        entry: entries,
+      }
+    } catch (err) {
+      outcome = '8'
+      throw err
+    } finally {
+      await this.audit({ action: 'R', outcome, query: `context fetch (${types.join(', ')})`, patientId })
     }
   }
 

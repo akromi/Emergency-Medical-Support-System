@@ -128,6 +128,27 @@ describe('OntarioHealthGateway.matchPatient', () => {
     expect(matchAttempts).toBe(2) // failed once (401), succeeded on retry
   })
 
+  it('fetches context across repositories and merges into one collection bundle', async () => {
+    const seen: string[] = []
+    const { gw } = buildGateway((req) => {
+      if (req.url === TOKEN_URL) return { status: 200, body: { access_token: 'tok-1', expires_in: 300 } }
+      seen.push(req.url)
+      if (req.url.includes('/MedicationDispense')) {
+        return { status: 200, body: { resourceType: 'Bundle', entry: [{ resource: { resourceType: 'MedicationDispense', id: 'md-1' } }] } }
+      }
+      if (req.url.includes('/AllergyIntolerance')) {
+        return { status: 403, body: { resourceType: 'OperationOutcome' } } // not entitled — should be skipped
+      }
+      return { status: 200, body: { resourceType: 'Bundle', entry: [{ resource: { resourceType: 'Observation', id: 'obs-1' } }] } }
+    })
+
+    const bundle = await gw.fetchContext('pcr-1001')
+    expect(bundle.type).toBe('collection')
+    const ids = bundle.entry.map((e) => (e.resource as { id?: string }).id)
+    expect(ids).toEqual(['md-1', 'obs-1']) // allergy repo (403) skipped, others merged
+    expect(seen.some((u) => u.includes('patient=pcr-1001'))).toBe(true)
+  })
+
   it('audits a failure outcome and rethrows on a hard error', async () => {
     const audits: FhirResource[] = []
     const { gw } = buildGateway((req) => {

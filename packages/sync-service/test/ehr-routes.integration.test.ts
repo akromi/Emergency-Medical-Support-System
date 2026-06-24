@@ -51,6 +51,15 @@ describe('EHR routes', () => {
     expect(res.json().resolved).toBe(false)
   })
 
+  it('returns a clinical-context bundle via GET /ehr/patient/:id/context', async () => {
+    const res = await app.inject({ method: 'GET', url: '/ehr/patient/pcr-1001/context' })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.resourceType).toBe('Bundle')
+    const types = body.entry.map((e: { resource: { resourceType: string } }) => e.resource.resourceType)
+    expect(types).toContain('AllergyIntolerance')
+  })
+
   it('does not mount EHR routes when no gateway is wired', async () => {
     const store = await makeStore()
     const bare = buildApp({ store })

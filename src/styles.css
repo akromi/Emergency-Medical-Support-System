@@ -213,3 +213,11 @@ input::placeholder { color:var(--txt-faint); }
 .bc-tbsa { color:#F2820F; font-weight:600; }
 .bc-ho { color:var(--ekg); }
 .board-none { text-align:center; color:var(--txt-faint); padding:24px; }
+
+/* ---- PCR identity verification ---- */
+.pcr { display:flex; flex-direction:column; gap:6px; }
+.pcr .row.on { outline:1px solid var(--ekg); }
+.pcr .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.pcr .chips .btn { padding:5px 9px; font-size:12px; }
+.pcr-ctx { margin-top:6px; display:flex; flex-direction:column; gap:4px; }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
