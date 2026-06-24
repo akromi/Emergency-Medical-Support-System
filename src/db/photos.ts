@@ -12,37 +12,35 @@ const PREFIX = 'idb:'
 export const isPhotoRef = (s: string): boolean => s.startsWith(PREFIX)
 export const isDataUrl = (s: string): boolean => s.startsWith('data:')
 
-/** Decode a data URL to a Blob without fetch() (works in any environment). */
-function dataUrlToBlob(dataUrl: string): Blob {
+/** Split a data URL into its mime + raw bytes (no fetch/FileReader needed). */
+function decodeDataUrl(dataUrl: string): { mime: string; bytes: Uint8Array } {
   const comma = dataUrl.indexOf(',')
   const head = dataUrl.slice(0, comma)
   const mime = head.match(/data:([^;]+)/)?.[1] ?? 'application/octet-stream'
   const bin = atob(dataUrl.slice(comma + 1))
   const bytes = new Uint8Array(bin.length)
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
-  return new Blob([bytes], { type: mime })
+  return { mime, bytes }
 }
 
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader()
-    r.onload = () => resolve(r.result as string)
-    r.onerror = () => reject(r.error ?? new Error('photo read failed'))
-    r.readAsDataURL(blob)
-  })
+function encodeDataUrl(mime: string, bytes: Uint8Array): string {
+  let bin = ''
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+  return `data:${mime};base64,${btoa(bin)}`
 }
 
-/** Store a data-URL photo as a Blob; returns its "idb:<id>" reference. */
+/** Store a data-URL photo as raw bytes; returns its "idb:<id>" reference. */
 export async function putPhoto(dataUrl: string): Promise<string> {
   const id = genLocalId('ph-')
-  await db.photos.put({ id, blob: dataUrlToBlob(dataUrl) })
+  const { mime, bytes } = decodeDataUrl(dataUrl)
+  await db.photos.put({ id, mime, bytes })
   return PREFIX + id
 }
 
-/** Resolve a reference back to a data URL (null if the blob is missing). */
+/** Resolve a reference back to a data URL (null if the bytes are missing). */
 export async function readPhoto(ref: string): Promise<string | null> {
   const row = await db.photos.get(ref.slice(PREFIX.length))
-  return row ? blobToDataUrl(row.blob) : null
+  return row ? encodeDataUrl(row.mime, row.bytes) : null
 }
 
 export async function deletePhoto(ref: string): Promise<void> {

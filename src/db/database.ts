@@ -7,10 +7,13 @@ export interface MetaRow {
   value: string
 }
 
-/** A wound photo's bytes, stored out-of-line from the record (see db/photos.ts). */
+/** A wound photo's bytes, stored out-of-line from the record (see db/photos.ts).
+ *  Raw bytes + mime (not a Blob) so they structured-clone cleanly across every
+ *  IndexedDB implementation. */
 export interface PhotoRow {
   id: string
-  blob: Blob
+  mime: string
+  bytes: Uint8Array
 }
 
 // IndexedDB store. Works fully offline; the unit of sync is one record.
