@@ -53,7 +53,8 @@ button { font-family:inherit; }
   .topbar { position:relative; gap:8px; padding:10px 12px; }
   .topbtn { padding:6px 10px; font-size:12px; }
   .pid { margin-left:0; font-size:11px; }
-  .brand .sub, .brand .bn { display:none; } /* keep just the ◇ mark; free room for buttons */
+  .brand .sub { display:none; }
+  .pid .pid-label { display:none; } /* drop "CASE " label, keep the id — frees room for buttons */
   .triagebar { top:0; padding:7px 12px; }
   .tb-current { margin-left:0; }
   /* Keep + New casualty and Board inline; tuck the rest into a "More" menu. */

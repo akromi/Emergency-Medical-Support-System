@@ -233,7 +233,7 @@ export function App() {
     <div className="app">
       <header className="topbar">
         <div className="brand"><span className="mark">◇<span className="bn"> TRIAGE-LINK</span></span><span className="sub">Field Casualty Record</span></div>
-        <div className="pid">CASE <b>{record.id}</b></div>
+        <div className="pid"><span className="pid-label">CASE </span><b>{record.id}</b></div>
         <button className="topbtn" onClick={newCase} title="Start a fresh record (the current one is auto-saved)">+ New casualty</button>
         <button className="topbtn" data-tour="board" onClick={() => setShowBoard(true)} title="All saved casualties grouped by triage (scene picture)">🚩 Board{saved.length > 0 ? ` · ${saved.length}` : ''}</button>
         <button className="topbtn" data-tour="summary" onClick={() => setShowSummary(true)} title="One-page casualty card — print or save as PDF for handover">🖨 Summary</button>
