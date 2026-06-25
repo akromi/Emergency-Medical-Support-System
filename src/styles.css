@@ -172,6 +172,11 @@ input:focus, select:focus { border-color:var(--ekg); box-shadow:0 0 0 3px rgba(6
 input.mono { font-family:var(--mono); }
 input::placeholder { color:var(--txt-faint); }
 
+/* Date-of-birth: day / month dropdowns + typed year. */
+.dob { display:flex; gap:6px; }
+.dob > select, .dob > input { flex:1 1 0; min-width:0; }
+.dob > .yr { flex:1.2 1 0; }
+
 /* Age auto-derived from DOB — small accent note beside the band label. */
 .field em.derived { color:var(--ekg); font-weight:600; }
 

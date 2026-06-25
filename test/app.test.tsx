@@ -45,6 +45,16 @@ describe('App — core flows (jsdom)', () => {
     expect(screen.getByText(/Time of incident/)).toBeInTheDocument()
   })
 
+  it('derives age from the day/month/year date-of-birth control', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.selectOptions(screen.getByLabelText('Birth day'), '15')
+    await user.selectOptions(screen.getByLabelText('Birth month'), '06')
+    await user.type(screen.getByLabelText('Birth year'), '2000')
+    // A complete DOB drives the "· <age>y from DOB" note next to the age band.
+    expect(await screen.findByText(/from DOB/)).toBeInTheDocument()
+  })
+
   it('sets triage from the header tag', async () => {
     const user = userEvent.setup()
     render(<App />)
