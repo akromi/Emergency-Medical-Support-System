@@ -236,9 +236,9 @@ export function App() {
         <div className="pid"><span className="pid-label">CASE </span><b>{record.id}</b></div>
         <button className="topbtn" onClick={newCase} title="Start a fresh record (the current one is auto-saved)">+ New casualty</button>
         <button className="topbtn" data-tour="board" onClick={() => setShowBoard(true)} title="All saved casualties grouped by triage (scene picture)">🚩 Board{saved.length > 0 ? ` · ${saved.length}` : ''}</button>
-        <button className="topbtn" data-tour="summary" onClick={() => setShowSummary(true)} title="One-page casualty card — print or save as PDF for handover">🖨 Summary</button>
         <button type="button" className="topbtn more-btn" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)} title="More actions">⋯ More</button>
         <div className={`topbar-rest${menuOpen ? ' open' : ''}`} onClick={() => setMenuOpen(false)}>
+          <button className="topbtn" data-tour="summary" onClick={() => setShowSummary(true)} title="One-page casualty card — print or save as PDF for handover">🖨 Summary</button>
           <button className="topbtn" onClick={() => setShowTour(true)} title="Replay the guided tour">❔ Tour</button>
           <button className="topbtn" onClick={sendToEhr} title="Contribute this handover to the provincial EHR">Send to EHR ↑</button>
           {showLab && (
