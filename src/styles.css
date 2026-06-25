@@ -27,6 +27,11 @@ button { font-family:inherit; }
 .topbtn { border:1px solid var(--line); background:var(--panel); color:var(--txt); padding:8px 13px;
   border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; }
 .topbtn:hover { background:var(--raised); }
+/* Overflow menu: the "More" button is desktop-hidden; the secondary actions
+   render inline (display:contents = no wrapper box) on desktop, and collapse
+   into a dropdown on phones (see the ≤640px block). */
+.more-btn { display:none; }
+.topbar-rest { display:contents; }
 
 /* Triage tag — prominent acuity band under the header (sticky below topbar). */
 .triagebar { position:sticky; top:47px; z-index:35; display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px;
@@ -45,12 +50,21 @@ button { font-family:inherit; }
 /* Phones: the header wraps to several rows, so it can't be sticky at a fixed
    offset — make it scroll, shrink the controls, and pin only the triage tag. */
 @media (max-width:640px) {
-  .topbar { position:static; gap:8px; padding:10px 12px; }
+  .topbar { position:relative; gap:8px; padding:10px 12px; }
   .topbtn { padding:6px 10px; font-size:12px; }
   .pid { margin-left:0; font-size:11px; }
   .brand .sub { display:none; }
   .triagebar { top:0; padding:7px 12px; }
   .tb-current { margin-left:0; }
+  /* Keep + New casualty and Board inline; tuck the rest into a "More" menu. */
+  .more-btn { display:inline-flex; margin-left:auto; }
+  .topbar-rest { display:none; }
+  .topbar-rest.open { display:flex; flex-direction:column; gap:8px;
+    position:absolute; top:100%; right:12px; z-index:60; min-width:210px;
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:8px; box-shadow:0 14px 34px rgba(0,0,0,.55); }
+  .topbar-rest.open .topbtn { width:100%; text-align:left; padding:10px 12px; font-size:13px; }
+  .topmenu-backdrop { position:fixed; inset:0; z-index:55; }
 }
 
 .wrap { max-width:1320px; margin:0 auto; padding:18px; display:flex; flex-direction:column; gap:16px; }
