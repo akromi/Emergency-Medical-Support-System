@@ -298,7 +298,7 @@ export function App() {
             <div className="panel-h"><h2>Tombstone — identity</h2></div>
             <div className="panel-b grid2">
               <label className="field col2"><span>Full name</span><input value={record.tombstone.name} onChange={(e) => setTomb('name', e.target.value)} placeholder="Surname, Given" /></label>
-              <label className="field"><span>Date of birth</span><input type="date" value={record.tombstone.dob} onChange={(e) => setDob(e.target.value)} /></label>
+              <label className="field col2"><span>Date of birth</span><DobInput value={record.tombstone.dob} onChange={setDob} /></label>
               <label className="field"><span>Sex</span>
                 <select value={record.tombstone.sex} onChange={(e) => setTomb('sex', e.target.value)}>
                   <option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option><option value="unknown">Unknown</option>
@@ -522,6 +522,51 @@ function AcuityGlance({ record, tbsa }: { record: CasualtyRecord; tbsa: number }
         {tbsa > 0 && <div className="glance-tbsa">🔥 {tbsa}% TBSA</div>}
       </div>
     </aside>
+  )
+}
+
+// ---- date-of-birth entry: pick day + month, type the year. Avoids the native
+// calendar's awkward decade-scrolling; emits 'YYYY-MM-DD' (or '' if incomplete). ----
+const DOB_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function DobInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const parse = (v: string): [string, string, string] =>
+    (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? (v.split('-') as [string, string, string]) : ['', '', ''])
+  const [yy, setYy] = useState(() => parse(value)[0])
+  const [mm, setMm] = useState(() => parse(value)[1])
+  const [dd, setDd] = useState(() => parse(value)[2])
+
+  const iso = (y: string, m: string, d: string) => (y.length === 4 && m && d ? `${y}-${m}-${d}` : '')
+
+  // Re-sync from the prop only when it diverges from what we'd emit (e.g. a new
+  // case is loaded) — so partial typing isn't clobbered.
+  useEffect(() => {
+    if (value !== iso(yy, mm, dd)) { const [a, b, c] = parse(value); setYy(a); setMm(b); setDd(c) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
+
+  const upd = (y: string, m: string, d: string) => {
+    if (m && y.length === 4 && d) {
+      const max = new Date(Number(y), Number(m), 0).getDate() // clamp e.g. 31 Feb → 28/29
+      if (Number(d) > max) d = String(max).padStart(2, '0')
+    }
+    setYy(y); setMm(m); setDd(d); onChange(iso(y, m, d))
+  }
+  const days = mm && yy.length === 4 ? new Date(Number(yy), Number(mm), 0).getDate() : 31
+
+  return (
+    <div className="dob">
+      <select aria-label="Birth day" value={dd} onChange={(e) => upd(yy, mm, e.target.value)}>
+        <option value="">Day</option>
+        {Array.from({ length: days }, (_, i) => String(i + 1).padStart(2, '0')).map((d) => <option key={d} value={d}>{Number(d)}</option>)}
+      </select>
+      <select aria-label="Birth month" value={mm} onChange={(e) => upd(yy, e.target.value, dd)}>
+        <option value="">Month</option>
+        {DOB_MONTHS.map((name, i) => <option key={name} value={String(i + 1).padStart(2, '0')}>{name}</option>)}
+      </select>
+      <input aria-label="Birth year" className="mono yr" type="text" inputMode="numeric" maxLength={4} placeholder="Year"
+        value={yy} onChange={(e) => upd(e.target.value.replace(/\D/g, '').slice(0, 4), mm, dd)} />
+    </div>
   )
 }
 
