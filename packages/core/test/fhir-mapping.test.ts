@@ -106,6 +106,34 @@ describe('toFhirBundle — CasualtyRecord round-trip', () => {
     expect(enc.status).toBe('finished')
   })
 
+  it('records the handover on the Encounter (end time, attender, facility)', () => {
+    const at = Date.UTC(2026, 5, 22, 11, 0, 0)
+    const handed = toFhirBundle({ ...rec, handover: { at, clinician: 'Dr X', facility: 'County General' } })
+    const enc = oneByType(handed.entry.map((e) => e.resource), 'Encounter')
+    expect(enc.period).toEqual({ start: rec.incident.injuryTime, end: new Date(at).toISOString() })
+    expect(enc.participant).toEqual([{
+      type: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v3-ParticipationType', code: 'ATND', display: 'attender' }] }],
+      individual: { display: 'Dr X' },
+    }])
+    expect(enc.serviceProvider).toEqual({ display: 'County General' })
+  })
+
+  it('emits a Provenance documenting the handover, targeting the Encounter', () => {
+    const at = Date.UTC(2026, 5, 22, 11, 0, 0)
+    const handed = toFhirBundle({ ...rec, handover: { at, clinician: 'Dr X', facility: 'County General' } })
+    const prov = oneByType(handed.entry.map((e) => e.resource), 'Provenance')
+    expect(prov.id).toBe(`prov-${rec.id}`)
+    expect(prov.target).toEqual([{ reference: encRef }])
+    expect(prov.recorded).toBe(new Date(at).toISOString())
+    const agent = (prov.agent as Array<{ who: { display: string }; onBehalfOf?: { display: string } }>)[0]
+    expect(agent.who).toEqual({ display: 'Dr X' })
+    expect(agent.onBehalfOf).toEqual({ display: 'County General' })
+  })
+
+  it('omits the Provenance when no handover is recorded', () => {
+    expect(byType(resources, 'Provenance')).toHaveLength(0)
+  })
+
   it('maps each injury onto a Condition with correct references and body site', () => {
     const conditions = byType(resources, 'Condition')
     expect(conditions).toHaveLength(rec.injuries.length)
