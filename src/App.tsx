@@ -298,12 +298,14 @@ export function App() {
             <div className="panel-h"><h2>Tombstone — identity</h2></div>
             <div className="panel-b grid2">
               <label className="field col2"><span>Full name</span><input value={record.tombstone.name} onChange={(e) => setTomb('name', e.target.value)} placeholder="Surname, Given" /></label>
-              <label className="field"><span>Date of birth</span><DobField value={record.tombstone.dob} onChange={setDob} /></label>
-              <label className="field"><span>Sex</span>
-                <select value={record.tombstone.sex} onChange={(e) => setTomb('sex', e.target.value)}>
-                  <option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option><option value="unknown">Unknown</option>
-                </select>
-              </label>
+              <div className="col2 dob-sex">
+                <label className="field"><span>Date of birth</span><DobField value={record.tombstone.dob} onChange={setDob} /></label>
+                <label className="field"><span>Sex</span>
+                  <select value={record.tombstone.sex} onChange={(e) => setTomb('sex', e.target.value)}>
+                    <option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option><option value="unknown">Unknown</option>
+                  </select>
+                </label>
+              </div>
               <label className="field"><span>Patient ID / MRN</span><input className="mono" value={record.tombstone.mrn} onChange={(e) => setTomb('mrn', e.target.value)} /></label>
               <label className="field"><span>Blood type</span><input value={record.tombstone.bloodType} onChange={(e) => setTomb('bloodType', e.target.value)} placeholder="Unknown" /></label>
               <label className="field"><span>Next of kin</span><input value={record.tombstone.nextOfKin} onChange={(e) => setTomb('nextOfKin', e.target.value)} /></label>
