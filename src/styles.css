@@ -320,6 +320,13 @@ input::placeholder { color:var(--txt-faint); }
 .board-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
 .board-title { font-size:14px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--txt); }
 .board-total { margin-left:12px; font-family:var(--mono); font-size:12px; color:var(--txt-dim); }
+.board-search { position:relative; margin-bottom:14px; }
+.board-search input { width:100%; box-sizing:border-box; padding:9px 32px 9px 12px; border:1px solid var(--line);
+  border-radius:8px; background:var(--panel-2); color:var(--txt); font-size:13px; }
+.board-search input:focus { outline:none; border-color:var(--ekg); }
+.board-search-x { position:absolute; right:8px; top:50%; transform:translateY(-50%); border:none; background:none;
+  color:var(--txt-faint); font-size:18px; line-height:1; cursor:pointer; padding:2px 6px; }
+.board-search-x:hover { color:var(--txt); }
 .board-cols { display:grid; grid-template-columns:repeat(5, 1fr); gap:10px; }
 @media (max-width:900px){ .board-cols{ grid-template-columns:repeat(2,1fr);} }
 @media (max-width:560px){ .board-cols{ grid-template-columns:1fr;} }

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   type CasualtyRecord, type TriageCategory,
   estimateBurnTBSA, TRIAGE_COLORS,
@@ -7,7 +8,8 @@ import { Elapsed } from './Elapsed'
 
 // Multi-casualty triage board: every saved record grouped into START columns
 // (Immediate / Delayed / Minor / Deceased / Untriaged) — the scene picture for
-// incident command. Tap a card to open that casualty.
+// incident command. Tap a card to open that casualty. A search box filters the
+// cards across all columns by name / ID / mechanism / location.
 
 type Col = TriageCategory | 'unset'
 const COLUMNS: { key: Col; tkey: string; color: string }[] = [
@@ -18,6 +20,15 @@ const COLUMNS: { key: Col; tkey: string; color: string }[] = [
   { key: 'unset', tkey: 'board.untriaged', color: '#3A4656' },
 ]
 
+/** Case-insensitive match of a record against a free-text query (name/ID/
+ *  mechanism/location). An empty query matches everything. */
+export function matchesQuery(r: CasualtyRecord, query: string): boolean {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return true
+  return [r.tombstone.name, r.id, r.incident.mechanism, r.incident.location]
+    .some((s) => (s || '').toLowerCase().includes(needle))
+}
+
 export function TriageBoard({
   records, currentId, onSelect, onClose,
 }: {
@@ -27,7 +38,10 @@ export function TriageBoard({
   onClose: () => void
 }) {
   const { t } = useLang()
-  const byCol = (k: Col) => records.filter((r) => (r.incident.triage || 'unset') === k)
+  const [query, setQuery] = useState('')
+  const filtered = records.filter((r) => matchesQuery(r, query))
+  const byCol = (k: Col) => filtered.filter((r) => (r.incident.triage || 'unset') === k)
+  const searching = query.trim().length > 0
 
   return (
     <div className="board-overlay" onClick={onClose}>
@@ -35,10 +49,29 @@ export function TriageBoard({
         <header className="board-head">
           <div>
             <span className="board-title">{t('board.title')}</span>
-            <span className="board-total">{t(records.length === 1 ? 'board.count_one' : 'board.count_many', { n: records.length })}</span>
+            <span className="board-total">
+              {searching
+                ? t('board.matchcount', { n: filtered.length, m: records.length })
+                : t(records.length === 1 ? 'board.count_one' : 'board.count_many', { n: records.length })}
+            </span>
           </div>
           <button type="button" className="topbtn" onClick={onClose}>{t('sm.close')}</button>
         </header>
+
+        {records.length > 0 && (
+          <div className="board-search">
+            <input
+              type="search"
+              aria-label={t('board.search_ph')}
+              placeholder={t('board.search_ph')}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {searching && (
+              <button type="button" className="board-search-x" aria-label={t('board.clear')} onClick={() => setQuery('')}>×</button>
+            )}
+          </div>
+        )}
 
         <div className="board-cols">
           {COLUMNS.map((c) => {
@@ -81,6 +114,9 @@ export function TriageBoard({
 
         {records.length === 0 && (
           <div className="board-none">{t('board.none')}</div>
+        )}
+        {records.length > 0 && searching && filtered.length === 0 && (
+          <div className="board-none">{t('board.nomatch', { q: query.trim() })}</div>
         )}
       </div>
     </div>
