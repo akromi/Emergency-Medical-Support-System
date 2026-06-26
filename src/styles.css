@@ -174,10 +174,10 @@ input::placeholder { color:var(--txt-faint); }
 
 /* Date-of-birth: typed YYYY-MM-DD box + 📅 calendar popup with month/year jump. */
 .dobf { position:relative; }
-.dobf-row { display:flex; gap:6px; }
-.dobf-row input { flex:1; min-width:0; }
-.cal-btn { flex:0 0 auto; border:1px solid var(--line); background:var(--panel-2); color:var(--txt);
-  border-radius:8px; padding:0 11px; cursor:pointer; font-size:15px; }
+.dobf-row { position:relative; }
+.dobf-row input { width:100%; padding-right:38px; } /* room for the in-box 📅 icon */
+.cal-btn { position:absolute; right:4px; top:50%; transform:translateY(-50%); border:none; background:none;
+  color:var(--txt); padding:4px 6px; cursor:pointer; font-size:16px; line-height:1; border-radius:6px; }
 .cal-btn:hover { background:var(--raised); }
 .cal-backdrop { position:fixed; inset:0; z-index:50; }
 .cal { position:absolute; z-index:51; top:calc(100% + 6px); left:0; width:262px; background:var(--panel);
