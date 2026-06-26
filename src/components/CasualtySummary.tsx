@@ -3,7 +3,7 @@ import {
   estimateBurnTBSA, buildAtMist,
   TRIAGE_COLORS, AGE_BAND_LABELS,
 } from '@triage-link/core'
-import { useLang } from '../i18n'
+import { useLang, regionLabel } from '../i18n'
 
 // Printable one-page casualty card. On screen it's a light "paper" sheet over a
 // backdrop; print CSS (styles.css @media print) hides the app + chrome and
@@ -30,11 +30,25 @@ function Section({ title, count, children }: { title: string; count?: number; ch
 }
 
 export function CasualtySummary({ record, onClose }: { record: CasualtyRecord; onClose: () => void }) {
-  const { t } = useLang()
+  const { t, lang } = useLang()
   const { tombstone: tomb, incident: inc, injuries, vitals, treatments, handover } = record
   const tbsa = estimateBurnTBSA(injuries, inc.ageBand)
   const burns = injuries.filter((i) => i.type === 'burn').length
   const mist = buildAtMist(record, Date.now())
+
+  // AT-MIST lines that embed region/injury/vital/treatment tokens are rebuilt
+  // here so they localise too (core keeps the canonical English narrative).
+  const VK = ['hr', 'bp', 'rr', 'spo2', 'gcs', 'pain'] as const
+  const lastV = vitals[vitals.length - 1]
+  const mistInjuries = injuries.length
+    ? injuries.map((i) => `${regionLabel(i.region, lang)} ${t(`injury.${i.type}`).toLowerCase()} (${t(`sev.${i.severity}`)})`).join('; ')
+    : '—'
+  const mistSigns = lastV
+    ? VK.filter((k) => lastV[k]).map((k) => `${t(`vit.${k}`)} ${lastV[k]}`).join(', ') || '—'
+    : '—'
+  const mistTreatment = treatments.length
+    ? treatments.map((x) => (x.detail ? `${t(`txt.${x.type}`)} (${x.detail})` : t(`txt.${x.type}`))).join('; ')
+    : '—'
 
   return (
     <div className="summary-overlay" onClick={onClose}>
@@ -61,9 +75,9 @@ export function CasualtySummary({ record, onClose }: { record: CasualtyRecord; o
             <div><dt>A</dt><dd><b>{t('sm.a')}</b> — {mist.age}</dd></div>
             <div><dt>T</dt><dd><b>{t('sm.t')}</b> — {mist.time}</dd></div>
             <div><dt>M</dt><dd><b>{t('sm.m')}</b> — {mist.mechanism}</dd></div>
-            <div><dt>I</dt><dd><b>{t('sm.i')}</b> — {mist.injuries}</dd></div>
-            <div><dt>S</dt><dd><b>{t('sm.s')}</b> — {mist.signs}</dd></div>
-            <div><dt>T</dt><dd><b>{t('sm.tx')}</b> — {mist.treatment}</dd></div>
+            <div><dt>I</dt><dd><b>{t('sm.i')}</b> — {mistInjuries}</dd></div>
+            <div><dt>S</dt><dd><b>{t('sm.s')}</b> — {mistSigns}</dd></div>
+            <div><dt>T</dt><dd><b>{t('sm.tx')}</b> — {mistTreatment}</dd></div>
           </dl>
         </Section>
 
@@ -98,7 +112,7 @@ export function CasualtySummary({ record, onClose }: { record: CasualtyRecord; o
               <tbody>
                 {injuries.map((i) => (
                   <tr key={i.id}>
-                    <td>{i.region}</td><td>{t(`view.${i.view}`)}</td><td>{t(`injury.${i.type}`)}</td>
+                    <td>{regionLabel(i.region, lang)}</td><td>{t(`view.${i.view}`)}</td><td>{t(`injury.${i.type}`)}</td>
                     <td>{t(`sev.${i.severity}`)}</td><td>{i.notes || '—'}</td>
                   </tr>
                 ))}
@@ -111,7 +125,7 @@ export function CasualtySummary({ record, onClose }: { record: CasualtyRecord; o
           {injuries.some((i) => i.photos.length > 0) && (
             <div className="sm-photos">
               {injuries.flatMap((i) => i.photos.map((src, k) => (
-                <figure key={`${i.id}-${k}`}><img src={src} alt={i.region} /><figcaption>{i.region}</figcaption></figure>
+                <figure key={`${i.id}-${k}`}><img src={src} alt={regionLabel(i.region, lang)} /><figcaption>{regionLabel(i.region, lang)}</figcaption></figure>
               )))}
             </div>
           )}

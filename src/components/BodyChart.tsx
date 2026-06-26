@@ -4,6 +4,7 @@ import {
   zoneAt, bodyRegions, BODY_VIEWBOX,
 } from '@triage-link/core'
 import { FIGURE_IMAGE } from './figure'
+import { useLang, regionLabel } from '../i18n'
 
 export interface NewInjuryPlacement {
   view: BodyView
@@ -27,6 +28,12 @@ const { width: VW, height: VH } = BODY_VIEWBOX
 function patientSide(side: 'left' | 'right', view: BodyView): 'L' | 'R' {
   const isRight = view === 'anterior' ? side === 'left' : side === 'right'
   return isRight ? 'R' : 'L'
+}
+
+// Anatomical side abbreviation in the chosen language (French: G/D = gauche/droite).
+function sideLetter(side: 'L' | 'R', lang: string): string {
+  if (lang !== 'fr') return side
+  return side === 'L' ? 'G' : 'D'
 }
 
 // The figure (presentation only). It carries no hit-testing: taps are resolved
@@ -64,6 +71,7 @@ function Figure({ view }: { view: BodyView }) {
 }
 
 export function BodyChart({ view, injuries, selectedId, onPlace, onSelect }: BodyChartProps) {
+  const { t, lang } = useLang()
   const svgRef = useRef<SVGSVGElement>(null)
   const [zoom, setZoom] = useState<BodyZone | null>(null)
 
@@ -107,7 +115,7 @@ export function BodyChart({ view, injuries, selectedId, onPlace, onSelect }: Bod
 
   return (
     <div className="bodyview">
-      <span className="vlabel">{view === 'anterior' ? 'Anterior · front' : 'Posterior · back'}</span>
+      <span className="vlabel">{view === 'anterior' ? t('bc.anterior') : t('bc.posterior')}</span>
       {zoom && (
         <button
           type="button"
@@ -117,10 +125,10 @@ export function BodyChart({ view, injuries, selectedId, onPlace, onSelect }: Bod
             setZoom(null)
           }}
         >
-          ← Full body
+          {t('bc.fullbody')}
         </button>
       )}
-      {zoom && <span className="zoomlbl">{zoom.side ? `Patient ${patientSide(zoom.side, view)} ` : ''}{zoom.name}</span>}
+      {zoom && <span className="zoomlbl">{zoom.side ? `${t('bc.patient')} ${sideLetter(patientSide(zoom.side, view), lang)} ` : ''}{regionLabel(zoom.name, lang)}</span>}
       <svg
         ref={svgRef}
         viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}

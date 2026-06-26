@@ -22,7 +22,7 @@ import { Tutorial } from './components/Tutorial'
 import { EhrTestConsole } from './components/EhrTestConsole'
 import { PcrVerify } from './components/PcrVerify'
 import { contributeHandover, EhrUnavailableError } from './ehr/client'
-import { useLang } from './i18n'
+import { useLang, regionLabel } from './i18n'
 
 const TRIAGE_ORDER: TriageCategory[] = ['immediate', 'delayed', 'minor', 'deceased']
 // The EHR Test Lab is developer/QA furniture (offline, mock-only). Hide it from
@@ -396,7 +396,7 @@ export function App() {
                   <span className="tag" style={{ background: injuryColor(i.type) }} />
                   <div className="body" onClick={() => setSelectedInjury(i.id)}>
                     <div className="ttl">{t(`injury.${i.type}`)} · <span className="dim">{t(`sev.${i.severity}`)}</span></div>
-                    <div className="meta">{i.region} · {t(`view.${i.view}`)}{i.notes ? ` · ${i.notes}` : ''}</div>
+                    <div className="meta">{regionLabel(i.region, lang)} · {t(`view.${i.view}`)}{i.notes ? ` · ${i.notes}` : ''}</div>
                   </div>
                   <button className="x" onClick={() => removeInjury(i.id)}>×</button>
                 </div>
