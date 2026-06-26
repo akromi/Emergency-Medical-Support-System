@@ -172,6 +172,9 @@ input:focus, select:focus { border-color:var(--ekg); box-shadow:0 0 0 3px rgba(6
 input.mono { font-family:var(--mono); }
 input::placeholder { color:var(--txt-faint); }
 
+/* Give the DOB more room than Sex (it holds YYYY-MM-DD + the calendar icon). */
+.dob-sex { display:grid; grid-template-columns:3fr 2fr; gap:10px; align-items:start; }
+
 /* Date-of-birth: typed YYYY-MM-DD box + 📅 calendar popup with month/year jump. */
 .dobf { position:relative; }
 .dobf-row { position:relative; }
