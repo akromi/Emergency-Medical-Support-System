@@ -78,6 +78,9 @@ const EN: Dict = {
   'inc.ageband': 'Age band',
   'inc.ageband_note': '· adjusts burn TBSA (Lund–Browder)',
   'inc.fromdob': '· {n}y from DOB',
+  // time-since-injury clock
+  'elapsed.prefix': 'T+', 'elapsed.d': 'd', 'elapsed.h': 'h', 'elapsed.m': 'm',
+  'elapsed.title': 'Time since injury', 'elapsed.label': 'Since injury',
   'age.infant': '<1y',
   'age.age1': '1y',
   'age.age5': '5y',
@@ -309,6 +312,8 @@ const FR: Dict = {
   'inc.ageband': 'Tranche d’âge',
   'inc.ageband_note': '· ajuste la SCB brûlée (Lund–Browder)',
   'inc.fromdob': '· {n} ans selon DDN',
+  'elapsed.prefix': 'T+', 'elapsed.d': 'j', 'elapsed.h': 'h', 'elapsed.m': 'min',
+  'elapsed.title': 'Temps écoulé depuis la blessure', 'elapsed.label': 'Depuis la blessure',
   'age.infant': '<1 an',
   'age.age1': '1 an',
   'age.age5': '5 ans',

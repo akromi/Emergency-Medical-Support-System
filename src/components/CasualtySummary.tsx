@@ -1,6 +1,6 @@
 import {
   type CasualtyRecord,
-  estimateBurnTBSA, buildAtMist,
+  estimateBurnTBSA, buildAtMist, elapsedSince, formatElapsed,
   TRIAGE_COLORS, AGE_BAND_LABELS,
 } from '@triage-link/core'
 import { useLang, regionLabel } from '../i18n'
@@ -49,6 +49,10 @@ export function CasualtySummary({ record, onClose }: { record: CasualtyRecord; o
   const mistTreatment = treatments.length
     ? treatments.map((x) => (x.detail ? `${t(`txt.${x.type}`)} (${x.detail})` : t(`txt.${x.type}`))).join('; ')
     : '—'
+  // Snapshot of the time-since-injury clock at card generation (print is static).
+  const elapsedMs = elapsedSince(inc.injuryTime, Date.now())
+  const elapsedStr = elapsedMs == null ? null
+    : `${t('elapsed.prefix')}${formatElapsed(elapsedMs, { d: t('elapsed.d'), h: t('elapsed.h'), m: t('elapsed.m') })}`
 
   return (
     <div className="summary-overlay" onClick={onClose}>
@@ -98,6 +102,7 @@ export function CasualtySummary({ record, onClose }: { record: CasualtyRecord; o
         <Section title={t('sm.incident')}>
           <div className="sm-grid">
             <Field label={t('sm.timeofinjury')} value={dash(inc.injuryTime)} />
+            {elapsedStr && <Field label={t('elapsed.title')} value={elapsedStr} />}
             <Field label={t('sm.m')} value={dash(inc.mechanism)} />
             <Field label={t('sm.location')} value={dash(inc.location)} />
           </div>

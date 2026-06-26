@@ -19,6 +19,7 @@ import { capturePhoto } from './photo'
 import { PhotoLightbox } from './components/PhotoLightbox'
 import { Tip, OfflineBanner, InstallPrompt, useDismissed } from './components/hints'
 import { Tutorial } from './components/Tutorial'
+import { Elapsed } from './components/Elapsed'
 import { EhrTestConsole } from './components/EhrTestConsole'
 import { PcrVerify } from './components/PcrVerify'
 import { contributeHandover, EhrUnavailableError } from './ehr/client'
@@ -505,6 +506,7 @@ function AcuityGlance({ record, tbsa }: { record: CasualtyRecord; tbsa: number }
       >
         {triage ? t(`triage.${triage}`) : t('glance.notriage')}
       </div>
+      <Elapsed injuryTime={record.incident.injuryTime} className="glance-elapsed" label />
       <div className="glance-sec">
         <span className="glance-k">{t('glance.vitals')}</span>
         {latest ? (
