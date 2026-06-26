@@ -3,6 +3,7 @@ import {
   estimateBurnTBSA, TRIAGE_COLORS,
 } from '@triage-link/core'
 import { useLang } from '../i18n'
+import { Elapsed } from './Elapsed'
 
 // Multi-casualty triage board: every saved record grouped into START columns
 // (Immediate / Delayed / Minor / Deceased / Untriaged) — the scene picture for
@@ -66,6 +67,7 @@ export function TriageBoard({
                         <div className="bc-stats">
                           <span>{r.injuries.length} {t('saved.inj')}</span>
                           {tbsa > 0 && <span className="bc-tbsa">🔥 {tbsa}%</span>}
+                          <Elapsed injuryTime={r.incident.injuryTime} className="bc-elapsed" />
                           {r.handover && <span className="bc-ho">{t('board.handedover')}</span>}
                         </div>
                       </button>

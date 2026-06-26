@@ -121,6 +121,10 @@ button { font-family:inherit; }
 .glance-h { font-size:11px; letter-spacing:1.2px; text-transform:uppercase; color:var(--txt-dim); font-weight:700; margin-bottom:10px; }
 .glance-triage { text-align:center; font-weight:700; font-size:13px; padding:8px; border-radius:8px;
   border:1px solid var(--line); color:var(--txt-dim); margin-bottom:12px; }
+.glance-elapsed { display:block; text-align:center; font-family:var(--mono); font-size:12px; font-weight:700;
+  color:var(--ekg); margin:-4px 0 12px; }
+.glance-elapsed .el-k { font-family:inherit; font-size:10px; letter-spacing:.6px; text-transform:uppercase;
+  color:var(--txt-faint); font-weight:700; }
 .glance-sec { margin-bottom:12px; }
 .glance-k { display:block; font-size:10px; letter-spacing:.6px; text-transform:uppercase; color:var(--txt-faint); font-weight:700; margin-bottom:6px; }
 .glance-chips { display:flex; flex-wrap:wrap; gap:5px; }
@@ -334,6 +338,7 @@ input::placeholder { color:var(--txt-faint); }
 .bc-meta { font-family:var(--mono); font-size:10.5px; color:var(--txt-faint); margin:1px 0 4px; }
 .bc-stats { display:flex; flex-wrap:wrap; gap:8px; font-size:11px; color:var(--txt-dim); }
 .bc-tbsa { color:#F2820F; font-weight:600; }
+.bc-elapsed { color:var(--ekg); font-family:var(--mono); font-weight:600; }
 .bc-ho { color:var(--ekg); }
 .board-none { text-align:center; color:var(--txt-faint); padding:24px; }
 
