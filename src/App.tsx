@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   type CasualtyRecord, type InjuryTypeKey, type TriageCategory,
-  type VitalSign, type Treatment, type TreatmentPlace,
+  type VitalSign, type Treatment, type TreatmentPlace, type Handover,
   createEmptyRecord, TRIAGE_COLORS,
   AGE_BAND_ORDER, AGE_BAND_LABELS, estimateBurnTBSA,
   ageFromDob, ageBandFromDob,
@@ -146,6 +146,8 @@ export function App() {
     persist({ ...record, treatments: [...record.treatments, { id: genLocalId('t-'), performedAt: Date.now(), ...t }] })
   const removeTreatment = (id: string) =>
     persist({ ...record, treatments: record.treatments.filter((t) => t.id !== id) })
+
+  const setHandover = (h: Handover | null) => persist({ ...record, handover: h })
 
   function newCase() {
     setSelectedInjury(null)
@@ -434,6 +436,9 @@ export function App() {
           </section>
           </div>
           </div>
+
+          {/* ---- handover sign-off (who took over care, and when) ---- */}
+          <HandoverPanel key={record.id} handover={record.handover} onChange={setHandover} />
 
           {/* ---- saved casualties (navigation, end of the record) ---- */}
           <section className="panel">
@@ -741,6 +746,41 @@ function TreatmentPanel({ treatments, onAdd, onRemove }: {
             </div>
           ))}
         </div>
+      </div>
+    </section>
+  )
+}
+
+// ---- handover sign-off: records the receiving clinician/facility and stamps
+// the time. Reset per-record via a key on the call site. ----
+function HandoverPanel({ handover, onChange }: {
+  handover: Handover | null
+  onChange: (h: Handover | null) => void
+}) {
+  const { t } = useLang()
+  const [clinician, setClinician] = useState(handover?.clinician ?? '')
+  const [facility, setFacility] = useState(handover?.facility ?? '')
+  const sign = () => onChange({ at: Date.now(), clinician: clinician.trim(), facility: facility.trim() })
+  return (
+    <section className="panel">
+      <div className="panel-h"><h2>{t('ho.title')}</h2></div>
+      <div className="panel-b">
+        {handover ? (
+          <div className="ho-done">
+            <div className="ho-badge">✓ {t('ho.done')} · {fmtTime(handover.at)}</div>
+            {(handover.clinician || handover.facility) && (
+              <div className="ho-detail">{handover.clinician || '—'}{handover.facility ? ` · ${handover.facility}` : ''}</div>
+            )}
+            <button type="button" className="btn" onClick={() => onChange(null)}>{t('ho.undo')}</button>
+          </div>
+        ) : (
+          <div className="grid2">
+            <label className="field"><span>{t('ho.clinician')}</span><input value={clinician} onChange={(e) => setClinician(e.target.value)} placeholder={t('ho.clinician_ph')} /></label>
+            <label className="field"><span>{t('ho.facility')}</span><input value={facility} onChange={(e) => setFacility(e.target.value)} placeholder={t('ho.facility_ph')} /></label>
+            <div className="col2"><button type="button" className="btn full primary" disabled={!clinician.trim()} onClick={sign}>{t('ho.sign')}</button></div>
+            <p className="hint-inline panel-hint col2">{t('ho.hint')}</p>
+          </div>
+        )}
       </div>
     </section>
   )

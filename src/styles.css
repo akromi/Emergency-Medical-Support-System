@@ -268,6 +268,12 @@ input::placeholder { color:var(--txt-faint); }
 .import-actions { display:flex; align-items:center; gap:6px; }
 .import-actions .btn { padding:5px 10px; font-size:12px; }
 
+.ho-done { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; }
+.ho-badge { font-weight:700; color:var(--ekg); background:rgba(63,224,138,.08);
+  border:1px solid rgba(63,224,138,.25); border-radius:7px; padding:7px 11px; font-size:13px; }
+.ho-detail { font-size:13px; color:var(--txt-dim); }
+.ho-done .btn { margin-left:auto; padding:6px 12px; font-size:12px; }
+
 .rec { display:flex; align-items:center; gap:9px; padding:10px 11px; border:1px solid var(--line);
   border-radius:9px; margin-bottom:8px; background:var(--panel-2); }
 .rec.active { border-color:var(--ekg); box-shadow:0 0 0 1px var(--ekg); }
