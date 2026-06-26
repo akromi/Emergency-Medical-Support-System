@@ -63,6 +63,8 @@ describe('TriageBoard scope filter', () => {
     // Both visible under "All".
     expect(screen.getByText('Doe, Jane')).toBeInTheDocument()
     expect(screen.getByText('Roe, John')).toBeInTheDocument()
+    // The handed-over card surfaces who took over (and the facility).
+    expect(screen.getByText(/Dr X · County General/)).toBeInTheDocument()
 
     // "On scene" hides the handed-over casualty.
     await user.click(screen.getByRole('button', { name: /On scene/ }))

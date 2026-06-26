@@ -360,6 +360,7 @@ input::placeholder { color:var(--txt-faint); }
 .bc-tbsa { color:#F2820F; font-weight:600; }
 .bc-elapsed { color:var(--ekg); font-family:var(--mono); font-weight:600; }
 .bc-ho { color:var(--ekg); }
+.bc-ho-detail { margin-top:5px; font-size:10.5px; color:var(--txt-faint); line-height:1.35; }
 .board-none { text-align:center; color:var(--txt-faint); padding:24px; }
 
 /* ---- PCR identity verification ---- */
