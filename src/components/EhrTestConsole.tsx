@@ -6,6 +6,7 @@ import {
   type ContributionResult, type CasualtyRecord,
 } from '@triage-link/core'
 import { MockGateway } from '@triage-link/ehr-gateway'
+import { useLang, type TFn } from '../i18n'
 
 // ───────────────────────────────────────────────────────────────────────────
 // EHR Test Console — an interactive, fully-offline lab for the provincial-EHR
@@ -79,7 +80,7 @@ interface Scenario {
   run: () => Promise<Outcome>
 }
 
-function buildScenarios(): Scenario[] {
+function buildScenarios(t: TFn): Scenario[] {
   const gw = () => new MockGateway()
 
   const matchScenario = (
@@ -90,7 +91,7 @@ function buildScenarios(): Scenario[] {
       const { value, error, ms } = await timed(() => gw().matchPatient(query))
       return {
         ms, request: query, response: error ? errText(error) : value, threw: error ? errText(error) : undefined,
-        fhir: { title: 'PCR FHIR Patient/$match Parameters (what the adapter POSTs)', body: buildPatientMatchParameters(query, { onlyCertainMatches: false, count: 5 }) },
+        fhir: { title: t('lab.fhir.match'), body: buildPatientMatchParameters(query, { onlyCertainMatches: false, count: 5 }) },
         audit: buildAccessAuditEvent({ action: 'R', outcome: error ? '8' : '0', recordedIso: nowIso(), agentId: 'oneid|demo.clinician', query: 'Patient/$match by demographics', patientId: value?.matches[0]?.id }),
         checks: checks(value, error),
       }
@@ -98,47 +99,47 @@ function buildScenarios(): Scenario[] {
   })
 
   return [
-    matchScenario('m-hcn', 'Resolve by health-card number', 'Exact OHIP number → a single certain match (identity resolved).',
+    matchScenario('m-hcn', t('lab.s.mhcn.t'), t('lab.s.mhcn.d'),
       { healthCardNumber: '1234567890' }, (r, e) => [
-        { label: 'no transport error', pass: !e },
+        { label: t('lab.chk.notransport'), pass: !e },
         { label: 'resolved === true', pass: r?.resolved === true },
         { label: 'top match id = pcr-1001', pass: r?.matches[0]?.id === 'pcr-1001' },
         { label: "grade = 'certain'", pass: r?.matches[0]?.grade === 'certain' },
       ]),
-    matchScenario('m-unknown', 'Unknown health-card number', 'A number no patient holds → zero candidates, not resolved.',
+    matchScenario('m-unknown', t('lab.s.munknown.t'), t('lab.s.munknown.d'),
       { healthCardNumber: '0000000000' }, (r, e) => [
-        { label: 'no transport error', pass: !e },
-        { label: 'zero matches', pass: r?.matches.length === 0 },
+        { label: t('lab.chk.notransport'), pass: !e },
+        { label: t('lab.chk.zeromatches'), pass: r?.matches.length === 0 },
         { label: 'resolved === false', pass: r?.resolved === false },
       ]),
-    matchScenario('m-name-dob', 'Name + date of birth', 'No HCN, but family name + DOB → a probable (not certain) candidate.',
+    matchScenario('m-name-dob', t('lab.s.mnamedob.t'), t('lab.s.mnamedob.d'),
       { familyName: 'Roe', givenName: 'John', birthDate: '1985-11-23' }, (r, e) => [
-        { label: 'no transport error', pass: !e },
+        { label: t('lab.chk.notransport'), pass: !e },
         { label: 'top match id = pcr-1002', pass: r?.matches[0]?.id === 'pcr-1002' },
         { label: "grade = 'probable'", pass: r?.matches[0]?.grade === 'probable' },
-        { label: 'not auto-resolved', pass: r?.resolved === false },
+        { label: t('lab.chk.notautoresolved'), pass: r?.resolved === false },
       ]),
     {
-      id: 'h-accept', group: 'Send to EHR', title: 'Contribute a casualty handover',
-      desc: 'POST a CasualtyRecord → accepted, with a transaction id. Shows the FHIR transaction bundle that would be submitted.',
+      id: 'h-accept', group: 'Send to EHR', title: t('lab.s.haccept.t'),
+      desc: t('lab.s.haccept.d'),
       run: async () => {
         const record = sampleCasualty()
         const { value, error, ms } = await timed(() => gw().contributeHandover!(record))
         return {
           ms, request: { id: record.id, name: record.tombstone.name }, response: error ? errText(error) : value, threw: error ? errText(error) : undefined,
-          fhir: { title: 'Ontario contribution Bundle (transaction)', body: toOntarioContributionBundle(record) },
+          fhir: { title: t('lab.fhir.contribution'), body: toOntarioContributionBundle(record) },
           audit: buildAccessAuditEvent({ action: 'C', outcome: error ? '8' : '0', recordedIso: nowIso(), agentId: 'oneid|demo.clinician', query: 'Contribute handover Bundle' }),
           checks: [
-            { label: 'no transport error', pass: !error },
+            { label: t('lab.chk.notransport'), pass: !error },
             { label: 'accepted === true', pass: (value as ContributionResult)?.accepted === true },
-            { label: 'returns a transaction id', pass: !!(value as ContributionResult)?.id },
+            { label: t('lab.chk.returnstxid'), pass: !!(value as ContributionResult)?.id },
           ],
         }
       },
     },
     {
-      id: 'c-allergy', group: 'Clinical context', title: 'Pull context for a resolved patient',
-      desc: 'Fetch meds/allergies for pcr-1001 → a FHIR Bundle including a high-criticality allergy.',
+      id: 'c-allergy', group: 'Clinical context', title: t('lab.s.callergy.t'),
+      desc: t('lab.s.callergy.d'),
       run: async () => {
         const { value, error, ms } = await timed(() => gw().fetchContext!('pcr-1001'))
         const bundle = value as { resourceType?: string; entry?: Array<{ resource?: { resourceType?: string } }> } | undefined
@@ -146,16 +147,16 @@ function buildScenarios(): Scenario[] {
         return {
           ms, request: { patientId: 'pcr-1001' }, response: error ? errText(error) : value, threw: error ? errText(error) : undefined,
           checks: [
-            { label: 'no transport error', pass: !error },
-            { label: 'is a FHIR Bundle', pass: bundle?.resourceType === 'Bundle' },
-            { label: 'includes AllergyIntolerance', pass: types.includes('AllergyIntolerance') },
+            { label: t('lab.chk.notransport'), pass: !error },
+            { label: t('lab.chk.isbundle'), pass: bundle?.resourceType === 'Bundle' },
+            { label: t('lab.chk.includesallergy'), pass: types.includes('AllergyIntolerance') },
           ],
         }
       },
     },
     {
-      id: 'f-outage', group: 'Failure handling', title: 'EHR outage on Send to EHR',
-      desc: 'Gateway throws EhrError("unavailable") → surfaced as a retryable 503, exactly how the app must handle a down repository.',
+      id: 'f-outage', group: 'Failure handling', title: t('lab.s.foutage.t'),
+      desc: t('lab.s.foutage.d'),
       run: async () => {
         const faulty = new FaultyGateway(new MockGateway(), new Set(['handover']))
         const record = sampleCasualty()
@@ -164,9 +165,9 @@ function buildScenarios(): Scenario[] {
         return {
           ms, request: { id: record.id }, response: error ? errText(error) : value, threw: error ? errText(error) : undefined,
           checks: [
-            { label: 'call rejected (as expected)', pass: !!error },
+            { label: t('lab.chk.rejectedexpected'), pass: !!error },
             { label: "EhrError code = 'unavailable'", pass: isEhr && (error as EhrError).code === 'unavailable' },
-            { label: 'marked retryable', pass: isEhr && (error as EhrError).retryable === true },
+            { label: t('lab.chk.retryable'), pass: isEhr && (error as EhrError).retryable === true },
           ],
         }
       },
@@ -185,6 +186,7 @@ function Json({ label, value, open = false }: { label: string; value: unknown; o
 }
 
 function OutcomeView({ outcome }: { outcome: Outcome }) {
+  const { t } = useLang()
   const passed = outcome.checks.filter((c) => c.pass).length
   const allPass = passed === outcome.checks.length
   return (
@@ -193,18 +195,19 @@ function OutcomeView({ outcome }: { outcome: Outcome }) {
         {outcome.checks.map((c, i) => (
           <div key={i} className={`lab-check ${c.pass ? 'ok' : 'bad'}`}><span className="lab-tick">{c.pass ? '✓' : '✗'}</span>{c.label}</div>
         ))}
-        <div className="lab-latency">{passed}/{outcome.checks.length} checks · {outcome.ms} ms{allPass ? '' : ' · FAILED'}</div>
+        <div className="lab-latency">{passed}/{outcome.checks.length} {t('lab.checksword')} · {outcome.ms} ms{allPass ? '' : ` · ${t('lab.failedword')}`}</div>
       </div>
-      <Json label="Request" value={outcome.request} />
+      <Json label={t('lab.json.request')} value={outcome.request} />
       {outcome.fhir && <Json label={`FHIR · ${outcome.fhir.title}`} value={outcome.fhir.body} />}
-      <Json label="Response" value={outcome.response} open={!allPass} />
-      {outcome.audit != null && <Json label="ATNA AuditEvent (logged on every access)" value={outcome.audit} />}
+      <Json label={t('lab.json.response')} value={outcome.response} open={!allPass} />
+      {outcome.audit != null && <Json label={t('lab.json.audit')} value={outcome.audit} />}
     </div>
   )
 }
 
 // ── Manual console ───────────────────────────────────────────────────────────
 function ManualConsole({ record }: { record: CasualtyRecord }) {
+  const { t } = useLang()
   const [op, setOp] = useState<'match' | 'handover' | 'context'>('match')
   const [outage, setOutage] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -237,22 +240,22 @@ function ManualConsole({ record }: { record: CasualtyRecord }) {
         const { value, error, ms } = await timed(() => gateway().matchPatient(query))
         setOutcome({
           ms, request: query, response: error ? errText(error) : value, threw: error ? errText(error) : undefined,
-          fhir: { title: 'PCR Patient/$match Parameters', body: buildPatientMatchParameters(query, { count: 5 }) },
+          fhir: { title: t('lab.fhir.matchmanual'), body: buildPatientMatchParameters(query, { count: 5 }) },
           audit: buildAccessAuditEvent({ action: 'R', outcome: error ? '8' : '0', recordedIso: nowIso(), agentId: 'oneid|demo.clinician', query: 'Patient/$match (manual)', patientId: (value as MatchResult | undefined)?.matches[0]?.id }),
-          checks: [{ label: error ? 'rejected' : 'returned a result', pass: !error }],
+          checks: [{ label: error ? t('lab.chk.rejected') : t('lab.chk.returnedresult'), pass: !error }],
         })
       } else if (op === 'context') {
         const { value, error, ms } = await timed(() => gateway().fetchContext!(pid.trim()))
-        setOutcome({ ms, request: { patientId: pid.trim() }, response: error ? errText(error) : value, threw: error ? errText(error) : undefined, checks: [{ label: error ? 'rejected' : 'returned a bundle', pass: !error }] })
+        setOutcome({ ms, request: { patientId: pid.trim() }, response: error ? errText(error) : value, threw: error ? errText(error) : undefined, checks: [{ label: error ? t('lab.chk.rejected') : t('lab.chk.returnedbundle'), pass: !error }] })
       } else {
         let record: CasualtyRecord
-        try { record = JSON.parse(payload) } catch { setOutcome({ ms: 0, request: null, response: 'Payload is not valid JSON', checks: [{ label: 'valid JSON payload', pass: false }] }); return }
+        try { record = JSON.parse(payload) } catch { setOutcome({ ms: 0, request: null, response: t('lab.notjson'), checks: [{ label: t('lab.chk.validjson'), pass: false }] }); return }
         const { value, error, ms } = await timed(() => gateway().contributeHandover!(record))
         setOutcome({
           ms, request: { id: record.id, name: record.tombstone?.name }, response: error ? errText(error) : value, threw: error ? errText(error) : undefined,
-          fhir: { title: 'Ontario contribution Bundle (transaction)', body: toOntarioContributionBundle(record) },
+          fhir: { title: t('lab.fhir.contribution'), body: toOntarioContributionBundle(record) },
           audit: buildAccessAuditEvent({ action: 'C', outcome: error ? '8' : '0', recordedIso: nowIso(), agentId: 'oneid|demo.clinician', query: 'Contribute handover (manual)' }),
-          checks: [{ label: error ? 'rejected' : 'accepted', pass: !error && (value as ContributionResult)?.accepted === true }],
+          checks: [{ label: error ? t('lab.chk.rejected') : t('lab.chk.accepted'), pass: !error && (value as ContributionResult)?.accepted === true }],
         })
       }
     } finally {
@@ -265,39 +268,39 @@ function ManualConsole({ record }: { record: CasualtyRecord }) {
       <div className="lab-ops">
         {(['match', 'handover', 'context'] as const).map((o) => (
           <button key={o} type="button" className={op === o ? 'on' : ''} onClick={() => { setOp(o); setOutcome(null) }}>
-            {o === 'match' ? 'Patient $match' : o === 'handover' ? 'Send to EHR' : 'Fetch context'}
+            {o === 'match' ? t('lab.grp.match') : o === 'handover' ? t('lab.op.handover') : t('lab.op.context')}
           </button>
         ))}
       </div>
 
       {op === 'match' && (
         <div className="lab-form grid2">
-          <label className="field"><span>Health-card number</span><input className="mono" value={hcn} onChange={(e) => setHcn(e.target.value)} placeholder="OHIP number" /></label>
-          <label className="field"><span>Date of birth</span><input value={dob} onChange={(e) => setDob(e.target.value)} placeholder="YYYY-MM-DD" /></label>
-          <label className="field"><span>Family name</span><input value={family} onChange={(e) => setFamily(e.target.value)} placeholder="e.g. Doe" /></label>
-          <label className="field"><span>Given name</span><input value={given} onChange={(e) => setGiven(e.target.value)} placeholder="e.g. Jane" /></label>
-          <p className="lab-hint col2">Seeded patients: <code>1234567890</code> Jane Doe · <code>9876543210</code> John Roe (try name + DOB <code>1985-11-23</code>).</p>
+          <label className="field"><span>{t('lab.f.hcn')}</span><input className="mono" value={hcn} onChange={(e) => setHcn(e.target.value)} placeholder={t('lab.f.hcn_ph')} /></label>
+          <label className="field"><span>{t('tomb.dob')}</span><input value={dob} onChange={(e) => setDob(e.target.value)} placeholder={t('dob.ph')} /></label>
+          <label className="field"><span>{t('lab.f.family')}</span><input value={family} onChange={(e) => setFamily(e.target.value)} placeholder={t('lab.f.family_ph')} /></label>
+          <label className="field"><span>{t('lab.f.given')}</span><input value={given} onChange={(e) => setGiven(e.target.value)} placeholder={t('lab.f.given_ph')} /></label>
+          <p className="lab-hint col2">{t('lab.f.seeded')} <code>1234567890</code> Jane Doe · <code>9876543210</code> John Roe ({t('lab.f.trynamedob')} <code>1985-11-23</code>).</p>
         </div>
       )}
       {op === 'context' && (
         <div className="lab-form">
-          <label className="field"><span>Patient id</span><input className="mono" value={pid} onChange={(e) => setPid(e.target.value)} /></label>
-          <p className="lab-hint">Seeded ids: <button type="button" className="lab-chip" onClick={() => setPid('pcr-1001')}>pcr-1001</button> (has allergies/meds) · <button type="button" className="lab-chip" onClick={() => setPid('pcr-1002')}>pcr-1002</button> (empty).</p>
+          <label className="field"><span>{t('lab.f.pid')}</span><input className="mono" value={pid} onChange={(e) => setPid(e.target.value)} /></label>
+          <p className="lab-hint">{t('lab.f.seededids')} <button type="button" className="lab-chip" onClick={() => setPid('pcr-1001')}>pcr-1001</button> {t('lab.f.hasallergies')} · <button type="button" className="lab-chip" onClick={() => setPid('pcr-1002')}>pcr-1002</button> {t('lab.f.empty')}.</p>
         </div>
       )}
       {op === 'handover' && (
         <div className="lab-form">
           <div className="lab-payload-actions">
-            <button type="button" className="lab-chip" onClick={() => setPayload(JSON.stringify(record, null, 2))}>Use current casualty ({record.id})</button>
-            <button type="button" className="lab-chip" onClick={() => setPayload(JSON.stringify(sampleCasualty(), null, 2))}>Reset sample</button>
+            <button type="button" className="lab-chip" onClick={() => setPayload(JSON.stringify(record, null, 2))}>{t('lab.usecurrent', { id: record.id })}</button>
+            <button type="button" className="lab-chip" onClick={() => setPayload(JSON.stringify(sampleCasualty(), null, 2))}>{t('lab.resetsample')}</button>
           </div>
           <textarea className="lab-payload mono" value={payload} onChange={(e) => setPayload(e.target.value)} spellCheck={false} />
         </div>
       )}
 
       <div className="lab-run-row">
-        <label className="lab-outage"><input type="checkbox" checked={outage} onChange={(e) => setOutage(e.target.checked)} /> Simulate EHR outage</label>
-        <button type="button" className="btn primary" onClick={run} disabled={busy}>{busy ? 'Running…' : 'Run request'}</button>
+        <label className="lab-outage"><input type="checkbox" checked={outage} onChange={(e) => setOutage(e.target.checked)} /> {t('lab.outage')}</label>
+        <button type="button" className="btn primary" onClick={run} disabled={busy}>{busy ? t('lab.running') : t('lab.runreq')}</button>
       </div>
 
       {outcome && <OutcomeView outcome={outcome} />}
@@ -306,8 +309,16 @@ function ManualConsole({ record }: { record: CasualtyRecord }) {
 }
 
 // ── Top-level console ────────────────────────────────────────────────────────
+// Stable English group keys → their i18n dictionary key (display only).
+const GROUP_KEY: Record<string, string> = {
+  'Patient $match': 'lab.grp.match', 'Send to EHR': 'lab.grp.send',
+  'Clinical context': 'lab.grp.context', 'Failure handling': 'lab.grp.failure',
+}
+
 export function EhrTestConsole({ record, onClose }: { record: CasualtyRecord; onClose: () => void }) {
-  const scenarios = useMemo(buildScenarios, [])
+  const { t } = useLang()
+  // Rebuild (relabel) the scenarios when the language changes; t is stable per language.
+  const scenarios = useMemo(() => buildScenarios(t), [t])
   const [tab, setTab] = useState<'suite' | 'manual'>('suite')
   const [results, setResults] = useState<Record<string, Outcome>>({})
   const [running, setRunning] = useState(false)
@@ -333,44 +344,44 @@ export function EhrTestConsole({ record, onClose }: { record: CasualtyRecord; on
       <div className="lab" onClick={(e) => e.stopPropagation()}>
         <header className="lab-head">
           <div>
-            <h2>🧪 EHR Integration Test Lab</h2>
-            <p className="lab-sub">Runs the real <code>MockGateway</code> in-browser — stubbed PCR / Send-to-EHR, fully offline. No ONE ID or backend.</p>
+            <h2>{t('lab.title')}</h2>
+            <p className="lab-sub">{t('lab.sub1')} <code>MockGateway</code> {t('lab.sub2')}</p>
           </div>
-          <button type="button" className="topbtn" onClick={onClose}>Close</button>
+          <button type="button" className="topbtn" onClick={onClose}>{t('sm.close')}</button>
         </header>
 
         <div className="lab-tabs">
-          <button type="button" className={tab === 'suite' ? 'on' : ''} onClick={() => setTab('suite')}>Scenario suite</button>
-          <button type="button" className={tab === 'manual' ? 'on' : ''} onClick={() => setTab('manual')}>Manual console</button>
+          <button type="button" className={tab === 'suite' ? 'on' : ''} onClick={() => setTab('suite')}>{t('lab.tab.suite')}</button>
+          <button type="button" className={tab === 'manual' ? 'on' : ''} onClick={() => setTab('manual')}>{t('lab.tab.manual')}</button>
         </div>
 
         {tab === 'suite' && (
           <div className="lab-suite">
             <div className="lab-suite-bar">
-              <button type="button" className="btn primary" onClick={runAll} disabled={running}>{running ? 'Running…' : '▶ Run all'}</button>
+              <button type="button" className="btn primary" onClick={runAll} disabled={running}>{running ? t('lab.running') : t('lab.runall')}</button>
               {ran.length > 0 && (
                 <span className={`lab-summary ${passedCount === ran.length ? 'ok' : 'bad'}`}>
-                  {passedCount}/{ran.length} scenarios passed
+                  {t('lab.passed', { n: passedCount, m: ran.length })}
                 </span>
               )}
-              <span className="lab-tip">Each scenario shows its request, the generated FHIR, the audit event, and the response.</span>
+              <span className="lab-tip">{t('lab.suitetip')}</span>
             </div>
 
             {groups.map((g) => (
               <section key={g} className="lab-group">
-                <h3>{g}</h3>
+                <h3>{t(GROUP_KEY[g] ?? g)}</h3>
                 {scenarios.filter((s) => s.group === g).map((s) => {
                   const o = results[s.id]
                   const status = !o ? 'idle' : o.checks.every((c) => c.pass) ? 'pass' : 'fail'
                   return (
                     <div key={s.id} className={`lab-row ${status}`}>
                       <div className="lab-row-head">
-                        <span className={`lab-pill ${status}`}>{status === 'idle' ? '—' : status === 'pass' ? 'PASS' : 'FAIL'}</span>
+                        <span className={`lab-pill ${status}`}>{status === 'idle' ? '—' : status === 'pass' ? t('lab.pass') : t('lab.fail')}</span>
                         <div className="lab-row-meta">
                           <div className="lab-row-title">{s.title}</div>
                           <div className="lab-row-desc">{s.desc}</div>
                         </div>
-                        <button type="button" className="btn" onClick={() => runOne(s)}>Run</button>
+                        <button type="button" className="btn" onClick={() => runOne(s)}>{t('lab.run')}</button>
                       </div>
                       {o && <OutcomeView outcome={o} />}
                     </div>
@@ -384,8 +395,8 @@ export function EhrTestConsole({ record, onClose }: { record: CasualtyRecord; on
         {tab === 'manual' && <ManualConsole record={record} />}
 
         <footer className="lab-foot">
-          <b>Server-side testing with Swagger:</b> run the sync-service with <code>EHR_ALLOW_MOCK=true npm start</code> and open
-          <code> /docs</code> for interactive Swagger UI over the same routes (<code>POST /ehr/handover</code>, <code>POST /ehr/patient/$match</code>, …) — “Try it out” hits the stubbed gateway over HTTP.
+          <b>{t('lab.foot.b')}</b> {t('lab.foot.1')} <code>EHR_ALLOW_MOCK=true npm start</code> {t('lab.foot.2')}
+          <code> /docs</code> {t('lab.foot.3')}<code>POST /ehr/handover</code>, <code>POST /ehr/patient/$match</code>{t('lab.foot.4')}
         </footer>
       </div>
     </div>
