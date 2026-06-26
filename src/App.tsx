@@ -242,7 +242,7 @@ export function App() {
           <button className="topbtn" onClick={() => setShowTour(true)} title="Replay the guided tour">{t('hdr.tour')}</button>
           <button className="topbtn" onClick={sendToEhr} title="Contribute this handover to the provincial EHR">{t('hdr.ehr')}</button>
           {showLab && (
-            <button className="topbtn" onClick={() => setShowEhrLab(true)} title="Interactive lab to test the EHR integration against a stubbed gateway">🧪 EHR Test Lab</button>
+            <button className="topbtn" onClick={() => setShowEhrLab(true)} title="Interactive lab to test the EHR integration against a stubbed gateway">{t('hdr.ehrlab')}</button>
           )}
           <button className="topbtn primary" onClick={exportFhir} title="Download an interoperable FHIR record">{t('hdr.fhir')}</button>
         </div>
