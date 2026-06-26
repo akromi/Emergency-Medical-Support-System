@@ -42,14 +42,47 @@ function patient(rec: CasualtyRecord): FhirResource {
 }
 
 function encounter(rec: CasualtyRecord, patientRef: string): FhirResource {
-  return {
+  const ho = rec.handover
+  const res: FhirResource = {
     resourceType: 'Encounter',
     id: `enc-${rec.id}`,
-    status: rec.handover ? 'finished' : 'in-progress',
+    status: ho ? 'finished' : 'in-progress',
     class: { system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'EMER', display: 'emergency' },
     subject: { reference: patientRef },
-    period: { start: rec.incident.injuryTime || iso(rec.createdAt) },
+    // A recorded handover closes the episode at its timestamp.
+    period: { start: rec.incident.injuryTime || iso(rec.createdAt), ...(ho ? { end: iso(ho.at) } : {}) },
     reasonCode: rec.incident.mechanism ? [{ text: rec.incident.mechanism }] : undefined,
+  }
+  // The receiving clinician is an attending participant; the facility is the
+  // organisation taking over care.
+  if (ho?.clinician) {
+    res.participant = [{
+      type: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v3-ParticipationType', code: 'ATND', display: 'attender' }] }],
+      individual: { display: ho.clinician },
+    }]
+  }
+  if (ho?.facility) res.serviceProvider = { display: ho.facility }
+  return res
+}
+
+// Provenance: an auditable record that care was handed over — who received it,
+// when, and against which Encounter. Emitted only once a handover is signed.
+function provenance(rec: CasualtyRecord, encRef: string): FhirResource {
+  const ho = rec.handover!
+  return {
+    resourceType: 'Provenance',
+    id: `prov-${rec.id}`,
+    target: [{ reference: encRef }],
+    recorded: iso(ho.at),
+    activity: {
+      coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v3-DataOperation', code: 'TRANSFER', display: 'transfer' }],
+      text: 'Handover',
+    },
+    agent: [{
+      type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/provenance-participant-type', code: 'custodian', display: 'Custodian' }] },
+      who: { display: ho.clinician || 'Receiving clinician' },
+      ...(ho.facility ? { onBehalfOf: { display: ho.facility } } : {}),
+    }],
   }
 }
 
@@ -126,6 +159,7 @@ export function toFhirBundle(rec: CasualtyRecord): FhirBundle {
   for (const inj of rec.injuries) resources.push(condition(inj, patientRef, encRef))
   for (const v of rec.vitals) resources.push(...observations(v, patientRef, encRef))
   for (const tx of rec.treatments) resources.push(treatment(tx, patientRef, encRef))
+  if (rec.handover) resources.push(provenance(rec, encRef))
 
   return {
     resourceType: 'Bundle',
