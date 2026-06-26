@@ -333,6 +333,13 @@ input::placeholder { color:var(--txt-faint); }
 .board-search-x { position:absolute; right:8px; top:50%; transform:translateY(-50%); border:none; background:none;
   color:var(--txt-faint); font-size:18px; line-height:1; cursor:pointer; padding:2px 6px; }
 .board-search-x:hover { color:var(--txt); }
+.board-scope { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+.board-scope button { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:999px;
+  border:1px solid var(--line); background:var(--panel-2); color:var(--txt-dim); font-size:12px; font-weight:600; cursor:pointer; }
+.board-scope button:hover { background:var(--raised); }
+.board-scope button.on { background:var(--raised); color:var(--txt); border-color:var(--ekg); }
+.board-scope button .n { font-family:var(--mono); font-size:11px; color:var(--txt-faint); }
+.board-scope button.on .n { color:var(--ekg); }
 .board-cols { display:grid; grid-template-columns:repeat(5, 1fr); gap:10px; }
 @media (max-width:900px){ .board-cols{ grid-template-columns:repeat(2,1fr);} }
 @media (max-width:560px){ .board-cols{ grid-template-columns:1fr;} }
