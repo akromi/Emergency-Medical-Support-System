@@ -32,6 +32,27 @@ const EN: Dict = {
   // tour offer
   'tour.offer': '👋 New here? Take a 60-second guided tour with voice-over.',
   'tour.start': 'Start tour',
+  // guided tour (voice-over steps + controls)
+  'tour.skip': 'Skip', 'tour.back': 'Back', 'tour.next': 'Next', 'tour.done': 'Done',
+  'tour.mute': 'Mute voice-over', 'tour.unmute': 'Unmute voice-over', 'tour.toggle': 'Toggle voice-over',
+  'tour.welcome.title': 'Welcome',
+  'tour.welcome.say': "Welcome to Triage-Link. I'll walk you through documenting a casualty. Follow along on the screen, or tap Next.",
+  'tour.palette.title': 'Pick an injury type',
+  'tour.palette.say': 'Start by choosing an injury type from this palette — for example, Laceration or Burn.',
+  'tour.charts.title': 'Mark it on the body',
+  'tour.charts.say': 'Tap a body region to zoom in, then tap again to drop a marker right where the injury is.',
+  'tour.editor.title': 'Add the detail',
+  'tour.editor.say': 'For the selected injury, set its severity, add notes, and attach a wound photo with the camera.',
+  'tour.triage.title': 'Set triage',
+  'tour.triage.say': "Set the patient's triage level. It shows on the casualty card and on the triage board.",
+  'tour.vitals.title': 'Record vitals',
+  'tour.vitals.say': 'Record a timestamped set of vitals here. Add a fresh set at each reassessment.',
+  'tour.summary.title': 'Hand over',
+  'tour.summary.say': 'When you hand over, open Summary to print or save a one-page casualty card as a PDF.',
+  'tour.board.title': 'See the whole scene',
+  'tour.board.say': 'With several casualties, the Board groups everyone by triage — the scene picture for command.',
+  'tour.done.title': "You're set",
+  'tour.done.say': "That's the core flow. Everything saves offline on this device. You can replay this tour anytime from the help button.",
   // tombstone
   'tomb.title': 'Tombstone — identity',
   'tomb.name': 'Full name',
@@ -67,6 +88,7 @@ const EN: Dict = {
   'chart.title': 'Injury chart — anterior / posterior',
   'chart.hint': 'Pick an injury type · tap a body area to blow it up · tap again to drop a marker. Tap a marker to edit it below.',
   'chart.tip': 'After dropping a marker, tap it to set severity, add notes, and 📷 attach wound photos. When zoomed in, use ← Full body to zoom back out.',
+  'bc.anterior': 'Anterior · front', 'bc.posterior': 'Posterior · back', 'bc.fullbody': '← Full body', 'bc.patient': 'Patient',
   'injury.fracture': 'Fracture',
   'injury.laceration': 'Laceration',
   'injury.burn': 'Burn',
@@ -175,6 +197,26 @@ const FR: Dict = {
   'triage.deceased': 'Décédé (Noir)',
   'tour.offer': '👋 Nouveau ? Faites une visite guidée de 60 secondes avec narration.',
   'tour.start': 'Démarrer la visite',
+  'tour.skip': 'Passer', 'tour.back': 'Retour', 'tour.next': 'Suivant', 'tour.done': 'Terminé',
+  'tour.mute': 'Couper la narration', 'tour.unmute': 'Activer la narration', 'tour.toggle': 'Activer/couper la narration',
+  'tour.welcome.title': 'Bienvenue',
+  'tour.welcome.say': 'Bienvenue dans Triage-Link. Je vais vous guider pour documenter un blessé. Suivez à l’écran ou touchez Suivant.',
+  'tour.palette.title': 'Choisir un type de blessure',
+  'tour.palette.say': 'Commencez par choisir un type de blessure dans cette palette — par exemple Lacération ou Brûlure.',
+  'tour.charts.title': 'Marquer sur le corps',
+  'tour.charts.say': 'Touchez une zone du corps pour zoomer, puis touchez à nouveau pour poser un repère à l’endroit exact de la blessure.',
+  'tour.editor.title': 'Ajouter le détail',
+  'tour.editor.say': 'Pour la blessure sélectionnée, définissez sa gravité, ajoutez des notes et joignez une photo de la plaie avec la caméra.',
+  'tour.triage.title': 'Définir le triage',
+  'tour.triage.say': 'Définissez le niveau de triage du patient. Il apparaît sur la fiche de blessé et sur le tableau de triage.',
+  'tour.vitals.title': 'Enregistrer les signes vitaux',
+  'tour.vitals.say': 'Enregistrez ici un jeu de signes vitaux horodaté. Ajoutez-en un nouveau à chaque réévaluation.',
+  'tour.summary.title': 'Transmettre',
+  'tour.summary.say': 'Au moment de la transmission, ouvrez Résumé pour imprimer ou enregistrer une fiche de blessé d’une page en PDF.',
+  'tour.board.title': 'Voir toute la scène',
+  'tour.board.say': 'Avec plusieurs blessés, le Tableau regroupe tout le monde par triage — la vue de la scène pour le commandement.',
+  'tour.done.title': 'Vous êtes prêt',
+  'tour.done.say': 'Voilà le déroulement principal. Tout est enregistré hors ligne sur cet appareil. Vous pouvez rejouer cette visite à tout moment depuis le bouton d’aide.',
   'tomb.title': 'État civil — identité',
   'tomb.name': 'Nom complet',
   'tomb.name_ph': 'Nom, Prénom',
@@ -207,6 +249,7 @@ const FR: Dict = {
   'chart.title': 'Schéma des blessures — face / dos',
   'chart.hint': 'Choisissez un type de blessure · touchez une zone du corps pour l’agrandir · touchez à nouveau pour poser un repère. Touchez un repère pour le modifier ci-dessous.',
   'chart.tip': 'Après avoir posé un repère, touchez-le pour définir la gravité, ajouter des notes et 📷 joindre des photos de plaie. En zoom, utilisez ← Corps entier pour dézoomer.',
+  'bc.anterior': 'Face · avant', 'bc.posterior': 'Dos · arrière', 'bc.fullbody': '← Corps entier', 'bc.patient': 'Patient',
   'injury.fracture': 'Fracture',
   'injury.laceration': 'Lacération',
   'injury.burn': 'Brûlure',
@@ -290,6 +333,50 @@ const FR: Dict = {
 }
 
 const DICTS: Record<Lang, Dict> = { en: EN, fr: FR }
+
+// Anatomical region names are generated by the core body-model (≈150 of them)
+// and stored on the record in English (data stays language-neutral). They're
+// translated only at render via regionLabel(). Keys are the base region name
+// (no side prefix); the L/R anatomical-side prefix becomes G/D in French.
+const REGION_FR: Dict = {
+  // head / face
+  Crown: 'Sommet du crâne', Forehead: 'Front', Nose: 'Nez', Mouth: 'Bouche', Chin: 'Menton',
+  Eye: 'Œil', Cheek: 'Joue', Ear: 'Oreille',
+  'Posterior scalp': 'Cuir chevelu postérieur', Occiput: 'Occiput', Nape: 'Nuque',
+  // neck / trunk
+  'Anterior neck': 'Cou antérieur', 'Posterior neck': 'Cou postérieur',
+  'Upper abdomen': 'Abdomen supérieur', 'Mid back': 'Milieu du dos',
+  'Lower abdomen': 'Abdomen inférieur', 'Lower back': 'Bas du dos',
+  Shoulder: 'Épaule', Chest: 'Thorax', 'Upper back': 'Haut du dos', Pelvis: 'Bassin', Buttock: 'Fesse',
+  // arm / hand
+  'Upper arm': 'Bras', Elbow: 'Coude', Forearm: 'Avant-bras', Wrist: 'Poignet',
+  Palm: 'Paume', 'Back of hand': 'Dos de la main',
+  'Thumb proximal': 'Pouce proximal', 'Thumb distal': 'Pouce distal',
+  'Index proximal': 'Index proximal', 'Index middle': 'Index médian', 'Index distal': 'Index distal',
+  'Middle proximal': 'Majeur proximal', 'Middle middle': 'Majeur médian', 'Middle distal': 'Majeur distal',
+  'Ring proximal': 'Annulaire proximal', 'Ring middle': 'Annulaire médian', 'Ring distal': 'Annulaire distal',
+  'Little proximal': 'Auriculaire proximal', 'Little middle': 'Auriculaire médian', 'Little distal': 'Auriculaire distal',
+  // leg / foot
+  Thigh: 'Cuisse', Knee: 'Genou', 'Back of knee': 'Creux poplité', Shin: 'Tibia', Calf: 'Mollet',
+  Ankle: 'Cheville', 'Foot dorsum': 'Dos du pied', Sole: 'Plante du pied',
+  'Great toe': 'Gros orteil', '2nd toe': '2e orteil', '3rd toe': '3e orteil', '4th toe': '4e orteil', '5th toe': '5e orteil',
+  // macro zones + off-silhouette fallbacks
+  Head: 'Tête', Neck: 'Cou', Torso: 'Tronc', Arm: 'Bras', Hand: 'Main', Leg: 'Jambe', Foot: 'Pied',
+  Abdomen: 'Abdomen', 'Left lower limb': 'Membre inférieur gauche', 'Right lower limb': 'Membre inférieur droit',
+}
+
+/**
+ * Localise an anatomical region string (e.g. "L Forearm" → "G Avant-bras").
+ * English is returned unchanged. The optional "L "/"R " anatomical-side prefix
+ * maps to "G "/"D " (gauche/droite); the remainder is looked up in REGION_FR,
+ * falling back to the original name so an unmapped region never blanks.
+ */
+export function regionLabel(region: string, lang: Lang): string {
+  if (lang !== 'fr') return region
+  const m = /^([LR]) (.+)$/.exec(region)
+  if (m) return `${m[1] === 'L' ? 'G' : 'D'} ${REGION_FR[m[2]] ?? m[2]}`
+  return REGION_FR[region] ?? region
+}
 
 export type TFn = (key: string, params?: Record<string, string | number>) => string
 

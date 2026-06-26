@@ -1,30 +1,35 @@
 import { useEffect, useState } from 'react'
+import { useLang } from '../i18n'
 
 // Smart guided tour with voice-over. Each step highlights a real UI element
 // (located by [data-tour="..."]), narrates via the browser SpeechSynthesis API
 // (offline, no deps), and — for action steps — auto-advances when the user
-// actually performs it (see `advanceWhen` + the live `signals`).
+// actually performs it (see `advanceWhen` + the live `signals`). Step titles and
+// narration are looked up by `key` from the i18n dictionary, so the whole tour
+// follows the chosen language.
 
 export interface TourSignals { hasInjury: boolean; hasTriage: boolean }
 
 interface Step {
   target?: string
-  title: string
-  say: string
+  key: string
   advanceWhen?: (s: TourSignals) => boolean
 }
 
 const STEPS: Step[] = [
-  { title: 'Welcome', say: "Welcome to Triage-Link. I'll walk you through documenting a casualty. Follow along on the screen, or tap Next." },
-  { target: 'palette', title: 'Pick an injury type', say: 'Start by choosing an injury type from this palette — for example, Laceration or Burn.' },
-  { target: 'charts', title: 'Mark it on the body', say: 'Tap a body region to zoom in, then tap again to drop a marker right where the injury is.', advanceWhen: (s) => s.hasInjury },
-  { target: 'editor', title: 'Add the detail', say: 'For the selected injury, set its severity, add notes, and attach a wound photo with the camera.' },
-  { target: 'triage', title: 'Set triage', say: "Set the patient's triage level. It shows on the casualty card and on the triage board.", advanceWhen: (s) => s.hasTriage },
-  { target: 'vitals', title: 'Record vitals', say: 'Record a timestamped set of vitals here. Add a fresh set at each reassessment.' },
-  { target: 'summary', title: 'Hand over', say: 'When you hand over, open Summary to print or save a one-page casualty card as a PDF.' },
-  { target: 'board', title: 'See the whole scene', say: 'With several casualties, the Board groups everyone by triage — the scene picture for command.' },
-  { title: "You're set", say: "That's the core flow. Everything saves offline on this device. You can replay this tour anytime from the help button." },
+  { key: 'welcome' },
+  { target: 'palette', key: 'palette' },
+  { target: 'charts', key: 'charts', advanceWhen: (s) => s.hasInjury },
+  { target: 'editor', key: 'editor' },
+  { target: 'triage', key: 'triage', advanceWhen: (s) => s.hasTriage },
+  { target: 'vitals', key: 'vitals' },
+  { target: 'summary', key: 'summary' },
+  { target: 'board', key: 'board' },
+  { key: 'done' },
 ]
+
+// SpeechSynthesis BCP-47 tag per app language (for voice + prosody selection).
+const SPEECH_LANG: Record<string, string> = { en: 'en-US', fr: 'fr-FR' }
 
 function locate(target?: string): DOMRect | null {
   if (!target) return null
@@ -33,30 +38,38 @@ function locate(target?: string): DOMRect | null {
 }
 
 export function Tutorial({ signals, onClose }: { signals: TourSignals; onClose: () => void }) {
+  const { t, lang } = useLang()
   const [i, setI] = useState(0)
   const [muted, setMuted] = useState(() => { try { return localStorage.getItem('tl.tour.muted') === '1' } catch { return false } })
   const [rect, setRect] = useState<DOMRect | null>(null)
   const step = STEPS[i]
   const last = i === STEPS.length - 1
+  const sayText = t(`tour.${step.key}.say`)
 
   const speak = (text: string) => {
     if (muted || !('speechSynthesis' in window)) return
     window.speechSynthesis.cancel()
     const u = new SpeechSynthesisUtterance(text)
     u.rate = 1.02
+    const bcp = SPEECH_LANG[lang] ?? 'en-US'
+    u.lang = bcp
+    // Prefer a voice that matches the chosen language, when the platform has one.
+    const voice = window.speechSynthesis.getVoices().find((v) => v.lang.startsWith(lang))
+    if (voice) u.voice = voice
     window.speechSynthesis.speak(u)
   }
 
-  // On step change: scroll target into view, position the spotlight, narrate.
+  // On step change (or language switch): scroll target into view, position the
+  // spotlight, narrate in the current language.
   useEffect(() => {
     const el = step.target ? document.querySelector(`[data-tour="${step.target}"]`) : null
     if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' })
     setRect(locate(step.target))
-    const t = window.setTimeout(() => setRect(locate(step.target)), 380) // after scroll settles
-    speak(step.say)
-    return () => window.clearTimeout(t)
+    const timer = window.setTimeout(() => setRect(locate(step.target)), 380) // after scroll settles
+    speak(sayText)
+    return () => window.clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [i, muted])
+  }, [i, muted, lang])
 
   // Keep the spotlight glued to the target while scrolling/resizing.
   useEffect(() => {
@@ -84,7 +97,7 @@ export function Tutorial({ signals, onClose }: { signals: TourSignals; onClose: 
     setMuted(m)
     try { localStorage.setItem('tl.tour.muted', m ? '1' : '0') } catch { /* ignore */ }
     if (m && 'speechSynthesis' in window) window.speechSynthesis.cancel()
-    else speak(step.say)
+    else speak(sayText)
   }
 
   // Position the tip card: below the target if there's room, else above; centred when no target.
@@ -107,15 +120,15 @@ export function Tutorial({ signals, onClose }: { signals: TourSignals; onClose: 
       <div className="tour-card" style={card}>
         <div className="tour-head">
           <span className="tour-step">{i + 1} / {STEPS.length}</span>
-          <span className="tour-title">{step.title}</span>
-          <button type="button" className="tour-mute" onClick={toggleMute} title={muted ? 'Unmute voice-over' : 'Mute voice-over'} aria-label="Toggle voice-over">{muted ? '🔇' : '🔊'}</button>
+          <span className="tour-title">{t(`tour.${step.key}.title`)}</span>
+          <button type="button" className="tour-mute" onClick={toggleMute} title={muted ? t('tour.unmute') : t('tour.mute')} aria-label={t('tour.toggle')}>{muted ? '🔇' : '🔊'}</button>
         </div>
-        <p className="tour-say">{step.say}</p>
+        <p className="tour-say">{sayText}</p>
         <div className="tour-ctrls">
-          <button type="button" className="tour-skip" onClick={close}>Skip</button>
+          <button type="button" className="tour-skip" onClick={close}>{t('tour.skip')}</button>
           <span className="tour-nav">
-            {i > 0 && <button type="button" className="btn" onClick={back}>Back</button>}
-            <button type="button" className="btn primary" onClick={next}>{last ? 'Done' : 'Next'}</button>
+            {i > 0 && <button type="button" className="btn" onClick={back}>{t('tour.back')}</button>}
+            <button type="button" className="btn primary" onClick={next}>{last ? t('tour.done') : t('tour.next')}</button>
           </span>
         </div>
       </div>
