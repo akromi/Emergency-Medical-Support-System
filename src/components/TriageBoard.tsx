@@ -1,10 +1,18 @@
 import { useState } from 'react'
 import {
-  type CasualtyRecord, type TriageCategory,
+  type CasualtyRecord, type TriageCategory, type Handover,
   estimateBurnTBSA, TRIAGE_COLORS,
 } from '@triage-link/core'
 import { useLang } from '../i18n'
 import { Elapsed } from './Elapsed'
+
+/** Compact "clinician · facility · time" line for a handed-over card. */
+function handoverLine(ho: Handover, lang: string): string {
+  const who = [ho.clinician, ho.facility].filter(Boolean).join(' · ')
+  const time = new Date(ho.at).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US',
+    { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return who ? `${who} · ${time}` : time
+}
 
 // Multi-casualty triage board: every saved record grouped into START columns
 // (Immediate / Delayed / Minor / Deceased / Untriaged) — the scene picture for
@@ -44,7 +52,7 @@ export function TriageBoard({
   onSelect: (id: string) => void
   onClose: () => void
 }) {
-  const { t } = useLang()
+  const { t, lang } = useLang()
   const [query, setQuery] = useState('')
   const [scope, setScope] = useState<Scope>('all')
   const inScope = (r: CasualtyRecord) => scope === 'all' || (scope === 'handed' ? !!r.handover : !r.handover)
@@ -129,6 +137,7 @@ export function TriageBoard({
                           <Elapsed injuryTime={r.incident.injuryTime} className="bc-elapsed" />
                           {r.handover && <span className="bc-ho">{t('board.handedover')}</span>}
                         </div>
+                        {r.handover && <div className="bc-ho-detail">→ {handoverLine(r.handover, lang)}</div>}
                       </button>
                     )
                   })}
