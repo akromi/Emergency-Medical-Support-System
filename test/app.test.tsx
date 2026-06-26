@@ -95,3 +95,18 @@ describe('App — language toggle (FR)', () => {
     localStorage.removeItem('tl.lang')
   })
 })
+
+describe('App — handover sign-off', () => {
+  it('stamps a handover from the receiving clinician and can undo it', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.type(screen.getByLabelText('Receiving clinician'), 'Dr. Smith')
+    await user.click(screen.getByRole('button', { name: /Mark handed over/ }))
+    // The panel flips to a confirmation badge with the clinician name.
+    expect(await screen.findByText(/Handed over/)).toBeInTheDocument()
+    expect(screen.getByText(/Dr\. Smith/)).toBeInTheDocument()
+    // Undo returns to the entry form.
+    await user.click(screen.getByRole('button', { name: /Undo handover/ }))
+    expect(await screen.findByLabelText('Receiving clinician')).toBeInTheDocument()
+  })
+})
