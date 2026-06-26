@@ -298,7 +298,7 @@ export function App() {
             <div className="panel-h"><h2>Tombstone — identity</h2></div>
             <div className="panel-b grid2">
               <label className="field col2"><span>Full name</span><input value={record.tombstone.name} onChange={(e) => setTomb('name', e.target.value)} placeholder="Surname, Given" /></label>
-              <label className="field col2"><span>Date of birth</span><DobInput value={record.tombstone.dob} onChange={setDob} /></label>
+              <label className="field col2"><span>Date of birth</span><DobField value={record.tombstone.dob} onChange={setDob} /></label>
               <label className="field"><span>Sex</span>
                 <select value={record.tombstone.sex} onChange={(e) => setTomb('sex', e.target.value)}>
                   <option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option><option value="unknown">Unknown</option>
@@ -525,47 +525,90 @@ function AcuityGlance({ record, tbsa }: { record: CasualtyRecord; tbsa: number }
   )
 }
 
-// ---- date-of-birth entry: pick day + month, type the year. Avoids the native
-// calendar's awkward decade-scrolling; emits 'YYYY-MM-DD' (or '' if incomplete). ----
+// ---- date-of-birth entry: a typed YYYY-MM-DD box plus a 📅 calendar popup with
+// month + year jump (no decade-scrolling). Emits 'YYYY-MM-DD' (or '' if blank). ----
 const DOB_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const DOB_DOW = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 
-function DobInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const parse = (v: string): [string, string, string] =>
-    (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? (v.split('-') as [string, string, string]) : ['', '', ''])
-  const [yy, setYy] = useState(() => parse(value)[0])
-  const [mm, setMm] = useState(() => parse(value)[1])
-  const [dd, setDd] = useState(() => parse(value)[2])
+/** True only for a real calendar date in strict YYYY-MM-DD form (no rollover). */
+function isValidIso(s: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false
+  const [y, m, d] = s.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d
+}
 
-  const iso = (y: string, m: string, d: string) => (y.length === 4 && m && d ? `${y}-${m}-${d}` : '')
+function DobField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [text, setText] = useState(value)
+  const [open, setOpen] = useState(false)
+  const [view, setView] = useState(() => {
+    const base = isValidIso(value) ? new Date(value) : new Date()
+    return { y: base.getFullYear(), m: base.getMonth() } // m: 0-11
+  })
 
-  // Re-sync from the prop only when it diverges from what we'd emit (e.g. a new
-  // case is loaded) — so partial typing isn't clobbered.
+  // Re-sync the box only when the record's value diverges from what we'd emit
+  // (e.g. a new case is loaded) — so mid-typing isn't clobbered.
   useEffect(() => {
-    if (value !== iso(yy, mm, dd)) { const [a, b, c] = parse(value); setYy(a); setMm(b); setDd(c) }
+    if (value !== (isValidIso(text) ? text : '')) setText(value)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
 
-  const upd = (y: string, m: string, d: string) => {
-    if (m && y.length === 4 && d) {
-      const max = new Date(Number(y), Number(m), 0).getDate() // clamp e.g. 31 Feb → 28/29
-      if (Number(d) > max) d = String(max).padStart(2, '0')
-    }
-    setYy(y); setMm(m); setDd(d); onChange(iso(y, m, d))
+  // Close the popup on Escape while it's open.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+
+  const type = (t: string) => { setText(t); onChange(isValidIso(t) ? t : '') }
+  const pick = (y: number, m: number, d: number) => {
+    const iso = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    setText(iso); onChange(iso); setOpen(false)
   }
-  const days = mm && yy.length === 4 ? new Date(Number(yy), Number(mm), 0).getDate() : 31
+  const toggle = () => {
+    if (!open) { const base = isValidIso(text) ? new Date(text) : new Date(); setView({ y: base.getFullYear(), m: base.getMonth() }) }
+    setOpen((o) => !o)
+  }
+
+  const thisYear = new Date().getFullYear()
+  const years = Array.from({ length: 121 }, (_, i) => thisYear - i) // year jump: this year .. -120
+  const firstDow = new Date(view.y, view.m, 1).getDay()
+  const daysIn = new Date(view.y, view.m + 1, 0).getDate()
+  const selected = isValidIso(text) ? text : null
 
   return (
-    <div className="dob">
-      <select aria-label="Birth day" value={dd} onChange={(e) => upd(yy, mm, e.target.value)}>
-        <option value="">Day</option>
-        {Array.from({ length: days }, (_, i) => String(i + 1).padStart(2, '0')).map((d) => <option key={d} value={d}>{Number(d)}</option>)}
-      </select>
-      <select aria-label="Birth month" value={mm} onChange={(e) => upd(yy, e.target.value, dd)}>
-        <option value="">Month</option>
-        {DOB_MONTHS.map((name, i) => <option key={name} value={String(i + 1).padStart(2, '0')}>{name}</option>)}
-      </select>
-      <input aria-label="Birth year" className="mono yr" type="text" inputMode="numeric" maxLength={4} placeholder="Year"
-        value={yy} onChange={(e) => upd(e.target.value.replace(/\D/g, '').slice(0, 4), mm, dd)} />
+    <div className="dobf">
+      <div className="dobf-row">
+        <input aria-label="Date of birth (YYYY-MM-DD)" className="mono" type="text" inputMode="numeric"
+          placeholder="YYYY-MM-DD" maxLength={10} value={text} onChange={(e) => type(e.target.value)} />
+        <button type="button" className="cal-btn" aria-label="Open calendar" aria-expanded={open} onClick={toggle}>📅</button>
+      </div>
+      {open && (
+        <>
+          <div className="cal-backdrop" onClick={() => setOpen(false)} />
+          <div className="cal" role="dialog" aria-label="Pick date of birth">
+            <div className="cal-head">
+              <button type="button" className="cal-nav" aria-label="Previous month" onClick={() => setView((v) => (v.m === 0 ? { y: v.y - 1, m: 11 } : { y: v.y, m: v.m - 1 }))}>‹</button>
+              <select aria-label="Month" value={view.m} onChange={(e) => setView((v) => ({ ...v, m: Number(e.target.value) }))}>
+                {DOB_MONTHS.map((nm, i) => <option key={nm} value={i}>{nm}</option>)}
+              </select>
+              <select aria-label="Year" value={view.y} onChange={(e) => setView((v) => ({ ...v, y: Number(e.target.value) }))}>
+                {years.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <button type="button" className="cal-nav" aria-label="Next month" onClick={() => setView((v) => (v.m === 11 ? { y: v.y + 1, m: 0 } : { y: v.y, m: v.m + 1 }))}>›</button>
+            </div>
+            <div className="cal-grid cal-dow">{DOB_DOW.map((w) => <span key={w} className="cal-w">{w}</span>)}</div>
+            <div className="cal-grid">
+              {Array.from({ length: firstDow }).map((_, i) => <span key={`b${i}`} />)}
+              {Array.from({ length: daysIn }, (_, i) => i + 1).map((d) => {
+                const iso = `${view.y}-${String(view.m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+                return <button key={d} type="button" className={`cal-day${selected === iso ? ' sel' : ''}`} onClick={() => pick(view.y, view.m, d)}>{d}</button>
+              })}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

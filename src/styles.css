@@ -172,10 +172,28 @@ input:focus, select:focus { border-color:var(--ekg); box-shadow:0 0 0 3px rgba(6
 input.mono { font-family:var(--mono); }
 input::placeholder { color:var(--txt-faint); }
 
-/* Date-of-birth: day / month dropdowns + typed year. */
-.dob { display:flex; gap:6px; }
-.dob > select, .dob > input { flex:1 1 0; min-width:0; }
-.dob > .yr { flex:1.2 1 0; }
+/* Date-of-birth: typed YYYY-MM-DD box + 📅 calendar popup with month/year jump. */
+.dobf { position:relative; }
+.dobf-row { display:flex; gap:6px; }
+.dobf-row input { flex:1; min-width:0; }
+.cal-btn { flex:0 0 auto; border:1px solid var(--line); background:var(--panel-2); color:var(--txt);
+  border-radius:8px; padding:0 11px; cursor:pointer; font-size:15px; }
+.cal-btn:hover { background:var(--raised); }
+.cal-backdrop { position:fixed; inset:0; z-index:50; }
+.cal { position:absolute; z-index:51; top:calc(100% + 6px); left:0; width:262px; background:var(--panel);
+  border:1px solid var(--line); border-radius:10px; padding:10px; box-shadow:0 12px 30px rgba(0,0,0,.5); }
+.cal-head { display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+.cal-head select { flex:1; min-width:0; padding:5px 6px; font-size:12px; }
+.cal-nav { flex:0 0 auto; border:1px solid var(--line); background:var(--panel-2); color:var(--txt);
+  border-radius:6px; padding:3px 9px; cursor:pointer; font-size:14px; line-height:1; }
+.cal-nav:hover { background:var(--raised); }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+.cal-dow { margin-bottom:2px; }
+.cal-w { text-align:center; font-size:10px; color:var(--txt-faint); padding:2px 0; }
+.cal-day { border:1px solid transparent; background:none; color:var(--txt); border-radius:6px;
+  padding:6px 0; font-size:12.5px; cursor:pointer; }
+.cal-day:hover { background:var(--raised); }
+.cal-day.sel { background:var(--ekg); color:#06210f; font-weight:700; }
 
 /* Age auto-derived from DOB — small accent note beside the band label. */
 .field em.derived { color:var(--ekg); font-weight:600; }
