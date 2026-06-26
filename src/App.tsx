@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import {
   type CasualtyRecord, type InjuryTypeKey, type TriageCategory,
   type VitalSign, type Treatment, type TreatmentPlace,
-  createEmptyRecord, TRIAGE_LABELS, TRIAGE_COLORS,
+  createEmptyRecord, TRIAGE_COLORS,
   AGE_BAND_ORDER, AGE_BAND_LABELS, estimateBurnTBSA,
   ageFromDob, ageBandFromDob,
   GCS_EYE, GCS_VERBAL, GCS_MOTOR, formatGcs,
   genCaseId, genLocalId,
-  INJURY_TYPES, injuryColor, injuryLabel,
+  INJURY_TYPES, injuryColor,
   toFhirBundle,
 } from '@triage-link/core'
 import { recordRepo } from './db/repository'
@@ -22,6 +22,7 @@ import { Tutorial } from './components/Tutorial'
 import { EhrTestConsole } from './components/EhrTestConsole'
 import { PcrVerify } from './components/PcrVerify'
 import { contributeHandover, EhrUnavailableError } from './ehr/client'
+import { useLang } from './i18n'
 
 const TRIAGE_ORDER: TriageCategory[] = ['immediate', 'delayed', 'minor', 'deceased']
 // The EHR Test Lab is developer/QA furniture (offline, mock-only). Hide it from
@@ -40,14 +41,11 @@ const labEnabled = (): boolean => {
     return false
   }
 }
-const VITALS_META: Record<'hr' | 'bp' | 'rr' | 'spo2' | 'gcs' | 'pain', { label: string; name: string; ph: string }> = {
-  hr: { label: 'HR', name: 'Heart rate', ph: 'bpm' },
-  bp: { label: 'BP', name: 'Blood pressure', ph: '120/80' },
-  rr: { label: 'RR', name: 'Respiratory rate', ph: '/min' },
-  spo2: { label: 'SpO₂', name: 'Oxygen saturation', ph: '%' },
-  gcs: { label: 'GCS', name: 'Glasgow Coma Scale', ph: '3–15' },
-  pain: { label: 'Pain', name: 'Pain score', ph: '0–10' },
+const VITALS_KEYS = ['hr', 'bp', 'rr', 'spo2', 'gcs', 'pain'] as const
+const VITALS_PH: Record<(typeof VITALS_KEYS)[number], string> = {
+  hr: 'bpm', bp: '120/80', rr: '/min', spo2: '%', gcs: '3–15', pain: '0–10',
 }
+// Canonical (language-neutral) treatment keys; labels are translated at render.
 const TREATMENT_TYPES = [
   'Tourniquet', 'Hemostatic dressing', 'Pressure dressing', 'Airway (NPA/OPA)',
   'Needle decompression', 'IV access / fluids', 'Medication', 'Splint / immobilisation',
@@ -59,6 +57,7 @@ function fmtTime(ms: number): string {
 }
 
 export function App() {
+  const { t, lang, setLang } = useLang()
   const [record, setRecord] = useState<CasualtyRecord>(() => createEmptyRecord(genCaseId()))
   const [saved, setSaved] = useState<CasualtyRecord[]>([])
   const [activeType, setActiveType] = useState<InjuryTypeKey>('laceration')
@@ -128,7 +127,7 @@ export function App() {
       const inj = record.injuries.find((i) => i.id === id)
       if (inj) updateInjury(id, { photos: [...inj.photos, dataUrl] })
     } catch {
-      setPhotoError('Couldn’t capture a photo — allow camera access in your browser/app settings.')
+      setPhotoError(t('inj.photoerr'))
       window.setTimeout(() => setPhotoError(''), 6000)
     }
   }
@@ -232,19 +231,20 @@ export function App() {
     <>
     <div className="app">
       <header className="topbar">
-        <div className="brand"><span className="mark">◇<span className="bn"> TRIAGE-LINK</span></span><span className="sub">Field Casualty Record</span></div>
-        <div className="pid"><span className="pid-label">CASE </span><b>{record.id}</b></div>
-        <button className="topbtn" onClick={newCase} title="Start a fresh record (the current one is auto-saved)">+ New casualty</button>
-        <button className="topbtn" data-tour="board" onClick={() => setShowBoard(true)} title="All saved casualties grouped by triage (scene picture)">🚩 Board{saved.length > 0 ? ` · ${saved.length}` : ''}</button>
-        <button type="button" className="topbtn more-btn" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)} title="More actions">⋯ More</button>
+        <div className="brand"><span className="mark">◇<span className="bn"> TRIAGE-LINK</span></span><span className="sub">{t('app.sub')}</span></div>
+        <div className="pid"><span className="pid-label">{t('hdr.case')} </span><b>{record.id}</b></div>
+        <button type="button" className="topbtn langbtn" onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')} title="Language / Langue">🌐 {t('lang.toggle')}</button>
+        <button className="topbtn" onClick={newCase} title="Start a fresh record (the current one is auto-saved)">{t('hdr.new')}</button>
+        <button className="topbtn" data-tour="board" onClick={() => setShowBoard(true)} title="All saved casualties grouped by triage (scene picture)">{t('hdr.board')}{saved.length > 0 ? ` · ${saved.length}` : ''}</button>
+        <button type="button" className="topbtn more-btn" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)} title="More actions">{t('hdr.more')}</button>
         <div className={`topbar-rest${menuOpen ? ' open' : ''}`} onClick={() => setMenuOpen(false)}>
-          <button className="topbtn" data-tour="summary" onClick={() => setShowSummary(true)} title="One-page casualty card — print or save as PDF for handover">🖨 Summary</button>
-          <button className="topbtn" onClick={() => setShowTour(true)} title="Replay the guided tour">❔ Tour</button>
-          <button className="topbtn" onClick={sendToEhr} title="Contribute this handover to the provincial EHR">Send to EHR ↑</button>
+          <button className="topbtn" data-tour="summary" onClick={() => setShowSummary(true)} title="One-page casualty card — print or save as PDF for handover">{t('hdr.summary')}</button>
+          <button className="topbtn" onClick={() => setShowTour(true)} title="Replay the guided tour">{t('hdr.tour')}</button>
+          <button className="topbtn" onClick={sendToEhr} title="Contribute this handover to the provincial EHR">{t('hdr.ehr')}</button>
           {showLab && (
             <button className="topbtn" onClick={() => setShowEhrLab(true)} title="Interactive lab to test the EHR integration against a stubbed gateway">🧪 EHR Test Lab</button>
           )}
-          <button className="topbtn primary" onClick={exportFhir} title="Download an interoperable FHIR record">Export FHIR ↓</button>
+          <button className="topbtn primary" onClick={exportFhir} title="Download an interoperable FHIR record">{t('hdr.fhir')}</button>
         </div>
         {menuOpen && <div className="topmenu-backdrop" onClick={() => setMenuOpen(false)} />}
         {ehrStatus && <span className="ehr-status">{ehrStatus}</span>}
@@ -257,24 +257,24 @@ export function App() {
         data-tour="triage"
         style={triage ? { background: `color-mix(in srgb, ${TRIAGE_COLORS[triage]} 16%, var(--panel))` } : undefined}
       >
-        <span className="tb-label">Triage</span>
+        <span className="tb-label">{t('triage.label')}</span>
         <div className="tb-opts" role="group" aria-label="Triage category">
-          {TRIAGE_ORDER.map((t) => (
+          {TRIAGE_ORDER.map((cat) => (
             <button
-              key={t}
+              key={cat}
               type="button"
-              className={`tb-opt${triage === t ? ' on' : ''}`}
-              style={triage === t ? { background: TRIAGE_COLORS[t], borderColor: TRIAGE_COLORS[t], color: '#0c0c0c' } : undefined}
-              onClick={() => setInc('triage', t)}
-              title={TRIAGE_LABELS[t]}
+              className={`tb-opt${triage === cat ? ' on' : ''}`}
+              style={triage === cat ? { background: TRIAGE_COLORS[cat], borderColor: TRIAGE_COLORS[cat], color: '#0c0c0c' } : undefined}
+              onClick={() => setInc('triage', cat)}
+              title={t(`triage.${cat}`)}
             >
-              <span className="sw" style={{ background: TRIAGE_COLORS[t] }} />
-              {TRIAGE_LABELS[t].split(' ')[0]}
+              <span className="sw" style={{ background: TRIAGE_COLORS[cat] }} />
+              {t(`triage.${cat}`).split(' ')[0]}
             </button>
           ))}
         </div>
         <span className="tb-current" style={triage ? { color: TRIAGE_COLORS[triage] } : undefined}>
-          {triage ? TRIAGE_LABELS[triage] : 'Not set — tap a level'}
+          {triage ? t(`triage.${triage}`) : t('triage.notset')}
         </span>
       </div>
 
@@ -282,9 +282,9 @@ export function App() {
       <InstallPrompt />
       {!tourOffered && !showTour && (
         <div className="tour-offer">
-          <span>👋 New here? Take a 60-second guided tour with voice-over.</span>
+          <span>{t('tour.offer')}</span>
           <span className="tour-offer-actions">
-            <button type="button" className="btn primary" onClick={() => { setShowTour(true); dismissTourOffer() }}>Start tour</button>
+            <button type="button" className="btn primary" onClick={() => { setShowTour(true); dismissTourOffer() }}>{t('tour.start')}</button>
             <button type="button" className="tip-x" aria-label="Dismiss" onClick={dismissTourOffer}>×</button>
           </span>
         </div>
@@ -295,21 +295,21 @@ export function App() {
         <div className="idband">
           {/* ---- tombstone ---- */}
           <section className="panel">
-            <div className="panel-h"><h2>Tombstone — identity</h2></div>
+            <div className="panel-h"><h2>{t('tomb.title')}</h2></div>
             <div className="panel-b grid2">
-              <label className="field col2"><span>Full name</span><input value={record.tombstone.name} onChange={(e) => setTomb('name', e.target.value)} placeholder="Surname, Given" /></label>
+              <label className="field col2"><span>{t('tomb.name')}</span><input value={record.tombstone.name} onChange={(e) => setTomb('name', e.target.value)} placeholder={t('tomb.name_ph')} /></label>
               <div className="col2 dob-sex">
-                <label className="field"><span>Date of birth</span><DobField value={record.tombstone.dob} onChange={setDob} /></label>
-                <label className="field"><span>Sex</span>
+                <label className="field"><span>{t('tomb.dob')}</span><DobField value={record.tombstone.dob} onChange={setDob} /></label>
+                <label className="field"><span>{t('tomb.sex')}</span>
                   <select value={record.tombstone.sex} onChange={(e) => setTomb('sex', e.target.value)}>
-                    <option value="">—</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option><option value="unknown">Unknown</option>
+                    <option value="">—</option><option value="female">{t('sex.female')}</option><option value="male">{t('sex.male')}</option><option value="other">{t('sex.other')}</option><option value="unknown">{t('sex.unknown')}</option>
                   </select>
                 </label>
               </div>
-              <label className="field"><span>Patient ID / MRN</span><input className="mono" value={record.tombstone.mrn} onChange={(e) => setTomb('mrn', e.target.value)} /></label>
-              <label className="field"><span>Blood type</span><input value={record.tombstone.bloodType} onChange={(e) => setTomb('bloodType', e.target.value)} placeholder="Unknown" /></label>
-              <label className="field"><span>Next of kin</span><input value={record.tombstone.nextOfKin} onChange={(e) => setTomb('nextOfKin', e.target.value)} /></label>
-              <label className="field"><span>NOK phone</span><input className="mono" value={record.tombstone.nextOfKinPhone} onChange={(e) => setTomb('nextOfKinPhone', e.target.value)} /></label>
+              <label className="field"><span>{t('tomb.mrn')}</span><input className="mono" value={record.tombstone.mrn} onChange={(e) => setTomb('mrn', e.target.value)} /></label>
+              <label className="field"><span>{t('tomb.blood')}</span><input value={record.tombstone.bloodType} onChange={(e) => setTomb('bloodType', e.target.value)} placeholder={t('tomb.blood_ph')} /></label>
+              <label className="field"><span>{t('tomb.nok')}</span><input value={record.tombstone.nextOfKin} onChange={(e) => setTomb('nextOfKin', e.target.value)} /></label>
+              <label className="field"><span>{t('tomb.nokphone')}</span><input className="mono" value={record.tombstone.nextOfKinPhone} onChange={(e) => setTomb('nextOfKinPhone', e.target.value)} /></label>
             </div>
             <div className="panel-b">
               <PcrVerify tombstone={record.tombstone} onApply={applyTomb} />
@@ -318,17 +318,17 @@ export function App() {
 
           {/* ---- incident (triage lives in the header tag) ---- */}
           <section className="panel">
-            <div className="panel-h"><h2>Incident</h2></div>
+            <div className="panel-h"><h2>{t('inc.title')}</h2></div>
             <div className="panel-b grid2">
-              <label className="field"><span>Time of injury</span><input type="datetime-local" value={record.incident.injuryTime} onChange={(e) => setInc('injuryTime', e.target.value)} /></label>
-              <label className="field"><span>Mechanism</span><input value={record.incident.mechanism} onChange={(e) => setInc('mechanism', e.target.value)} placeholder="Blunt, RTC, GSW…" /></label>
-              <label className="field col2"><span>Location of incident</span><input value={record.incident.location} onChange={(e) => setInc('location', e.target.value)} placeholder="Address / grid / GPS" /></label>
-              <div className="field col2"><span>Age band <em>· adjusts burn TBSA (Lund–Browder)</em>
-                {dobAge != null && <em className="derived">· {dobAge}y from DOB</em>}</span>
+              <label className="field"><span>{t('inc.time')}</span><input type="datetime-local" value={record.incident.injuryTime} onChange={(e) => setInc('injuryTime', e.target.value)} /></label>
+              <label className="field"><span>{t('inc.mech')}</span><input value={record.incident.mechanism} onChange={(e) => setInc('mechanism', e.target.value)} placeholder={t('inc.mech_ph')} /></label>
+              <label className="field col2"><span>{t('inc.loc')}</span><input value={record.incident.location} onChange={(e) => setInc('location', e.target.value)} placeholder={t('inc.loc_ph')} /></label>
+              <div className="field col2"><span>{t('inc.ageband')} <em>{t('inc.ageband_note')}</em>
+                {dobAge != null && <em className="derived">{t('inc.fromdob', { n: dobAge })}</em>}</span>
                 <div className="ageband" role="group" aria-label="Patient age band">
                   {AGE_BAND_ORDER.map((b) => (
                     <button key={b} type="button" className={record.incident.ageBand === b ? 'on' : ''} onClick={() => setInc('ageBand', b)}>
-                      {AGE_BAND_LABELS[b]}
+                      {t(`age.${b}`)}
                     </button>
                   ))}
                 </div>
@@ -343,16 +343,16 @@ export function App() {
           {/* ---- injury chart ---- */}
           <section className="panel">
             <div className="chart-head">
-              <h2>Injury chart — anterior / posterior</h2>
+              <h2>{t('chart.title')}</h2>
               <div className="palette" data-tour="palette">
-                {INJURY_TYPES.map((t) => (
+                {INJURY_TYPES.map((it) => (
                   <button
-                    key={t.key}
-                    className={`tool${t.key === activeType ? ' active' : ''}`}
-                    style={t.key === activeType ? { color: t.color } : undefined}
-                    onClick={() => setActiveType(t.key)}
+                    key={it.key}
+                    className={`tool${it.key === activeType ? ' active' : ''}`}
+                    style={it.key === activeType ? { color: it.color } : undefined}
+                    onClick={() => setActiveType(it.key)}
                   >
-                    <span className="dot" style={{ background: t.color }} />{t.label}
+                    <span className="dot" style={{ background: it.color }} />{t(`injury.${it.key}`)}
                   </button>
                 ))}
               </div>
@@ -361,9 +361,9 @@ export function App() {
               <BodyChart view="anterior" injuries={record.injuries} selectedId={selectedInjury} onPlace={placeInjury} onSelect={setSelectedInjury} />
               <BodyChart view="posterior" injuries={record.injuries} selectedId={selectedInjury} onPlace={placeInjury} onSelect={setSelectedInjury} />
             </div>
-            <p className="hint">Pick an injury type · tap a body area to blow it up · tap again to drop a marker. Tap a marker to edit it below.</p>
+            <p className="hint">{t('chart.hint')}</p>
             <div className="hintwrap">
-              <Tip id="chart-flow">After dropping a marker, tap it to set <b>severity</b>, add notes, and <b>📷 attach wound photos</b>. When zoomed in, use <b>← Full body</b> to zoom back out.</Tip>
+              <Tip id="chart-flow">{t('chart.tip')}</Tip>
             </div>
           </section>
 
@@ -381,22 +381,22 @@ export function App() {
           {/* ---- injury list / editor ---- */}
           <section className="panel">
             <div className="panel-h">
-              <h2>Logged injuries</h2>
+              <h2>{t('inj.title')}</h2>
               {tbsa > 0 && (
                 <span className="tbsa" title={`Burn TBSA · Lund–Browder, ${AGE_BAND_LABELS[record.incident.ageBand]}`}>
-                  🔥 {tbsa}% TBSA
+                  🔥 {tbsa}% {t('tbsa')}
                 </span>
               )}
               <span className="count">{record.injuries.length}</span>
             </div>
             <div className="panel-b">
-              {record.injuries.length === 0 && <div className="empty">No injuries marked yet.</div>}
+              {record.injuries.length === 0 && <div className="empty">{t('inj.empty')}</div>}
               {record.injuries.map((i) => (
                 <div className={`row${i.id === selectedInjury ? ' on' : ''}`} key={i.id}>
                   <span className="tag" style={{ background: injuryColor(i.type) }} />
                   <div className="body" onClick={() => setSelectedInjury(i.id)}>
-                    <div className="ttl">{injuryLabel(i.type)} · <span className="dim">{i.severity}</span></div>
-                    <div className="meta">{i.region} · {i.view}{i.notes ? ` · ${i.notes}` : ''}</div>
+                    <div className="ttl">{t(`injury.${i.type}`)} · <span className="dim">{t(`sev.${i.severity}`)}</span></div>
+                    <div className="meta">{i.region} · {t(`view.${i.view}`)}{i.notes ? ` · ${i.notes}` : ''}</div>
                   </div>
                   <button className="x" onClick={() => removeInjury(i.id)}>×</button>
                 </div>
@@ -405,17 +405,17 @@ export function App() {
                 <div className="editor" data-tour="editor">
                   <div className="sev">
                     {(['minor', 'moderate', 'severe', 'critical'] as const).map((s) => (
-                      <button key={s} className={selected.severity === s ? 'on' : ''} onClick={() => updateInjury(selected.id, { severity: s })}>{s}</button>
+                      <button key={s} className={selected.severity === s ? 'on' : ''} onClick={() => updateInjury(selected.id, { severity: s })}>{t(`sev.${s}`)}</button>
                     ))}
                   </div>
                   <input
-                    placeholder="Notes — size, depth, contamination…"
+                    placeholder={t('inj.notes_ph')}
                     value={selected.notes}
                     onChange={(e) => updateInjury(selected.id, { notes: e.target.value })}
                   />
                   <div className="photos">
-                    <button type="button" className="addphoto" onClick={() => addPhoto(selected.id)}>📷 Add photo</button>
-                    {selected.photos.length === 0 && !photoError && <span className="hint-inline">Photograph the wound — saved with this injury</span>}
+                    <button type="button" className="addphoto" onClick={() => addPhoto(selected.id)}>{t('inj.addphoto')}</button>
+                    {selected.photos.length === 0 && !photoError && <span className="hint-inline">{t('inj.photohint')}</span>}
                     {photoError && <span className="hint-inline photo-err">{photoError}</span>}
                     {selected.photos.map((src, i) => (
                       <div className="thumb" key={i}>
@@ -427,7 +427,7 @@ export function App() {
                 </div>
               )}
               {!selected && record.injuries.length > 0 && (
-                <div className="hint-inline select-hint">Tap an injury marker (or a row above) to edit it or attach a 📷 photo.</div>
+                <div className="hint-inline select-hint">{t('inj.selecthint')}</div>
               )}
             </div>
           </section>
@@ -436,33 +436,33 @@ export function App() {
 
           {/* ---- saved casualties (navigation, end of the record) ---- */}
           <section className="panel">
-            <div className="panel-h"><h2>Saved casualties</h2>
-              <button type="button" className="minibtn" onClick={exportAllRecords} title="Download a backup file of every saved record">⬇ Backup</button>
-              <button type="button" className="minibtn" onClick={pickBackupFile} title="Restore records from a backup file">⬆ Restore</button>
+            <div className="panel-h"><h2>{t('saved.title')}</h2>
+              <button type="button" className="minibtn" onClick={exportAllRecords} title="Download a backup file of every saved record">{t('saved.backup')}</button>
+              <button type="button" className="minibtn" onClick={pickBackupFile} title="Restore records from a backup file">{t('saved.restore')}</button>
               <span className="count">{saved.length}</span>
             </div>
             <div className="panel-b">
               {backupMsg && <div className="backup-msg">{backupMsg}</div>}
               {pendingImport && (
                 <div className="import-confirm">
-                  <span>Import {pendingImport.count} record{pendingImport.count === 1 ? '' : 's'}?</span>
+                  <span>{t('imp.q', { n: pendingImport.count })}</span>
                   <span className="import-actions">
-                    <button type="button" className="btn" onClick={() => runImport('merge')} title="Add these records, keeping the newer copy of any duplicates">Merge</button>
-                    <button type="button" className="btn danger" onClick={() => runImport('replace')} title="Delete all current records first, then import">Replace all</button>
+                    <button type="button" className="btn" onClick={() => runImport('merge')} title="Add these records, keeping the newer copy of any duplicates">{t('imp.merge')}</button>
+                    <button type="button" className="btn danger" onClick={() => runImport('replace')} title="Delete all current records first, then import">{t('imp.replace')}</button>
                     <button type="button" className="tip-x" aria-label="Cancel import" onClick={() => setPendingImport(null)}>×</button>
                   </span>
                 </div>
               )}
-              {saved.length === 0 && <div className="empty">Records auto-save as you type.</div>}
+              {saved.length === 0 && <div className="empty">{t('saved.empty')}</div>}
               {saved.length > 1 && (
-                <Tip id="handover-features">🚩 <b>Board</b> (top bar) shows every casualty grouped by triage · 🖨 <b>Summary</b> prints a one-page handover card.</Tip>
+                <Tip id="handover-features">{t('saved.tip')}</Tip>
               )}
               {saved.map((r) => (
                 <div className={`rec${r.id === record.id ? ' active' : ''}`} key={r.id}>
                   <span className="tri" style={{ background: r.incident.triage ? TRIAGE_COLORS[r.incident.triage] : '#2A3340' }} />
                   <div onClick={() => loadCase(r.id)} style={{ flex: 1, cursor: 'pointer' }}>
-                    <div className="nm">{r.tombstone.name || 'Unidentified'}{r.handover ? ' · handed over' : ''}</div>
-                    <div className="mt">{r.id} · {r.injuries.length} inj · {fmtTime(r.updatedAt)}</div>
+                    <div className="nm">{r.tombstone.name || t('saved.unidentified')}{r.handover ? t('saved.handedover') : ''}</div>
+                    <div className="mt">{r.id} · {r.injuries.length} {t('saved.inj')} · {fmtTime(r.updatedAt)}</div>
                   </div>
                   <button className="x" onClick={() => deleteCase(r.id)}>×</button>
                 </div>
@@ -471,7 +471,7 @@ export function App() {
           </section>
       </div>
 
-      <p className="footnote">Prototype — not a medical device, not for clinical use. Data is stored locally on this device only.</p>
+      <p className="footnote">{t('footnote')}</p>
     </div>
     {showSummary && <CasualtySummary record={record} onClose={() => setShowSummary(false)} />}
     {showBoard && (
@@ -493,35 +493,36 @@ export function App() {
 
 // ---- acuity glance: triage + latest vitals, above the logged-injuries list ----
 function AcuityGlance({ record, tbsa }: { record: CasualtyRecord; tbsa: number }) {
+  const { t } = useLang()
   const triage = record.incident.triage
   const latest = record.vitals[record.vitals.length - 1]
   return (
     <aside className="glance">
-      <div className="glance-h">Acuity at a glance</div>
+      <div className="glance-h">{t('glance.title')}</div>
       <div
         className="glance-triage"
         style={triage ? { background: TRIAGE_COLORS[triage], color: '#0c0c0c', borderColor: TRIAGE_COLORS[triage] } : undefined}
       >
-        {triage ? TRIAGE_LABELS[triage] : 'Triage not set'}
+        {triage ? t(`triage.${triage}`) : t('glance.notriage')}
       </div>
       <div className="glance-sec">
-        <span className="glance-k">Latest vitals</span>
+        <span className="glance-k">{t('glance.vitals')}</span>
         {latest ? (
           <>
             <div className="glance-chips">
-              {latest.hr && <span>HR {latest.hr}</span>}{latest.bp && <span>BP {latest.bp}</span>}
-              {latest.rr && <span>RR {latest.rr}</span>}{latest.spo2 && <span>SpO₂ {latest.spo2}</span>}
-              {latest.gcs && <span>GCS {latest.gcs}</span>}{latest.pain && <span>Pain {latest.pain}</span>}
+              {latest.hr && <span>{t('vit.hr')} {latest.hr}</span>}{latest.bp && <span>{t('vit.bp')} {latest.bp}</span>}
+              {latest.rr && <span>{t('vit.rr')} {latest.rr}</span>}{latest.spo2 && <span>{t('vit.spo2')} {latest.spo2}</span>}
+              {latest.gcs && <span>{t('vit.gcs')} {latest.gcs}</span>}{latest.pain && <span>{t('vit.pain')} {latest.pain}</span>}
             </div>
             <div className="glance-time">{fmtTime(latest.takenAt)}</div>
           </>
         ) : (
-          <span className="glance-empty">None recorded yet</span>
+          <span className="glance-empty">{t('glance.novitals')}</span>
         )}
       </div>
       <div className="glance-stats">
-        <div><b>{record.injuries.length}</b> injur{record.injuries.length === 1 ? 'y' : 'ies'}</div>
-        {tbsa > 0 && <div className="glance-tbsa">🔥 {tbsa}% TBSA</div>}
+        <div>{t(record.injuries.length === 1 ? 'glance.injuries_one' : 'glance.injuries_many', { n: record.injuries.length })}</div>
+        {tbsa > 0 && <div className="glance-tbsa">🔥 {tbsa}% {t('tbsa')}</div>}
       </div>
     </aside>
   )
@@ -541,6 +542,7 @@ function isValidIso(s: string): boolean {
 }
 
 function DobField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { t } = useLang()
   const [text, setText] = useState(value)
   const [open, setOpen] = useState(false)
   const [view, setView] = useState(() => {
@@ -563,7 +565,7 @@ function DobField({ value, onChange }: { value: string; onChange: (v: string) =>
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
 
-  const type = (t: string) => { setText(t); onChange(isValidIso(t) ? t : '') }
+  const type = (s: string) => { setText(s); onChange(isValidIso(s) ? s : '') }
   const pick = (y: number, m: number, d: number) => {
     const iso = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
     setText(iso); onChange(iso); setOpen(false)
@@ -583,7 +585,7 @@ function DobField({ value, onChange }: { value: string; onChange: (v: string) =>
     <div className="dobf">
       <div className="dobf-row">
         <input aria-label="Date of birth (YYYY-MM-DD)" className="mono" type="text" inputMode="numeric"
-          placeholder="YYYY-MM-DD" maxLength={10} value={text} onChange={(e) => type(e.target.value)} />
+          placeholder={t('dob.ph')} maxLength={10} value={text} onChange={(e) => type(e.target.value)} />
         <button type="button" className="cal-btn" aria-label="Open calendar" aria-expanded={open} onClick={toggle}>📅</button>
       </div>
       {open && (
@@ -621,6 +623,7 @@ function VitalsPanel({ vitals, onAdd, onRemove }: {
   onAdd: (v: Omit<VitalSign, 'id' | 'takenAt'>) => void
   onRemove: (id: string) => void
 }) {
+  const { t } = useLang()
   const [f, setF] = useState({ hr: '', bp: '', rr: '', spo2: '', gcs: '', pain: '' })
   const set = (k: keyof typeof f, v: string) => setF((s) => ({ ...s, [k]: v }))
   function submit() {
@@ -630,25 +633,25 @@ function VitalsPanel({ vitals, onAdd, onRemove }: {
   }
   return (
     <section className="panel" data-tour="vitals">
-      <div className="panel-h"><h2>Vitals</h2><span className="count">{vitals.length}</span></div>
+      <div className="panel-h"><h2>{t('vit.title')}</h2><span className="count">{vitals.length}</span></div>
       <div className="panel-b">
         <div className="grid3">
-          {(['hr', 'bp', 'rr', 'spo2', 'gcs', 'pain'] as const).map((k) => (
-            <label className="field" key={k} title={`${VITALS_META[k].name} (${VITALS_META[k].ph})`}>
-              <span>{VITALS_META[k].label}</span>
-              <input className="mono" value={f[k]} onChange={(e) => set(k, e.target.value)} placeholder={VITALS_META[k].ph} />
+          {VITALS_KEYS.map((k) => (
+            <label className="field" key={k} title={`${t(`vit.${k}_name`)} (${VITALS_PH[k]})`}>
+              <span>{t(`vit.${k}`)}</span>
+              <input className="mono" value={f[k]} onChange={(e) => set(k, e.target.value)} placeholder={VITALS_PH[k]} />
             </label>
           ))}
         </div>
         <GcsCalc value={f.gcs} onChange={(v) => set('gcs', v)} />
-        <button className="btn full" onClick={submit}>Record vitals</button>
-        {vitals.length === 0 && <p className="hint-inline panel-hint">Enter any fields and tap Record — log a fresh timestamped set at each reassessment.</p>}
+        <button className="btn full" onClick={submit}>{t('vit.record')}</button>
+        {vitals.length === 0 && <p className="hint-inline panel-hint">{t('vit.hint')}</p>}
         {vitals.slice().reverse().map((v) => (
           <div className="row" key={v.id}>
             <div className="body">
               <div className="chips">
-                {v.hr && <span>HR {v.hr}</span>}{v.bp && <span>BP {v.bp}</span>}{v.rr && <span>RR {v.rr}</span>}
-                {v.spo2 && <span>SpO₂ {v.spo2}</span>}{v.gcs && <span>GCS {v.gcs}</span>}{v.pain && <span>Pain {v.pain}</span>}
+                {v.hr && <span>{t('vit.hr')} {v.hr}</span>}{v.bp && <span>{t('vit.bp')} {v.bp}</span>}{v.rr && <span>{t('vit.rr')} {v.rr}</span>}
+                {v.spo2 && <span>{t('vit.spo2')} {v.spo2}</span>}{v.gcs && <span>{t('vit.gcs')} {v.gcs}</span>}{v.pain && <span>{t('vit.pain')} {v.pain}</span>}
               </div>
               <div className="meta">{fmtTime(v.takenAt)}</div>
             </div>
@@ -663,6 +666,7 @@ function VitalsPanel({ vitals, onAdd, onRemove }: {
 // ---- GCS calculator: E/V/M selectors that compute the total into the vitals
 // GCS field as e.g. "14 (E4 V4 M6)". Collapsed by default. ----
 function GcsCalc({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { t } = useLang()
   const [e, setE] = useState(4)
   const [v, setV] = useState(5)
   const [m, setM] = useState(6)
@@ -670,21 +674,21 @@ function GcsCalc({ value, onChange }: { value: string; onChange: (v: string) => 
   const total = e + v + m
   return (
     <details className="gcs-calc">
-      <summary>GCS calculator <span className="gcs-total">{value ? value : `= ${total}`}</span></summary>
+      <summary>{t('vit.gcscalc')} <span className="gcs-total">{value ? value : `= ${total}`}</span></summary>
       <div className="gcs-rows">
-        <label className="field"><span>Eye (E)</span>
+        <label className="field"><span>{t('gcs.eye')}</span>
           <select aria-label="GCS eye" value={e} onChange={(ev) => apply(+ev.target.value, v, m)}>
-            {GCS_EYE.map((o) => <option key={o.score} value={o.score}>{o.score} · {o.label}</option>)}
+            {GCS_EYE.map((o) => <option key={o.score} value={o.score}>{o.score} · {t(`gcsopt.${o.label}`)}</option>)}
           </select>
         </label>
-        <label className="field"><span>Verbal (V)</span>
+        <label className="field"><span>{t('gcs.verbal')}</span>
           <select aria-label="GCS verbal" value={v} onChange={(ev) => apply(e, +ev.target.value, m)}>
-            {GCS_VERBAL.map((o) => <option key={o.score} value={o.score}>{o.score} · {o.label}</option>)}
+            {GCS_VERBAL.map((o) => <option key={o.score} value={o.score}>{o.score} · {t(`gcsopt.${o.label}`)}</option>)}
           </select>
         </label>
-        <label className="field"><span>Motor (M)</span>
+        <label className="field"><span>{t('gcs.motor')}</span>
           <select aria-label="GCS motor" value={m} onChange={(ev) => apply(e, v, +ev.target.value)}>
-            {GCS_MOTOR.map((o) => <option key={o.score} value={o.score}>{o.score} · {o.label}</option>)}
+            {GCS_MOTOR.map((o) => <option key={o.score} value={o.score}>{o.score} · {t(`gcsopt.${o.label}`)}</option>)}
           </select>
         </label>
       </div>
@@ -698,6 +702,7 @@ function TreatmentPanel({ treatments, onAdd, onRemove }: {
   onAdd: (t: Omit<Treatment, 'id' | 'performedAt'>) => void
   onRemove: (id: string) => void
 }) {
+  const { t } = useLang()
   const [type, setType] = useState(TREATMENT_TYPES[0])
   const [detail, setDetail] = useState('')
   const [place, setPlace] = useState<TreatmentPlace>('scene')
@@ -708,29 +713,29 @@ function TreatmentPanel({ treatments, onAdd, onRemove }: {
   }
   return (
     <section className="panel">
-      <div className="panel-h"><h2>Treatment log</h2><span className="count">{treatments.length}</span></div>
+      <div className="panel-h"><h2>{t('tx.title')}</h2><span className="count">{treatments.length}</span></div>
       <div className="panel-b grid2">
-        <label className="field col2"><span>Intervention</span>
-          <select value={type} onChange={(e) => setType(e.target.value)}>{TREATMENT_TYPES.map((t) => <option key={t}>{t}</option>)}</select>
+        <label className="field col2"><span>{t('tx.intervention')}</span>
+          <select value={type} onChange={(e) => setType(e.target.value)}>{TREATMENT_TYPES.map((opt) => <option key={opt} value={opt}>{t(`txt.${opt}`)}</option>)}</select>
         </label>
-        <label className="field col2"><span>Detail (dose / route / site)</span><input value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="e.g. Morphine 10mg IM" /></label>
-        <label className="field"><span>Location</span>
+        <label className="field col2"><span>{t('tx.detail')}</span><input value={detail} onChange={(e) => setDetail(e.target.value)} placeholder={t('tx.detail_ph')} /></label>
+        <label className="field"><span>{t('tx.location')}</span>
           <select value={place} onChange={(e) => setPlace(e.target.value as TreatmentPlace)}>
-            <option value="scene">At scene</option><option value="enroute">En route</option><option value="handover">At handover</option>
+            <option value="scene">{t('tx.place.scene')}</option><option value="enroute">{t('tx.place.enroute')}</option><option value="handover">{t('tx.place.handover')}</option>
           </select>
         </label>
-        <label className="field"><span>Provider</span><input value={provider} onChange={(e) => setProvider(e.target.value)} placeholder="Initials / unit" /></label>
-        <div className="col2"><button className="btn full" onClick={submit}>Log intervention</button></div>
+        <label className="field"><span>{t('tx.provider')}</span><input value={provider} onChange={(e) => setProvider(e.target.value)} placeholder={t('tx.provider_ph')} /></label>
+        <div className="col2"><button className="btn full" onClick={submit}>{t('tx.log')}</button></div>
         <div className="col2">
-          {treatments.length === 0 && <p className="hint-inline panel-hint">Logged interventions appear here with time, place, and provider.</p>}
-          {treatments.slice().reverse().map((t) => (
-            <div className="row" key={t.id}>
+          {treatments.length === 0 && <p className="hint-inline panel-hint">{t('tx.hint')}</p>}
+          {treatments.slice().reverse().map((tr) => (
+            <div className="row" key={tr.id}>
               <span className="tag" style={{ background: '#3FE08A' }} />
               <div className="body">
-                <div className="ttl">{t.type}{t.detail ? ` — ${t.detail}` : ''}</div>
-                <div className="meta">{fmtTime(t.performedAt)} · {t.place}{t.provider ? ` · ${t.provider}` : ''}</div>
+                <div className="ttl">{t(`txt.${tr.type}`)}{tr.detail ? ` — ${tr.detail}` : ''}</div>
+                <div className="meta">{fmtTime(tr.performedAt)} · {t(`tx.place.${tr.place}`)}{tr.provider ? ` · ${tr.provider}` : ''}</div>
               </div>
-              <button className="x" onClick={() => onRemove(t.id)}>×</button>
+              <button className="x" onClick={() => onRemove(tr.id)}>×</button>
             </div>
           ))}
         </div>

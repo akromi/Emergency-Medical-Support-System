@@ -46,6 +46,8 @@ button { font-family:inherit; }
 .tb-opt .sw { width:10px; height:10px; border-radius:3px; display:inline-block; }
 .tb-current { margin-left:auto; font-size:12.5px; font-weight:700; color:var(--txt-dim); letter-spacing:.02em; }
 .topbtn.primary { background:var(--ekg); color:#06210f; border-color:var(--ekg); }
+/* Language toggle — compact pill that sits before the action buttons. */
+.langbtn { font-family:var(--mono); letter-spacing:.04em; }
 
 /* Phones: the header wraps to several rows, so it can't be sticky at a fixed
    offset — make it scroll, shrink the controls, and pin only the triage tag. */

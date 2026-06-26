@@ -1,8 +1,9 @@
 import {
   type CasualtyRecord,
-  injuryLabel, estimateBurnTBSA, buildAtMist,
-  TRIAGE_LABELS, TRIAGE_COLORS, AGE_BAND_LABELS,
+  estimateBurnTBSA, buildAtMist,
+  TRIAGE_COLORS, AGE_BAND_LABELS,
 } from '@triage-link/core'
+import { useLang } from '../i18n'
 
 // Printable one-page casualty card. On screen it's a light "paper" sheet over a
 // backdrop; print CSS (styles.css @media print) hides the app + chrome and
@@ -29,7 +30,8 @@ function Section({ title, count, children }: { title: string; count?: number; ch
 }
 
 export function CasualtySummary({ record, onClose }: { record: CasualtyRecord; onClose: () => void }) {
-  const { tombstone: t, incident: inc, injuries, vitals, treatments, handover } = record
+  const { t } = useLang()
+  const { tombstone: tomb, incident: inc, injuries, vitals, treatments, handover } = record
   const tbsa = estimateBurnTBSA(injuries, inc.ageBand)
   const burns = injuries.filter((i) => i.type === 'burn').length
   const mist = buildAtMist(record, Date.now())
@@ -37,74 +39,74 @@ export function CasualtySummary({ record, onClose }: { record: CasualtyRecord; o
   return (
     <div className="summary-overlay" onClick={onClose}>
       <div className="summary-actions" onClick={(e) => e.stopPropagation()}>
-        <button type="button" className="topbtn primary" onClick={() => window.print()}>🖨 Print / Save PDF</button>
-        <button type="button" className="topbtn" onClick={onClose}>Close</button>
+        <button type="button" className="topbtn primary" onClick={() => window.print()}>{t('sm.print')}</button>
+        <button type="button" className="topbtn" onClick={onClose}>{t('sm.close')}</button>
       </div>
 
       <div className="summary-sheet" onClick={(e) => e.stopPropagation()}>
         <header className="sm-head">
           <div>
-            <div className="sm-brand">◇ TRIAGE-LINK — Casualty Card</div>
-            <div className="sm-case">CASE {record.id}</div>
+            <div className="sm-brand">{t('sm.card')}</div>
+            <div className="sm-case">{t('hdr.case')} {record.id}</div>
           </div>
           {inc.triage && (
             <div className="sm-triage" style={{ background: TRIAGE_COLORS[inc.triage] }}>
-              {TRIAGE_LABELS[inc.triage]}
+              {t(`triage.${inc.triage}`)}
             </div>
           )}
         </header>
 
-        <Section title="AT-MIST handover">
+        <Section title={t('sm.atmist')}>
           <dl className="sm-mist">
-            <div><dt>A</dt><dd><b>Age / sex</b> — {mist.age}</dd></div>
-            <div><dt>T</dt><dd><b>Time of incident</b> — {mist.time}</dd></div>
-            <div><dt>M</dt><dd><b>Mechanism</b> — {mist.mechanism}</dd></div>
-            <div><dt>I</dt><dd><b>Injuries</b> — {mist.injuries}</dd></div>
-            <div><dt>S</dt><dd><b>Signs</b> — {mist.signs}</dd></div>
-            <div><dt>T</dt><dd><b>Treatment</b> — {mist.treatment}</dd></div>
+            <div><dt>A</dt><dd><b>{t('sm.a')}</b> — {mist.age}</dd></div>
+            <div><dt>T</dt><dd><b>{t('sm.t')}</b> — {mist.time}</dd></div>
+            <div><dt>M</dt><dd><b>{t('sm.m')}</b> — {mist.mechanism}</dd></div>
+            <div><dt>I</dt><dd><b>{t('sm.i')}</b> — {mist.injuries}</dd></div>
+            <div><dt>S</dt><dd><b>{t('sm.s')}</b> — {mist.signs}</dd></div>
+            <div><dt>T</dt><dd><b>{t('sm.tx')}</b> — {mist.treatment}</dd></div>
           </dl>
         </Section>
 
-        <Section title="Patient">
+        <Section title={t('sm.patient')}>
           <div className="sm-grid">
-            <Field label="Name" value={dash(t.name)} />
-            <Field label="DOB" value={dash(t.dob)} />
-            <Field label="Sex" value={dash(t.sex)} />
-            <Field label="Age band" value={AGE_BAND_LABELS[inc.ageBand]} />
-            <Field label="MRN" value={dash(t.mrn)} />
-            <Field label="Blood type" value={dash(t.bloodType)} />
-            <Field label="Next of kin" value={dash(t.nextOfKin)} />
-            <Field label="NOK phone" value={dash(t.nextOfKinPhone)} />
-            <Field label="Address" value={dash(t.address)} />
+            <Field label={t('sm.name')} value={dash(tomb.name)} />
+            <Field label={t('sm.dob')} value={dash(tomb.dob)} />
+            <Field label={t('sm.sex')} value={tomb.sex ? t(`sex.${tomb.sex}`) : '—'} />
+            <Field label={t('sm.ageband')} value={AGE_BAND_LABELS[inc.ageBand]} />
+            <Field label={t('sm.mrn')} value={dash(tomb.mrn)} />
+            <Field label={t('sm.blood')} value={dash(tomb.bloodType)} />
+            <Field label={t('sm.nok')} value={dash(tomb.nextOfKin)} />
+            <Field label={t('sm.nokphone')} value={dash(tomb.nextOfKinPhone)} />
+            <Field label={t('sm.address')} value={dash(tomb.address)} />
           </div>
         </Section>
 
-        <Section title="Incident">
+        <Section title={t('sm.incident')}>
           <div className="sm-grid">
-            <Field label="Time of injury" value={dash(inc.injuryTime)} />
-            <Field label="Mechanism" value={dash(inc.mechanism)} />
-            <Field label="Location" value={dash(inc.location)} />
+            <Field label={t('sm.timeofinjury')} value={dash(inc.injuryTime)} />
+            <Field label={t('sm.m')} value={dash(inc.mechanism)} />
+            <Field label={t('sm.location')} value={dash(inc.location)} />
           </div>
         </Section>
 
-        <Section title="Injuries" count={injuries.length}>
+        <Section title={t('sm.injuries')} count={injuries.length}>
           {injuries.length === 0 ? (
-            <div className="sm-empty">None recorded.</div>
+            <div className="sm-empty">{t('sm.none')}</div>
           ) : (
             <table className="sm-tbl">
-              <thead><tr><th>Region</th><th>View</th><th>Type</th><th>Severity</th><th>Notes</th></tr></thead>
+              <thead><tr><th>{t('sm.region')}</th><th>{t('sm.view')}</th><th>{t('sm.type')}</th><th>{t('sm.severity')}</th><th>{t('sm.notes')}</th></tr></thead>
               <tbody>
                 {injuries.map((i) => (
                   <tr key={i.id}>
-                    <td>{i.region}</td><td>{i.view}</td><td>{injuryLabel(i.type)}</td>
-                    <td>{i.severity}</td><td>{i.notes || '—'}</td>
+                    <td>{i.region}</td><td>{t(`view.${i.view}`)}</td><td>{t(`injury.${i.type}`)}</td>
+                    <td>{t(`sev.${i.severity}`)}</td><td>{i.notes || '—'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
           {burns > 0 && (
-            <div className="sm-tbsa">Burn TBSA: <b>{tbsa}%</b> <span className="sm-dim">(Lund–Browder, {AGE_BAND_LABELS[inc.ageBand]})</span></div>
+            <div className="sm-tbsa">{t('sm.burntbsa')}: <b>{tbsa}%</b> <span className="sm-dim">(Lund–Browder, {AGE_BAND_LABELS[inc.ageBand]})</span></div>
           )}
           {injuries.some((i) => i.photos.length > 0) && (
             <div className="sm-photos">
@@ -115,12 +117,12 @@ export function CasualtySummary({ record, onClose }: { record: CasualtyRecord; o
           )}
         </Section>
 
-        <Section title="Vitals" count={vitals.length}>
+        <Section title={t('sm.vitals')} count={vitals.length}>
           {vitals.length === 0 ? (
-            <div className="sm-empty">None recorded.</div>
+            <div className="sm-empty">{t('sm.none')}</div>
           ) : (
             <table className="sm-tbl">
-              <thead><tr><th>Time</th><th>HR</th><th>BP</th><th>RR</th><th>SpO₂</th><th>GCS</th><th>Pain</th></tr></thead>
+              <thead><tr><th>{t('sm.time')}</th><th>{t('vit.hr')}</th><th>{t('vit.bp')}</th><th>{t('vit.rr')}</th><th>{t('vit.spo2')}</th><th>{t('vit.gcs')}</th><th>{t('vit.pain')}</th></tr></thead>
               <tbody>
                 {vitals.map((v) => (
                   <tr key={v.id}>
@@ -133,17 +135,17 @@ export function CasualtySummary({ record, onClose }: { record: CasualtyRecord; o
           )}
         </Section>
 
-        <Section title="Treatments" count={treatments.length}>
+        <Section title={t('sm.treatments')} count={treatments.length}>
           {treatments.length === 0 ? (
-            <div className="sm-empty">None recorded.</div>
+            <div className="sm-empty">{t('sm.none')}</div>
           ) : (
             <table className="sm-tbl">
-              <thead><tr><th>Time</th><th>Intervention</th><th>Detail</th><th>Place</th><th>Provider</th></tr></thead>
+              <thead><tr><th>{t('sm.time')}</th><th>{t('sm.intervention')}</th><th>{t('sm.detail')}</th><th>{t('sm.place')}</th><th>{t('sm.provider')}</th></tr></thead>
               <tbody>
                 {treatments.map((tr) => (
                   <tr key={tr.id}>
-                    <td>{fmt(tr.performedAt)}</td><td>{tr.type}</td><td>{tr.detail || '—'}</td>
-                    <td>{tr.place}</td><td>{tr.provider || '—'}</td>
+                    <td>{fmt(tr.performedAt)}</td><td>{t(`txt.${tr.type}`)}</td><td>{tr.detail || '—'}</td>
+                    <td>{t(`tx.place.${tr.place}`)}</td><td>{tr.provider || '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -151,19 +153,19 @@ export function CasualtySummary({ record, onClose }: { record: CasualtyRecord; o
           )}
         </Section>
 
-        <Section title="Handover">
+        <Section title={t('sm.handover')}>
           {handover ? (
             <div className="sm-grid">
-              <Field label="Time" value={fmt(handover.at)} />
-              <Field label="Clinician" value={dash(handover.clinician)} />
-              <Field label="Facility" value={dash(handover.facility)} />
+              <Field label={t('sm.time')} value={fmt(handover.at)} />
+              <Field label={t('sm.clinician')} value={dash(handover.clinician)} />
+              <Field label={t('sm.facility')} value={dash(handover.facility)} />
             </div>
           ) : (
-            <div className="sm-empty">Not yet handed over.</div>
+            <div className="sm-empty">{t('sm.nothandedover')}</div>
           )}
         </Section>
 
-        <footer className="sm-foot">Generated {fmt(Date.now())} · TRIAGE-LINK</footer>
+        <footer className="sm-foot">{t('sm.generated')} {fmt(Date.now())} · TRIAGE-LINK</footer>
       </div>
     </div>
   )
