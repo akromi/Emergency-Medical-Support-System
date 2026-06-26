@@ -105,6 +105,8 @@ describe('App — handover sign-off', () => {
     // The panel flips to a confirmation badge with the clinician name.
     expect(await screen.findByText(/Handed over/)).toBeInTheDocument()
     expect(screen.getByText(/Dr\. Smith/)).toBeInTheDocument()
+    // A share action appears for exporting the FHIR handover slice.
+    expect(screen.getByRole('button', { name: /Share handover/ })).toBeInTheDocument()
     // Undo returns to the entry form.
     await user.click(screen.getByRole('button', { name: /Undo handover/ }))
     expect(await screen.findByLabelText('Receiving clinician')).toBeInTheDocument()

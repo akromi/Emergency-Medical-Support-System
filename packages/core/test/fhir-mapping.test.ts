@@ -3,6 +3,7 @@ import {
   createEmptyRecord,
   injuryLabel,
   toFhirBundle,
+  toHandoverBundle,
   type CasualtyRecord,
   type FhirResource,
 } from '../src/index'
@@ -205,6 +206,22 @@ describe('toFhirBundle — CasualtyRecord round-trip', () => {
     expect(med.medicationCodeableConcept).toEqual({ text: 'Morphine 10mg IM' })
     expect(med.subject).toEqual({ reference: patientRef })
     expect(med.context).toEqual({ reference: encRef })
+  })
+
+  it('toHandoverBundle keeps only the Patient/Encounter/Provenance slice', () => {
+    const at = Date.UTC(2026, 5, 22, 11, 0, 0)
+    const handed = toHandoverBundle({ ...rec, handover: { at, clinician: 'Dr X', facility: 'County General' } })
+    const types = handed.entry.map((e) => e.resource.resourceType).sort()
+    expect(types).toEqual(['Encounter', 'Patient', 'Provenance'])
+    // The heavy clinical resources are dropped from the slice.
+    for (const dropped of ['Condition', 'Observation', 'Procedure', 'MedicationAdministration']) {
+      expect(types).not.toContain(dropped)
+    }
+  })
+
+  it('toHandoverBundle omits the Provenance before a handover is signed', () => {
+    const types = toHandoverBundle(rec).entry.map((e) => e.resource.resourceType).sort()
+    expect(types).toEqual(['Encounter', 'Patient'])
   })
 
   it('keeps every resource reference internally consistent', () => {

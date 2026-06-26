@@ -8,7 +8,7 @@ import {
   GCS_EYE, GCS_VERBAL, GCS_MOTOR, formatGcs,
   genCaseId, genLocalId,
   INJURY_TYPES, injuryColor,
-  toFhirBundle,
+  toFhirBundle, toHandoverBundle,
 } from '@triage-link/core'
 import { recordRepo } from './db/repository'
 import { exportAll, parseBackup, importBackup, type Backup, type ImportMode } from './db/backup'
@@ -214,16 +214,17 @@ export function App() {
     window.setTimeout(() => setEhrStatus(''), 5000)
   }
 
-  function exportFhir() {
-    const bundle = toFhirBundle(record)
-    const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/fhir+json' })
+  function downloadJson(data: unknown, filename: string) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/fhir+json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${record.id}-fhir-bundle.json`
+    a.download = filename
     a.click()
     URL.revokeObjectURL(url)
   }
+  const exportFhir = () => downloadJson(toFhirBundle(record), `${record.id}-fhir-bundle.json`)
+  const shareHandover = () => downloadJson(toHandoverBundle(record), `${record.id}-handover-fhir.json`)
 
   const selected = record.injuries.find((i) => i.id === selectedInjury) ?? null
   const triage = record.incident.triage
@@ -438,7 +439,7 @@ export function App() {
           </div>
 
           {/* ---- handover sign-off (who took over care, and when) ---- */}
-          <HandoverPanel key={record.id} handover={record.handover} onChange={setHandover} />
+          <HandoverPanel key={record.id} handover={record.handover} onChange={setHandover} onShare={shareHandover} />
 
           {/* ---- saved casualties (navigation, end of the record) ---- */}
           <section className="panel">
@@ -753,9 +754,10 @@ function TreatmentPanel({ treatments, onAdd, onRemove }: {
 
 // ---- handover sign-off: records the receiving clinician/facility and stamps
 // the time. Reset per-record via a key on the call site. ----
-function HandoverPanel({ handover, onChange }: {
+function HandoverPanel({ handover, onChange, onShare }: {
   handover: Handover | null
   onChange: (h: Handover | null) => void
+  onShare: () => void
 }) {
   const { t } = useLang()
   const [clinician, setClinician] = useState(handover?.clinician ?? '')
@@ -771,7 +773,10 @@ function HandoverPanel({ handover, onChange }: {
             {(handover.clinician || handover.facility) && (
               <div className="ho-detail">{handover.clinician || '—'}{handover.facility ? ` · ${handover.facility}` : ''}</div>
             )}
-            <button type="button" className="btn" onClick={() => onChange(null)}>{t('ho.undo')}</button>
+            <div className="ho-actions">
+              <button type="button" className="btn" onClick={onShare} title="Download a FHIR slice (Encounter + Provenance) for the receiving team">{t('ho.share')}</button>
+              <button type="button" className="btn" onClick={() => onChange(null)}>{t('ho.undo')}</button>
+            </div>
           </div>
         ) : (
           <div className="grid2">

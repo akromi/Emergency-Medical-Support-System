@@ -168,3 +168,15 @@ export function toFhirBundle(rec: CasualtyRecord): FhirBundle {
     entry: resources.map((resource) => ({ fullUrl: `urn:uuid:${resource.id}`, resource })),
   }
 }
+
+/**
+ * A focused handover slice of the full bundle: Patient + Encounter + Provenance
+ * only (drops Conditions/Observations/Procedures). For a lightweight "share
+ * handover" export — who was transferred, when, and to whom. The Provenance is
+ * present only once a handover has been signed.
+ */
+const HANDOVER_RESOURCES = new Set(['Patient', 'Encounter', 'Provenance'])
+export function toHandoverBundle(rec: CasualtyRecord): FhirBundle {
+  const full = toFhirBundle(rec)
+  return { ...full, entry: full.entry.filter((e) => HANDOVER_RESOURCES.has(e.resource.resourceType)) }
+}
