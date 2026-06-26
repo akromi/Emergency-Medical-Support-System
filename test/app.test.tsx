@@ -7,6 +7,7 @@ import { recordRepo } from '../src/db/repository'
 vi.mock('../src/photo', () => ({ capturePhoto: vi.fn().mockResolvedValue('data:image/jpeg;base64,AAAA') }))
 
 import { App } from '../src/App'
+import { LangProvider } from '../src/i18n'
 
 beforeEach(async () => { await recordRepo.clear() })
 
@@ -68,5 +69,29 @@ describe('App — core flows (jsdom)', () => {
     await user.click(within(triagebar).getByRole('button', { name: /Immediate/ }))
     // Reflected in the triage bar's current-label and the acuity glance.
     expect((await screen.findAllByText(/Immediate \(Red\)/)).length).toBeGreaterThan(0)
+  })
+})
+
+describe('App — language toggle (FR)', () => {
+  it('switches to French, persists the choice, and restores it on reload', async () => {
+    localStorage.removeItem('tl.lang')
+    const user = userEvent.setup()
+    // The toggle needs a real LangProvider (the default context setter is a no-op).
+    const { unmount } = render(<LangProvider><App /></LangProvider>)
+    expect(await screen.findByText('Field Casualty Record')).toBeInTheDocument()
+
+    // 🌐 button shows the *other* language; clicking it switches to French.
+    await user.click(screen.getByRole('button', { name: /🌐/ }))
+    expect(await screen.findByText('Fiche de blessé sur le terrain')).toBeInTheDocument()
+    expect(localStorage.getItem('tl.lang')).toBe('fr')
+
+    // Remount (simulating a reload): the stored choice sticks, and the toggle
+    // now offers switching back to English.
+    unmount()
+    render(<LangProvider><App /></LangProvider>)
+    expect(await screen.findByText('Fiche de blessé sur le terrain')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /🌐 EN/ })).toBeInTheDocument()
+
+    localStorage.removeItem('tl.lang')
   })
 })
