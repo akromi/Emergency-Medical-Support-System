@@ -7,6 +7,7 @@ import {
   type FhirResource,
 } from '@triage-link/core'
 import { matchPatient, fetchContext, EhrUnavailableError } from '../ehr/client'
+import { useLang } from '../i18n'
 
 type Status = 'idle' | 'matching' | 'matched' | 'loading-context' | 'error'
 
@@ -17,6 +18,7 @@ export function PcrVerify({ tombstone, onApply }: {
   tombstone: Tombstone
   onApply: (patch: Partial<Tombstone>) => void
 }) {
+  const { t } = useLang()
   const [status, setStatus] = useState<Status>('idle')
   const [matches, setMatches] = useState<PatientMatch[]>([])
   const [resolvedId, setResolvedId] = useState<string | null>(null)
@@ -33,10 +35,10 @@ export function PcrVerify({ tombstone, onApply }: {
       setMatches(res.matches)
       setResolvedId(res.resolved ? res.matches[0]?.id ?? null : null)
       setStatus('matched')
-      if (res.matches.length === 0) setMessage('No registry match.')
+      if (res.matches.length === 0) setMessage(t('pcr.nomatch'))
     } catch (err) {
       setStatus('error')
-      setMessage(err instanceof EhrUnavailableError ? 'EHR service not reachable (offline or backend down).' : (err as Error).message)
+      setMessage(err instanceof EhrUnavailableError ? t('pcr.unreachable') : (err as Error).message)
     }
   }
 
@@ -58,16 +60,16 @@ export function PcrVerify({ tombstone, onApply }: {
       setStatus('matched')
     } catch (err) {
       setStatus('matched')
-      setMessage(err instanceof EhrUnavailableError ? 'EHR service not reachable.' : (err as Error).message)
+      setMessage(err instanceof EhrUnavailableError ? t('pcr.unreachable2') : (err as Error).message)
     }
   }
 
   return (
     <div className="pcr">
       <button className="btn full" onClick={verify} disabled={!canQuery || status === 'matching'}>
-        {status === 'matching' ? 'Querying PCR…' : '⊕ Verify identity against PCR'}
+        {status === 'matching' ? t('pcr.querying') : t('pcr.verify')}
       </button>
-      {!canQuery && <p className="hint">Enter a health-card number (MRN), or a name + date of birth, to query the registry.</p>}
+      {!canQuery && <p className="hint">{t('pcr.hint')}</p>}
       {message && <p className="hint">{message}</p>}
 
       {matches.map((m) => (
@@ -82,9 +84,9 @@ export function PcrVerify({ tombstone, onApply }: {
               {typeof m.score === 'number' ? ` · ${Math.round(m.score * 100)}%` : ''}
             </div>
             <div className="chips">
-              <button className="btn" onClick={() => apply(m)}>Use this identity</button>
+              <button className="btn" onClick={() => apply(m)}>{t('pcr.use')}</button>
               <button className="btn" onClick={() => loadContext(m.id)} disabled={status === 'loading-context'}>
-                {status === 'loading-context' ? 'Loading…' : 'Load clinical context'}
+                {status === 'loading-context' ? t('pcr.loading') : t('pcr.loadctx')}
               </button>
             </div>
           </div>
@@ -93,8 +95,8 @@ export function PcrVerify({ tombstone, onApply }: {
 
       {context && (
         <div className="pcr-ctx">
-          <div className="meta">Clinical context · {context.length} record{context.length === 1 ? '' : 's'}</div>
-          {context.length === 0 && <div className="empty">No context available.</div>}
+          <div className="meta">{t(context.length === 1 ? 'pcr.ctx_one' : 'pcr.ctx_many', { n: context.length })}</div>
+          {context.length === 0 && <div className="empty">{t('pcr.noctx')}</div>}
           {context.map((r, i) => (
             <div className="row" key={i}>
               <div className="body">

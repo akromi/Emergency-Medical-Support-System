@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { useLang } from '../i18n'
 
 // Lightweight discoverability helpers: one-time dismissible tips (remembered in
 // localStorage so returning users aren't nagged) and a connectivity banner.
@@ -18,13 +19,14 @@ export function useDismissed(id: string): [boolean, () => void] {
 
 /** One-time dismissible tip. Shows until the user dismisses it (then never again). */
 export function Tip({ id, children }: { id: string; children: ReactNode }) {
+  const { t } = useLang()
   const [dismissed, dismiss] = useDismissed(id)
   if (dismissed) return null
   return (
     <div className="tip" role="note">
       <span className="tip-ico" aria-hidden>💡</span>
       <div className="tip-body">{children}</div>
-      <button type="button" className="tip-x" aria-label="Dismiss tip" onClick={dismiss}>×</button>
+      <button type="button" className="tip-x" aria-label={t('tip.dismiss')} onClick={dismiss}>×</button>
     </div>
   )
 }
@@ -36,6 +38,7 @@ interface InstallEvent extends Event {
 
 /** "Add to Home Screen" prompt (Chrome/Android, when installable & not installed). */
 export function InstallPrompt() {
+  const { t } = useLang()
   const [evt, setEvt] = useState<InstallEvent | null>(null)
   const [dismissed, dismiss] = useDismissed('install')
   useEffect(() => {
@@ -47,10 +50,10 @@ export function InstallPrompt() {
   const install = async () => { await evt.prompt(); dismiss(); setEvt(null) }
   return (
     <div className="install-bar">
-      <span>📲 Install TRIAGE-LINK to your home screen — runs fully offline.</span>
+      <span>{t('install.msg')}</span>
       <span className="install-actions">
-        <button type="button" className="btn" onClick={install}>Install</button>
-        <button type="button" className="tip-x" aria-label="Dismiss" onClick={dismiss}>×</button>
+        <button type="button" className="btn" onClick={install}>{t('install.btn')}</button>
+        <button type="button" className="tip-x" aria-label={t('dismiss')} onClick={dismiss}>×</button>
       </span>
     </div>
   )
@@ -58,6 +61,7 @@ export function InstallPrompt() {
 
 /** Banner shown only while the device is offline (reassurance, not an error). */
 export function OfflineBanner() {
+  const { t } = useLang()
   const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && !navigator.onLine)
   useEffect(() => {
     const on = () => setOffline(false)
@@ -67,5 +71,5 @@ export function OfflineBanner() {
     return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off) }
   }, [])
   if (!offline) return null
-  return <div className="offline-banner">⚡ Working offline — changes save on this device and sync later.</div>
+  return <div className="offline-banner">{t('offline.msg')}</div>
 }
