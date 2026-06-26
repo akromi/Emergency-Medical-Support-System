@@ -272,7 +272,8 @@ input::placeholder { color:var(--txt-faint); }
 .ho-badge { font-weight:700; color:var(--ekg); background:rgba(63,224,138,.08);
   border:1px solid rgba(63,224,138,.25); border-radius:7px; padding:7px 11px; font-size:13px; }
 .ho-detail { font-size:13px; color:var(--txt-dim); }
-.ho-done .btn { margin-left:auto; padding:6px 12px; font-size:12px; }
+.ho-actions { display:flex; gap:8px; margin-left:auto; }
+.ho-actions .btn { padding:6px 12px; font-size:12px; }
 
 .rec { display:flex; align-items:center; gap:9px; padding:10px 11px; border:1px solid var(--line);
   border-radius:9px; margin-bottom:8px; background:var(--panel-2); }
