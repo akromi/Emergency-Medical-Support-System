@@ -26,6 +26,8 @@ import { PcrVerify } from './components/PcrVerify'
 import { contributeHandover, EhrUnavailableError } from './ehr/client'
 import { LockScreen, useVaultState } from './components/VaultLock'
 import { initVault, enableVault, disableVault, lock as lockVault, noteActivity, isRequired } from './db/vault'
+import { audit } from './db/audit'
+import { AuditLog } from './components/AuditLog'
 import { useLang, regionLabel, nextLang } from './i18n'
 
 const TRIAGE_ORDER: TriageCategory[] = ['immediate', 'delayed', 'minor', 'deceased']
@@ -61,6 +63,7 @@ export function App() {
   const [photoError, setPhotoError] = useState('')
   const [showTour, setShowTour] = useState(false)
   const [showEhrLab, setShowEhrLab] = useState(false)
+  const [showAudit, setShowAudit] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [tourOffered, dismissTourOffer] = useDismissed('tour-offered')
   const [backupMsg, setBackupMsg] = useState('')
@@ -190,7 +193,7 @@ export function App() {
   }
   async function loadCase(id: string) {
     const r = await recordRepo.get(id)
-    if (r) { setRecord(r); setSelectedInjury(null) }
+    if (r) { setRecord(r); setSelectedInjury(null); audit('record.view', { recordId: id }) }
   }
   async function deleteCase(id: string) {
     await recordRepo.remove(id)
@@ -205,6 +208,7 @@ export function App() {
     try {
       const backup = await exportAll()
       downloadJson(backup, backupName(''))
+      audit('backup.create')
       flashBackup(`Backed up ${backup.records.length} record${backup.records.length === 1 ? '' : 's'}.`)
     } catch { flashBackup('Backup failed.') }
   }
@@ -215,6 +219,7 @@ export function App() {
     try {
       const env = await exportEncrypted(pass)
       downloadJson(env, backupName('-encrypted'))
+      audit('backup.create', { detail: 'encrypted' })
       flashBackup(t('backup.encDone'))
     } catch { flashBackup('Backup failed.') }
   }
@@ -244,6 +249,7 @@ export function App() {
     try {
       const n = await importBackup(pendingImport.backup, mode)
       setSaved(await recordRepo.list())
+      audit('backup.restore', { detail: mode })
       flashBackup(`Imported ${n} record${n === 1 ? '' : 's'} (${mode}).`)
     } catch { flashBackup('Import failed.') }
     setPendingImport(null)
@@ -269,8 +275,8 @@ export function App() {
     a.click()
     URL.revokeObjectURL(url)
   }
-  const exportFhir = () => downloadJson(toFhirBundle(record), `${record.id}-fhir-bundle.json`)
-  const shareHandover = () => downloadJson(toHandoverBundle(record), `${record.id}-handover-fhir.json`)
+  const exportFhir = () => { downloadJson(toFhirBundle(record), `${record.id}-fhir-bundle.json`); audit('record.export', { recordId: record.id }) }
+  const shareHandover = () => { downloadJson(toHandoverBundle(record), `${record.id}-handover-fhir.json`); audit('record.export', { recordId: record.id, detail: 'handover' }) }
 
   const selected = record.injuries.find((i) => i.id === selectedInjury) ?? null
   const triage = record.incident.triage
@@ -290,6 +296,7 @@ export function App() {
         <div className={`topbar-rest${menuOpen ? ' open' : ''}`} onClick={() => setMenuOpen(false)}>
           <button className="topbtn" data-tour="summary" onClick={() => setShowSummary(true)} title="One-page casualty card — print or save as PDF for handover">{t('hdr.summary')}</button>
           <button className="topbtn" onClick={() => setShowTour(true)} title="Replay the guided tour">{t('hdr.tour')}</button>
+          <button className="topbtn" onClick={() => { setShowAudit(true); setMenuOpen(false) }} title="Tamper-evident log of data access and security events">{t('audit.menu')}</button>
           <button className="topbtn" onClick={sendToEhr} title="Contribute this handover to the provincial EHR">{t('hdr.ehr')}</button>
           {vaultState === 'disabled' && (
             <button className="topbtn" onClick={enablePhotoVault} title="Encrypt all wound photos at rest behind a passphrase">{t('vault.enable')}</button>
@@ -552,6 +559,7 @@ export function App() {
       />
     )}
     {import.meta.env.DEV && showEhrLab && <EhrTestConsole record={record} onClose={() => setShowEhrLab(false)} />}
+    {showAudit && <AuditLog onClose={() => setShowAudit(false)} />}
     {(vaultState === 'locked' || vaultState === 'setup') && <LockScreen />}
     </>
   )

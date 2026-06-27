@@ -577,3 +577,17 @@ input::placeholder { color:var(--txt-faint); }
 .scene-tbl .scene-pill { display:inline-block; padding:2px 8px; border-radius:999px; color:#0c0c0c;
   font-weight:700; font-size:10.5px; letter-spacing:.02em; }
 .scene-sharemsg { font-size:12.5px; color:var(--ekg); font-weight:600; align-self:center; }
+
+/* ---- Audit log viewer (append-only, hash-chained) ---- */
+.audit-overlay { position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.6); overflow:auto; padding:20px; }
+.audit { max-width:1000px; margin:0 auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px; }
+.audit-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+.audit-head h2 { margin:0; font-size:14px; letter-spacing:1px; text-transform:uppercase; color:var(--txt); }
+.audit-head .count { margin-inline-start:8px; font-family:var(--mono); font-size:12px; color:var(--txt-dim); }
+.audit-actions { display:flex; gap:8px; }
+.audit-ok { margin-bottom:12px; padding:8px 12px; border-radius:8px; font-size:13px; font-weight:600;
+  color:#0c2b18; background:color-mix(in srgb, var(--ekg) 22%, var(--panel)); border:1px solid var(--ekg); }
+.audit-bad { margin-bottom:12px; padding:8px 12px; border-radius:8px; font-size:13px; font-weight:700;
+  color:#fff; background:#a5302b; border:1px solid #e0564f; }
+.audit-tbl { width:100%; }
+.audit-tbl td.mono, .audit-tbl th { font-size:11.5px; }
