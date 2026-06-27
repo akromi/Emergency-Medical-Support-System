@@ -5,10 +5,11 @@
 // store persists them (full resource + queryable columns) so access is
 // durably accountable, separate from the CRDT op `audit` table.
 import type { FhirResource } from '@triage-link/core'
-import type { Queryable } from './ops-store.js'
+import { DEFAULT_TENANT, type Queryable } from './ops-store.js'
 
 export interface EhrAuditRow {
   id: number
+  tenantId: string
   recorded: string | null
   action: string | null
   outcome: string | null
@@ -19,10 +20,14 @@ export interface EhrAuditRow {
   createdAt: string
 }
 
+// Partitioned by tenant (like ops/snapshots/audit): each organization's EHR
+// access trail is isolated. Upgrade-safe — ADD COLUMN IF NOT EXISTS backfills a
+// pre-tenant table to 'default'.
 export async function migrateEhrAudit(db: Queryable): Promise<void> {
   await db.query(`
     CREATE TABLE IF NOT EXISTS ehr_audit (
       id bigserial PRIMARY KEY,
+      tenant_id text NOT NULL DEFAULT 'default',
       recorded timestamptz,
       action text,
       outcome text,
@@ -32,7 +37,9 @@ export async function migrateEhrAudit(db: Queryable): Promise<void> {
       event text NOT NULL,
       created_at timestamptz NOT NULL DEFAULT now()
     )`)
+  await db.query(`ALTER TABLE ehr_audit ADD COLUMN IF NOT EXISTS tenant_id text NOT NULL DEFAULT 'default'`)
   await db.query(`CREATE INDEX IF NOT EXISTS ehr_audit_patient_idx ON ehr_audit (patient_ref)`)
+  await db.query(`CREATE INDEX IF NOT EXISTS ehr_audit_tenant_idx ON ehr_audit (tenant_id)`)
 }
 
 // Narrow accessors over the loosely-typed FHIR AuditEvent.
@@ -49,12 +56,13 @@ export class EhrAuditStore {
   constructor(private readonly db: Queryable) {}
 
   /** Persist one AuditEvent, indexing the fields callers query by. */
-  async record(event: FhirResource): Promise<void> {
+  async record(event: FhirResource, tenantId: string = DEFAULT_TENANT): Promise<void> {
     const entity = firstEntity(event)
     await this.db.query(
-      `INSERT INTO ehr_audit (recorded, action, outcome, agent_id, patient_ref, query, event)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      `INSERT INTO ehr_audit (tenant_id, recorded, action, outcome, agent_id, patient_ref, query, event)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
       [
+        tenantId,
         typeof event.recorded === 'string' ? event.recorded : null,
         typeof event.action === 'string' ? event.action : null,
         typeof event.outcome === 'string' ? event.outcome : null,
@@ -66,17 +74,21 @@ export class EhrAuditStore {
     )
   }
 
-  /** Most-recent audit entries, optionally filtered by patient reference. */
-  async list(opts: { patientRef?: string; limit?: number } = {}): Promise<EhrAuditRow[]> {
+  /** Most-recent audit entries, optionally filtered by tenant and/or patient.
+   *  Omitting `tenantId` lists across all tenants (oversight); the /ehr/audit
+   *  route always scopes it to the caller's tenant. */
+  async list(opts: { patientRef?: string; limit?: number; tenantId?: string } = {}): Promise<EhrAuditRow[]> {
     const limit = Math.min(opts.limit ?? 100, 1000)
-    const res = opts.patientRef
-      ? await this.db.query(
-          `SELECT * FROM ehr_audit WHERE patient_ref = $1 ORDER BY id DESC LIMIT $2`,
-          [opts.patientRef, limit],
-        )
-      : await this.db.query(`SELECT * FROM ehr_audit ORDER BY id DESC LIMIT $1`, [limit])
+    const conds: string[] = []
+    const params: unknown[] = []
+    if (opts.tenantId != null) { params.push(opts.tenantId); conds.push(`tenant_id = $${params.length}`) }
+    if (opts.patientRef != null) { params.push(opts.patientRef); conds.push(`patient_ref = $${params.length}`) }
+    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : ''
+    params.push(limit)
+    const res = await this.db.query(`SELECT * FROM ehr_audit ${where} ORDER BY id DESC LIMIT $${params.length}`, params)
     return res.rows.map((r) => ({
       id: Number(r.id),
+      tenantId: r.tenant_id,
       recorded: r.recorded == null ? null : String(r.recorded),
       action: r.action ?? null,
       outcome: r.outcome ?? null,

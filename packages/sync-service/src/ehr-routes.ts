@@ -6,6 +6,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { EhrError, type EhrGateway, type PatientIdentity, type CasualtyRecord } from '@triage-link/core'
 import type { EhrAuditStore } from './ehr-audit-store.js'
+import { runWithTenant } from './tenant-context.js'
 
 function statusForCode(code: EhrError['code']): number {
   switch (code) {
@@ -66,7 +67,9 @@ export function registerEhrRoutes(app: FastifyInstance, ehr: EhrGateway): void {
       return reply.code(400).send({ error: 'invalid-request', message: 'Body must be a PatientIdentity object' })
     }
     try {
-      const result = await ehr.matchPatient(body as PatientIdentity)
+      // Run inside the tenant context so the gateway's onAudit writes the EHR
+      // audit row under this request's tenant.
+      const result = await runWithTenant(req.tenantId, () => ehr.matchPatient(body as PatientIdentity))
       return reply.send({ provider: ehr.provider, ...result })
     } catch (err) {
       return handleEhrError(err, reply, req)
@@ -92,7 +95,7 @@ export function registerEhrRoutes(app: FastifyInstance, ehr: EhrGateway): void {
       return reply.code(400).send({ error: 'invalid-request', message: 'Body must be a CasualtyRecord' })
     }
     try {
-      const result = await ehr.contributeHandover(body as CasualtyRecord)
+      const result = await runWithTenant(req.tenantId, () => ehr.contributeHandover!(body as CasualtyRecord))
       return reply.send({ provider: ehr.provider, ...result })
     } catch (err) {
       return handleEhrError(err, reply, req)
@@ -114,7 +117,7 @@ export function registerEhrRoutes(app: FastifyInstance, ehr: EhrGateway): void {
     }
     const { id } = req.params as { id: string }
     try {
-      const bundle = await ehr.fetchContext(id)
+      const bundle = await runWithTenant(req.tenantId, () => ehr.fetchContext!(id))
       return reply.send(bundle)
     } catch (err) {
       return handleEhrError(err, reply, req)
@@ -132,7 +135,9 @@ export function registerEhrAuditRoute(app: FastifyInstance, audit: EhrAuditStore
     },
   }, async (req) => {
     const { patient, limit } = (req.query ?? {}) as { patient?: string; limit?: string }
+    // Scoped to the caller's tenant — one org never reads another's EHR trail.
     const entries = await audit.list({
+      tenantId: req.tenantId,
       patientRef: patient,
       limit: limit ? Number(limit) : undefined,
     })

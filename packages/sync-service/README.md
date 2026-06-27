@@ -22,7 +22,10 @@ Tenancy is selected by the API key:
   (the service behaves exactly as before).
 
 Isolation is enforced at the data layer (not just the edge) and covered by
-`test/tenancy.integration.test.ts`.
+`test/tenancy.integration.test.ts`. The **EHR access audit trail** (`/ehr/audit`)
+is partitioned the same way: each access is recorded under the calling tenant
+(carried to the gateway's audit sink via `AsyncLocalStorage`) and `/ehr/audit`
+returns only that tenant's rows — see `test/ehr-tenant.integration.test.ts`.
 
 ### Tenant-admin API (runtime provisioning & key rotation)
 

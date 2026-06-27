@@ -60,4 +60,19 @@ describe('EhrAuditStore', () => {
     const rows = await store.list({ limit: 999999 })
     expect(rows).toHaveLength(1) // does not throw on an oversized limit
   })
+
+  it('isolates audit entries by tenant', async () => {
+    await store.record(sampleEvent('pcr-1'), 'org-a')
+    await store.record(sampleEvent('pcr-2'), 'org-b')
+
+    const a = await store.list({ tenantId: 'org-a' })
+    expect(a.map((r) => r.patientRef)).toEqual(['Patient/pcr-1'])
+    expect(a[0].tenantId).toBe('org-a')
+
+    const b = await store.list({ tenantId: 'org-b' })
+    expect(b.map((r) => r.patientRef)).toEqual(['Patient/pcr-2'])
+
+    // Omitting tenantId is the cross-tenant oversight view.
+    expect(await store.list()).toHaveLength(2)
+  })
 })

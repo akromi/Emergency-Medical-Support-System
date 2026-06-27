@@ -8,6 +8,8 @@ import { OpStore, migrate } from './ops-store.js'
 import { EhrAuditStore, migrateEhrAudit } from './ehr-audit-store.js'
 import { TenantStore, migrateTenants } from './tenant-store.js'
 import { Metrics } from './metrics.js'
+import { DEFAULT_TENANT } from './ops-store.js'
+import { currentTenant } from './tenant-context.js'
 
 // Select the provincial EHR adapter from the environment.
 //
@@ -45,9 +47,10 @@ function buildEhrGateway(audit: EhrAuditStore): EhrGateway | undefined {
       oneId,
       requestingAgentId: OH_AGENT_ID ?? 'triage-link-service',
       onAudit: (event) => {
-        // Durably persist every EHR access; surface storage failures in logs
-        // but never let an audit-write failure mask the clinical response.
-        audit.record(event).catch((err) => {
+        // Durably persist every EHR access under the in-flight request's tenant
+        // (carried via AsyncLocalStorage); surface storage failures in logs but
+        // never let an audit-write failure mask the clinical response.
+        audit.record(event, currentTenant() ?? DEFAULT_TENANT).catch((err) => {
           // eslint-disable-next-line no-console
           console.error('[ehr-audit] failed to persist AuditEvent', err)
         })
