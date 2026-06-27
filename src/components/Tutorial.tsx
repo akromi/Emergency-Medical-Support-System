@@ -18,11 +18,13 @@ interface Step {
 
 const STEPS: Step[] = [
   { key: 'welcome' },
+  { target: 'patient', key: 'patient' },
   { target: 'palette', key: 'palette' },
   { target: 'charts', key: 'charts', advanceWhen: (s) => s.hasInjury },
   { target: 'editor', key: 'editor' },
   { target: 'triage', key: 'triage', advanceWhen: (s) => s.hasTriage },
   { target: 'vitals', key: 'vitals' },
+  { target: 'handover', key: 'handover' },
   { target: 'summary', key: 'summary' },
   { target: 'board', key: 'board' },
   { key: 'done' },
