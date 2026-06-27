@@ -76,6 +76,13 @@ describe('OIDC admin authentication', () => {
     expect((await h.adminGet(`Bearer ${jwt({ ...validClaims(), exp: '9999999999' })}`)).statusCode).toBe(401)
   })
 
+  it('rejects an otherwise-valid token with no usable subject (no anonymous admin)', async () => {
+    const { sub: _drop, ...noSub } = validClaims()
+    expect((await h.adminGet(`Bearer ${jwt(noSub)}`)).statusCode).toBe(401)
+    expect((await h.adminGet(`Bearer ${jwt({ ...validClaims(), sub: '' })}`)).statusCode).toBe(401)
+    expect((await h.adminGet(`Bearer ${jwt({ ...validClaims(), sub: 123 })}`)).statusCode).toBe(401)
+  })
+
   it('rejects a tampered signature', async () => {
     const token = jwt(validClaims())
     const tampered = token.slice(0, -3) + (token.endsWith('aaa') ? 'bbb' : 'aaa')

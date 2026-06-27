@@ -187,7 +187,11 @@ export function buildApp(
     // user-controlled value.
     try {
       const claims = await oidcVerifier!.verify(token)
-      return { subject: typeof claims.sub === 'string' ? claims.sub : null }
+      // An SSO-authenticated admin MUST carry a usable subject, otherwise its
+      // actions would be indistinguishable from the shared static token in the
+      // admin-audit trail. Deny a token with no string `sub`.
+      const subject = typeof claims.sub === 'string' && claims.sub.length > 0 ? claims.sub : null
+      return subject ? { subject } : null
     } catch {
       return null
     }
