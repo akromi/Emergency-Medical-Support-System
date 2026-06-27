@@ -412,7 +412,8 @@ export function App() {
             </button>
           ))}
         </div>
-        <span className="tb-current" style={triage ? { color: TRIAGE_COLORS[triage] } : undefined}>
+        <span className="tb-current">
+          {triage && <span className="tb-current-sw" style={{ background: TRIAGE_COLORS[triage] }} />}
           {triage ? t(`triage.${triage}`) : t('triage.notset')}
         </span>
       </div>
@@ -488,7 +489,7 @@ export function App() {
                   <button
                     key={it.key}
                     className={`tool${it.key === activeType ? ' active' : ''}`}
-                    style={it.key === activeType ? { color: it.color } : undefined}
+                    style={it.key === activeType ? { borderColor: it.color } : undefined}
                     onClick={() => setActiveType(it.key)}
                   >
                     <span className="dot" style={{ background: it.color }} />{t(`injury.${it.key}`)}

@@ -1,7 +1,8 @@
 :root {
   --bg:#0E1116; --panel:#161B22; --panel-2:#1B222C; --raised:#222B38;
   --line:#2A3340; --line-soft:#222A35;
-  --txt:#E6EDF3; --txt-dim:#92A0B2; --txt-faint:#5F6E80;
+  /* --txt-faint raised from #5F6E80 to meet WCAG AA (4.5:1) on the dark bg/panels. */
+  --txt:#E6EDF3; --txt-dim:#A2AEBE; --txt-faint:#8E9BAD;
   --ekg:#3FE08A;
   --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
   --sans:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
@@ -44,7 +45,8 @@ button { font-family:inherit; }
   font-weight:600; cursor:pointer; }
 .tb-opt:hover { background:var(--raised); }
 .tb-opt .sw { width:10px; height:10px; border-radius:3px; display:inline-block; }
-.tb-current { margin-inline-start:auto; font-size:12.5px; font-weight:700; color:var(--txt-dim); letter-spacing:.02em; }
+.tb-current { margin-inline-start:auto; font-size:12.5px; font-weight:700; color:var(--txt); letter-spacing:.02em; }
+.tb-current-sw { display:inline-block; width:10px; height:10px; border-radius:3px; margin-inline-end:6px; vertical-align:middle; }
 .topbtn.primary { background:var(--ekg); color:#06210f; border-color:var(--ekg); }
 /* Language toggle — compact pill that sits before the action buttons. */
 .langbtn { font-family:var(--mono); letter-spacing:.04em; }
@@ -304,15 +306,15 @@ input::placeholder { color:var(--txt-faint); }
 .sm-count { background:#eee; color:#444; border-radius:999px; padding:1px 8px; font-size:11px; font-weight:600; }
 .sm-grid { display:grid; grid-template-columns:1fr 1fr; gap:5px 22px; }
 .sm-field { display:flex; gap:8px; }
-.sm-k { color:#777; min-width:96px; }
+.sm-k { color:#6b6b6b; min-width:96px; }
 .sm-v { font-weight:600; color:#14181d; }
 .sm-tbl { width:100%; border-collapse:collapse; }
-.sm-tbl th { text-align:start; font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:#888; border-bottom:1px solid #ccc; padding:4px 6px; }
+.sm-tbl th { text-align:start; font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:#6b6b6b; border-bottom:1px solid #ccc; padding:4px 6px; }
 .sm-tbl td { padding:4px 6px; border-bottom:1px solid #eee; vertical-align:top; }
-.sm-empty { color:#999; font-style:italic; }
+.sm-empty { color:#6b6b6b; font-style:italic; }
 .sm-tbsa { margin-top:8px; font-size:13px; }
-.sm-dim { color:#888; font-weight:400; }
-.sm-foot { margin-top:18px; border-top:1px solid #ddd; padding-top:8px; font-size:11px; color:#999; text-align:center; }
+.sm-dim { color:#6b6b6b; font-weight:400; }
+.sm-foot { margin-top:18px; border-top:1px solid #ddd; padding-top:8px; font-size:11px; color:#6b6b6b; text-align:center; }
 
 @media print {
   .app { display:none !important; }
