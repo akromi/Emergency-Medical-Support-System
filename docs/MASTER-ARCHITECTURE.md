@@ -420,8 +420,8 @@ Framework-free, built to `dist/` (ESM + `.d.ts`) and consumed by both the PWA an
 ## 8. Test cases
 
 All suites run under **Vitest**; the backend uses **pg-mem** (in-memory PostgreSQL) so DB tests
-run with identical SQL and no external service. **148 tests pass** across the workspaces
-(core 68, field client 34, sync 27, EHR gateway 19).
+run with identical SQL and no external service. **149 tests pass** across the workspaces
+(core 68, field client 35, sync 27, EHR gateway 19).
 
 ### 8.1 Core (`packages/core/test/`, 68 tests)
 
@@ -434,7 +434,7 @@ run with identical SQL and no external service. **148 tests pass** across the wo
 | `injuries.test.ts`, `types.test.ts`, `id.test.ts` | Catalog, factories, id generation |
 | `ehr.test.ts` | `identityFromTombstone`; `$match` Parameters; **match-grade extension is authoritative**; `certainly-not` with a high score does not resolve; AuditEvent builder |
 
-### 8.1b Field client (`test/`, 34 tests, jsdom)
+### 8.1b Field client (`test/`, 35 tests, jsdom)
 
 | Suite | Covers |
 |---|---|

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DICTS, LANGS, nextLang, isRtl, regionLabel } from '../src/i18n'
+import { SPEECH_LANG } from '../src/components/Tutorial'
 
 const EN_KEYS = Object.keys(DICTS.en).sort()
 
@@ -30,6 +31,14 @@ describe('i18n dictionaries', () => {
     expect(nextLang('fr')).toBe('ar')
     expect(nextLang('ar')).toBe('fa')
     expect(nextLang('fa')).toBe('en')
+  })
+
+  it('maps every language to a SpeechSynthesis BCP-47 tag (tour voice-over)', () => {
+    // A missing tag silently falls back to en-US and mispronounces the narration.
+    for (const lang of LANGS) {
+      expect(SPEECH_LANG[lang], `speech tag for '${lang}'`).toMatch(/^[a-z]{2}-[A-Z]{2}$/)
+      expect(SPEECH_LANG[lang].slice(0, 2)).toBe(lang)
+    }
   })
 
   it('marks Arabic and Persian as right-to-left, others left-to-right', () => {

@@ -29,7 +29,12 @@ const STEPS: Step[] = [
 ]
 
 // SpeechSynthesis BCP-47 tag per app language (for voice + prosody selection).
-const SPEECH_LANG: Record<string, string> = { en: 'en-US', fr: 'fr-FR' }
+// MUST cover every app language — otherwise the voice-over falls back to an
+// English engine and mispronounces the (e.g. Arabic / Persian) narration.
+// A test asserts this map stays in sync with the language list.
+export const SPEECH_LANG: Record<string, string> = {
+  en: 'en-US', fr: 'fr-FR', ar: 'ar-SA', fa: 'fa-IR',
+}
 
 function locate(target?: string): DOMRect | null {
   if (!target) return null
@@ -53,8 +58,10 @@ export function Tutorial({ signals, onClose }: { signals: TourSignals; onClose: 
     u.rate = 1.02
     const bcp = SPEECH_LANG[lang] ?? 'en-US'
     u.lang = bcp
-    // Prefer a voice that matches the chosen language, when the platform has one.
-    const voice = window.speechSynthesis.getVoices().find((v) => v.lang.startsWith(lang))
+    // Prefer a platform voice in the same language as the utterance (match on the
+    // primary subtag, e.g. "ar" → ar-SA / ar-EG), so prosody matches the script.
+    const base = bcp.split('-')[0].toLowerCase()
+    const voice = window.speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(base))
     if (voice) u.voice = voice
     window.speechSynthesis.speak(u)
   }
