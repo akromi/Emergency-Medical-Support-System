@@ -69,6 +69,12 @@ describe('OIDC admin authentication', () => {
     expect((await h.adminGet(`Bearer ${jwt({ ...validClaims(), exp: now() - 10 })}`)).statusCode).toBe(401)
   })
 
+  it('rejects a token with a missing or non-numeric exp (never-expiring bearer)', async () => {
+    const { exp: _drop, ...noExp } = validClaims()
+    expect((await h.adminGet(`Bearer ${jwt(noExp)}`)).statusCode).toBe(401)
+    expect((await h.adminGet(`Bearer ${jwt({ ...validClaims(), exp: '9999999999' })}`)).statusCode).toBe(401)
+  })
+
   it('rejects a tampered signature', async () => {
     const token = jwt(validClaims())
     const tampered = token.slice(0, -3) + (token.endsWith('aaa') ? 'bbb' : 'aaa')

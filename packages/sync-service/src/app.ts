@@ -175,11 +175,17 @@ export function buildApp(
   // JWT (OIDC). Either suffices; OIDC failures fall through to a 401.
   const adminAuthorized = async (header: string | undefined): Promise<boolean> => {
     if (adminToken && bearerOk(header, adminToken)) return true
-    if (oidcVerifier) {
-      const token = bearerToken(header)
-      if (token) { try { await oidcVerifier.verify(token); return true } catch { /* not a valid OIDC token */ } }
+    const token = oidcVerifier ? bearerToken(header) : null
+    if (!token) return false
+    // Grant only after the verifier accepts the token (signature + iss + aud +
+    // exp); any failure denies. The grant is gated by verification, not by a
+    // user-controlled value.
+    try {
+      await oidcVerifier!.verify(token)
+      return true
+    } catch {
+      return false
     }
-    return false
   }
 
   // Resolve a bearer credential to a tenant id: static tokens first

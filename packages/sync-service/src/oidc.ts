@@ -12,8 +12,10 @@ import { createPublicKey, verify as cryptoVerify, type JsonWebKey } from 'node:c
 export interface OidcConfig {
   /** Expected token issuer (the `iss` claim, and discovery base). */
   issuer: string
-  /** Expected audience — the `aud` claim must include it. Recommended. */
-  audience?: string
+  /** Expected audience — the `aud` claim MUST include it. Required: without it,
+   *  any valid token from the same IdP (minted for a different app) would
+   *  authenticate, so it is never optional. */
+  audience: string
   /** JWKS endpoint. Defaults to the issuer's discovery `jwks_uri`. */
   jwksUri?: string
 }
@@ -78,12 +80,15 @@ export function createOidcVerifier(config: OidcConfig, opts: { fetch?: JwksFetch
       }
       const claims = seg(p)
       if (claims.iss !== config.issuer) throw new OidcError('Issuer mismatch')
-      if (config.audience != null) {
-        const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud]
-        if (!aud.includes(config.audience)) throw new OidcError('Audience mismatch')
-      }
+      // Audience is mandatory — guards against tokens minted for another app in
+      // the same IdP being replayed at /admin/*.
+      const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud]
+      if (!aud.includes(config.audience)) throw new OidcError('Audience mismatch')
+      // Expiry is mandatory: a token with no (or non-numeric) exp would never
+      // expire, so reject it rather than treat it as eternally valid.
       const now = nowSec()
-      if (typeof claims.exp === 'number' && now >= claims.exp) throw new OidcError('Token expired')
+      if (typeof claims.exp !== 'number') throw new OidcError('Token has no numeric exp')
+      if (now >= claims.exp) throw new OidcError('Token expired')
       if (typeof claims.nbf === 'number' && now < claims.nbf) throw new OidcError('Token not yet valid')
       return claims
     },

@@ -130,9 +130,14 @@ async function main(): Promise<void> {
   const ehrAudit = new EhrAuditStore(pool)
   const security = buildSecurity()
   // OIDC admin auth (optional): set OIDC_ISSUER (+ OIDC_AUDIENCE, OIDC_JWKS_URI)
-  // to let admins authenticate /admin/* with an IdP-issued JWT.
+  // to let admins authenticate /admin/* with an IdP-issued JWT. OIDC_AUDIENCE is
+  // REQUIRED when OIDC_ISSUER is set — without it, a token minted for any other
+  // app in the same IdP would be accepted at /admin/*.
+  if (process.env.OIDC_ISSUER && !process.env.OIDC_AUDIENCE) {
+    throw new Error('OIDC_AUDIENCE is required when OIDC_ISSUER is set.')
+  }
   const oidcVerifier: OidcVerifier | undefined = process.env.OIDC_ISSUER
-    ? createOidcVerifier({ issuer: process.env.OIDC_ISSUER, audience: process.env.OIDC_AUDIENCE, jwksUri: process.env.OIDC_JWKS_URI })
+    ? createOidcVerifier({ issuer: process.env.OIDC_ISSUER, audience: process.env.OIDC_AUDIENCE!, jwksUri: process.env.OIDC_JWKS_URI })
     : undefined
   if (!security.adminToken && !oidcVerifier) {
     console.warn('Neither SYNC_ADMIN_TOKEN nor OIDC_ISSUER is set — the tenant-admin API (/admin/*) is disabled.')
