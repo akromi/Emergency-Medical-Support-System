@@ -5,6 +5,7 @@ import { getClientId, getLamport } from './oplog'
 import { isDataUrl, isPhotoRef, putPhoto, readPhoto } from './photos'
 import { getKey, isEnabled, isRequired } from './vault'
 import { sealRecord, openRecord, sealOp, VaultLockedError } from './record-crypto'
+import { audit } from './audit'
 
 // Thin repository over IndexedDB, wrapped with an append-only op-log: every save
 // journals the field/item changes as immutable ops (for conflict-aware sync)
@@ -56,9 +57,11 @@ export const recordRepo = {
     // the edit re-saves on the next change once the vault is unlocked.
     if ((isEnabled() || isRequired()) && !getKey()) return
     record.updatedAt = Date.now()
+    let wasCreate = false
     await db.transaction('rw', db.records, db.ops, db.meta, db.photos, async () => {
       const key = getKey()
       const prevStored = await db.records.get(record.id)
+      wasCreate = !prevStored
       const prev = prevStored ? await Dexie.waitFor(openRecord(key, prevStored)) : undefined
       const persist = await dehydrate(record)
       const clientId = await getClientId()
@@ -80,6 +83,9 @@ export const recordRepo = {
         if (!keep.has(ref)) await db.photos.delete(ref.slice('idb:'.length))
       }
     })
+    // Audit creation only; per-field edits are already journaled in the op-log,
+    // so auditing every debounced autosave would only add noise.
+    if (wasCreate) await audit('record.create', { recordId: record.id })
   },
   async get(id: string): Promise<CasualtyRecord | undefined> {
     const rec = await db.records.get(id)
@@ -114,6 +120,7 @@ export const recordRepo = {
       await db.ops.where('recordId').equals(id).delete()
       for (const ref of collectRefs(prev)) await db.photos.delete(ref.slice('idb:'.length))
     })
+    await audit('record.delete', { recordId: id })
   },
   /** Wipe every record, op, and photo blob (used by backup "replace"). */
   async clear(): Promise<void> {

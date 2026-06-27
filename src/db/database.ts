@@ -8,6 +8,24 @@ export interface MetaRow {
   value: string
 }
 
+/** One append-only, hash-chained audit-log entry (see db/audit.ts). Holds only
+ *  non-PHI metadata (UUIDs, action categories, timestamps), so it stays in the
+ *  clear and stays readable for a security review even when the vault is locked. */
+export interface AuditEntry {
+  /** Auto-increment insertion order (Dexie assigns it). */
+  seq?: number
+  id: string
+  ts: number
+  actor: string
+  action: string
+  recordId?: string
+  detail?: string
+  /** Hash of the previous entry — links the chain. */
+  prevHash: string
+  /** SHA-256 over this entry's canonical content + prevHash. */
+  hash: string
+}
+
 /** A wound photo's bytes, stored out-of-line from the record (see db/photos.ts).
  *  Raw bytes + mime (not a Blob) so they structured-clone cleanly across every
  *  IndexedDB implementation. */
@@ -29,6 +47,7 @@ export class TriageDB extends Dexie {
   ops!: Table<Op | SealedOp, string>
   meta!: Table<MetaRow, string>
   photos!: Table<PhotoRow, string>
+  audit!: Table<AuditEntry, number>
 
   constructor() {
     super('triage-link')
@@ -73,6 +92,15 @@ export class TriageDB extends Dexie {
       ops: 'id, recordId, lamport',
       meta: 'key',
       photos: 'id',
+    })
+    // v4: append-only, hash-chained audit log. New empty table; `++seq` gives a
+    // monotonic insertion order, `ts` is indexed for time-range queries.
+    this.version(4).stores({
+      records: 'id, updatedAt',
+      ops: 'id, recordId, lamport',
+      meta: 'key',
+      photos: 'id',
+      audit: '++seq, ts',
     })
   }
 }

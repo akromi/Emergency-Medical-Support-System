@@ -2,6 +2,7 @@ import Dexie from 'dexie'
 import { db } from './database'
 import { deriveKey, randomSaltB64, encryptBytes, decryptBytes, encryptString, decryptString, VAULT_CHECK_PLAINTEXT } from './crypto'
 import { encryptAllRecords, decryptAllRecords, encryptAllOps, decryptAllOps } from './record-crypto'
+import { audit } from './audit'
 
 // Opt-in "photo vault": when enabled, wound-photo bytes are encrypted at rest
 // (AES-256-GCM, key derived from a passphrase via PBKDF2). Photos are the
@@ -115,6 +116,7 @@ export function lock() {
   key = null
   clearAutoLock()
   emit()
+  void audit('vault.lock')
 }
 
 // Photo re-encryption migrations. WebCrypto promises are wrapped in
@@ -167,6 +169,7 @@ export async function enableVault(passphrase: string): Promise<void> {
   await encryptAllRecords(k)
   await encryptAllOps(k)
   armAutoLock()
+  await audit('vault.enable')
 }
 
 /** Unlock with a passphrase; returns false (and stays locked) if it's wrong. */
@@ -183,6 +186,7 @@ export async function unlock(passphrase: string): Promise<boolean> {
   enabled = true
   armAutoLock()
   emit()
+  await audit('vault.unlock')
   return true
 }
 
@@ -207,6 +211,7 @@ export async function disableVault(passphrase: string): Promise<boolean> {
   enabled = false
   clearAutoLock()
   emit()
+  await audit('vault.disable')
   return true
 }
 
