@@ -4,7 +4,15 @@
 import type { FastifyInstance } from 'fastify'
 import type { TenantStore } from './tenant-store.js'
 
-const HIDDEN = { schema: { hide: true } } as const
+// The global rate-limit covers every route, but the admin surface is sensitive
+// (admin-token auth + key issuance), so it gets its own explicit, stricter
+// per-route budget — which also makes the limiter visible on each handler.
+const ADMIN_RATE_LIMIT = { max: 60, timeWindow: '1 minute' }
+const HIDDEN = { config: { rateLimit: ADMIN_RATE_LIMIT }, schema: { hide: true } } as const
+const opts = (body?: object) => ({
+  config: { rateLimit: ADMIN_RATE_LIMIT },
+  schema: body ? { hide: true, body } : { hide: true },
+})
 
 const CREATE_TENANT_SCHEMA = {
   type: 'object',
@@ -24,7 +32,7 @@ const STATUS_SCHEMA = {
 
 export function registerAdminRoutes(app: FastifyInstance, tenants: TenantStore): void {
   // Create a tenant.
-  app.post('/admin/tenants', { schema: { hide: true, body: CREATE_TENANT_SCHEMA } }, async (req, reply) => {
+  app.post('/admin/tenants', opts(CREATE_TENANT_SCHEMA), async (req, reply) => {
     const { id, name } = req.body as { id: string; name: string }
     try {
       return reply.code(201).send({ tenant: await tenants.createTenant(id, name) })
@@ -36,7 +44,7 @@ export function registerAdminRoutes(app: FastifyInstance, tenants: TenantStore):
   app.get('/admin/tenants', HIDDEN, async () => ({ tenants: await tenants.listTenants() }))
 
   // Enable / disable a tenant (a disabled tenant's keys stop authenticating).
-  app.patch('/admin/tenants/:id', { schema: { hide: true, body: STATUS_SCHEMA } }, async (req, reply) => {
+  app.patch('/admin/tenants/:id', opts(STATUS_SCHEMA), async (req, reply) => {
     const { id } = req.params as { id: string }
     const { status } = req.body as { status: 'active' | 'disabled' }
     if (!(await tenants.setTenantStatus(id, status))) {
