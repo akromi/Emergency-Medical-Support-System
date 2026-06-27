@@ -141,7 +141,7 @@ What exists today vs. what certification requires. (Engineering items cross-ref 
 | **Usability / HFE** | Functional UI | IEC 62366 use-spec + summative validation with representative users | ★★★ |
 | **Cybersecurity** | Fail-closed EHR selection, ATNA audit, idempotent writes, mTLS seam | IEC 81001-5-1 secure SDLC, threat model, SBOM, pen test, vuln mgmt | ★★ |
 | **AuthN/AuthZ** | None on PWA | OIDC/SSO, MFA, RBAC, session management _(build: Phase 3)_ | ★★★ |
-| **Encryption at rest** | IndexedDB plaintext | Encrypted device store + encrypted backend/backups _(build: Phase 3)_ | ★★★ |
+| **Encryption at rest** | Photos encryptable (opt-in vault) + passphrase-encrypted backups; record text still plaintext | Full encrypted device store + encrypted backend/backups _(build: Phase 3)_ | ★★★ |
 | **Audit trail** | EHR access audited (`ehr_audit`, ATNA) | All-PHI CRUD audit, immutable/WORM, time-synced | ★★ |
 | **V&V evidence** | ~90 unit/integration tests | Documented, traced system-level V&V to requirements + risk controls | ★★ |
 | **Clinical evaluation** | None | Clinical Evaluation Plan/Report; possibly clinical investigation | ★★★ |
