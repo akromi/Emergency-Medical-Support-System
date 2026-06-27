@@ -49,6 +49,12 @@ token>`). Tenants and their keys then live in the database (`tenants`,
 Disabling a tenant immediately stops all its keys. The admin API is intentionally
 hidden from the public OpenAPI doc. Covered by `test/admin-api.integration.test.ts`.
 
+Every admin **mutation** (create tenant, enable/disable, issue/revoke key) is
+recorded to an `admin_audit` trail — action, target tenant, key id, and source
+IP, but **never the token** — readable at **`GET /admin/audit`** (optionally
+`?tenant=`). A SOC 2 / forensics control; reads (GET) are not audited. Covered by
+`test/admin-audit.integration.test.ts`.
+
 ### Per-tenant observability
 
 The service collects in-memory, **per-tenant** counters — `syncRequests`,

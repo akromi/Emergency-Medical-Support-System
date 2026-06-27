@@ -1,9 +1,10 @@
 // Tenant-administration API: provision tenants and issue / rotate / revoke
 // their API keys at runtime. Gated by the admin token (see app.ts) and hidden
 // from the public OpenAPI doc — this is an operational surface, not a client API.
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { TenantStore } from './tenant-store.js'
 import type { Metrics } from './metrics.js'
+import type { AdminAuditStore, AdminAction } from './admin-audit-store.js'
 
 // The global rate-limit covers every route, but the admin surface is sensitive
 // (admin-token auth + key issuance), so it gets its own explicit, stricter
@@ -31,17 +32,36 @@ const STATUS_SCHEMA = {
   properties: { status: { type: 'string', enum: ['active', 'disabled'] } },
 }
 
-export function registerAdminRoutes(app: FastifyInstance, tenants: TenantStore, metrics?: Metrics): void {
+export function registerAdminRoutes(
+  app: FastifyInstance, tenants: TenantStore, metrics?: Metrics, adminAudit?: AdminAuditStore,
+): void {
+  // Best-effort admin-action audit: record the change but never fail the
+  // operation (or leak a token) on an audit-write hiccup.
+  const logAdmin = async (req: FastifyRequest, action: AdminAction, tenantId: string | null, detail: unknown) => {
+    if (!adminAudit) return
+    try { await adminAudit.record({ action, tenantId, detail, ip: req.ip }) } catch { /* best-effort */ }
+  }
+
   // Per-tenant operational counters (in-memory, per-instance).
   if (metrics) {
     app.get('/admin/metrics', HIDDEN, async () => metrics.snapshot())
+  }
+
+  // Read the admin-action audit trail (optionally filtered by ?tenant=).
+  if (adminAudit) {
+    app.get('/admin/audit', HIDDEN, async (req) => {
+      const { tenant, limit } = (req.query ?? {}) as { tenant?: string; limit?: string }
+      return { entries: await adminAudit.list({ tenantId: tenant, limit: limit ? Number(limit) : undefined }) }
+    })
   }
 
   // Create a tenant.
   app.post('/admin/tenants', opts(CREATE_TENANT_SCHEMA), async (req, reply) => {
     const { id, name } = req.body as { id: string; name: string }
     try {
-      return reply.code(201).send({ tenant: await tenants.createTenant(id, name) })
+      const tenant = await tenants.createTenant(id, name)
+      await logAdmin(req, 'tenant.create', id, { name })
+      return reply.code(201).send({ tenant })
     } catch (err) {
       return reply.code(409).send({ error: 'conflict', message: (err as Error).message })
     }
@@ -56,6 +76,7 @@ export function registerAdminRoutes(app: FastifyInstance, tenants: TenantStore, 
     if (!(await tenants.setTenantStatus(id, status))) {
       return reply.code(404).send({ error: 'not_found', message: `Tenant '${id}' not found` })
     }
+    await logAdmin(req, 'tenant.status', id, { status })
     return { tenant: await tenants.getTenant(id) }
   })
 
@@ -69,7 +90,9 @@ export function registerAdminRoutes(app: FastifyInstance, tenants: TenantStore, 
     if (!(await tenants.getTenant(id))) {
       return reply.code(404).send({ error: 'not_found', message: `Tenant '${id}' not found` })
     }
-    return reply.code(201).send(await tenants.issueKey(id, label))
+    const issued = await tenants.issueKey(id, label)
+    await logAdmin(req, 'key.issue', id, { keyId: issued.key.id, label: label ?? null }) // never the token
+    return reply.code(201).send(issued)
   })
 
   // List a tenant's keys (hints + metadata only — never the tokens). 404 on an
@@ -94,6 +117,7 @@ export function registerAdminRoutes(app: FastifyInstance, tenants: TenantStore, 
     if (!(await tenants.revokeKey(id, numericKeyId))) {
       return reply.code(404).send({ error: 'not_found', message: 'Key not found or already revoked' })
     }
+    await logAdmin(req, 'key.revoke', id, { keyId: numericKeyId })
     return { revoked: true }
   })
 }
