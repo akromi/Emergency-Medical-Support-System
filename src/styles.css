@@ -561,3 +561,19 @@ input::placeholder { color:var(--txt-faint); }
 .sm-trend .spark { color:#14181d; }
 .sm-trend .vtrend-k { color:#666; }
 .sm-trend .vtrend-d { color:#444; }
+
+/* ---- Scene / incident-command summary (printable roll-up) ---- */
+.board-head-actions { display:flex; gap:8px; align-items:center; }
+.scene-total { text-align:center; font-weight:700; font-size:26px; line-height:1; color:#14181d; }
+.scene-total span { display:block; font-size:10px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:#777; margin-top:3px; }
+.scene-tally { display:flex; flex-wrap:wrap; gap:10px; margin:4px 0 2px; }
+.scene-tile { flex:1 1 84px; border:1px solid; border-left-width:5px; border-radius:8px;
+  padding:9px 12px; background:#fafafa; display:flex; flex-direction:column; gap:2px; }
+.scene-tile-n { font-size:26px; font-weight:700; line-height:1; }
+.scene-tile-k { font-size:10.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:#555; }
+.scene-status { display:flex; gap:18px; margin-top:12px; font-size:13px; color:#333; }
+.scene-status b { font-size:15px; color:#14181d; }
+.scene-tbl .scene-pill { display:inline-block; padding:2px 8px; border-radius:999px; color:#0c0c0c;
+  font-weight:700; font-size:10.5px; letter-spacing:.02em; }
+.scene-sharemsg { font-size:12.5px; color:var(--ekg); font-weight:600; align-self:center; }

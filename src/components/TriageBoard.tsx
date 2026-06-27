@@ -5,6 +5,7 @@ import {
 } from '@triage-link/core'
 import { useLang } from '../i18n'
 import { Elapsed } from './Elapsed'
+import { SceneSummary } from './SceneSummary'
 
 /** Compact "clinician · facility · time" line for a handed-over card. */
 function handoverLine(ho: Handover, lang: string): string {
@@ -55,6 +56,7 @@ export function TriageBoard({
   const { t, lang } = useLang()
   const [query, setQuery] = useState('')
   const [scope, setScope] = useState<Scope>('all')
+  const [showScene, setShowScene] = useState(false)
   const inScope = (r: CasualtyRecord) => scope === 'all' || (scope === 'handed' ? !!r.handover : !r.handover)
   const textFiltered = records.filter((r) => matchesQuery(r, query))
   const filtered = textFiltered.filter(inScope)
@@ -79,7 +81,12 @@ export function TriageBoard({
                 : t(records.length === 1 ? 'board.count_one' : 'board.count_many', { n: records.length })}
             </span>
           </div>
-          <button type="button" className="topbtn" onClick={onClose}>{t('sm.close')}</button>
+          <div className="board-head-actions">
+            {records.length > 0 && (
+              <button type="button" className="topbtn" onClick={() => setShowScene(true)} title={t('scene.btnTitle')}>{t('scene.btn')}</button>
+            )}
+            <button type="button" className="topbtn" onClick={onClose}>{t('sm.close')}</button>
+          </div>
         </header>
 
         {records.length > 0 && (
@@ -154,6 +161,7 @@ export function TriageBoard({
           <div className="board-none">{searching ? t('board.nomatch', { q: query.trim() }) : t('board.noneinview')}</div>
         )}
       </div>
+      {showScene && <SceneSummary records={records} onClose={() => setShowScene(false)} />}
     </div>
   )
 }
