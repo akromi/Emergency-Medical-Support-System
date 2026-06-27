@@ -44,6 +44,9 @@ describe('admin-action audit trail', () => {
     const issue = entries.find((e: { action: string }) => e.action === 'key.issue')
     expect(issue.detail).toMatchObject({ keyId: issued.key.id, label: 'laptop' })
 
+    // Static-token admin has no identity → actor is null (forensics fall back to IP).
+    expect(entries.every((e: { actor: string | null }) => e.actor === null)).toBe(true)
+
     // The plaintext token must never appear anywhere in the audit trail.
     expect(JSON.stringify(entries)).not.toContain(issued.token)
   })

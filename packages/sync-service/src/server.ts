@@ -136,8 +136,17 @@ async function main(): Promise<void> {
   if (process.env.OIDC_ISSUER && !process.env.OIDC_AUDIENCE) {
     throw new Error('OIDC_AUDIENCE is required when OIDC_ISSUER is set.')
   }
+  // Optional admin role mapping: require OIDC_ADMIN_ROLES (comma-separated) in
+  // the OIDC_ADMIN_CLAIM claim (default `roles`). When unset, any valid token is
+  // admin (PR1 behaviour).
+  const adminRoles = process.env.OIDC_ADMIN_ROLES?.split(',').map((s) => s.trim()).filter(Boolean)
   const oidcVerifier: OidcVerifier | undefined = process.env.OIDC_ISSUER
-    ? createOidcVerifier({ issuer: process.env.OIDC_ISSUER, audience: process.env.OIDC_AUDIENCE!, jwksUri: process.env.OIDC_JWKS_URI })
+    ? createOidcVerifier({
+        issuer: process.env.OIDC_ISSUER,
+        audience: process.env.OIDC_AUDIENCE!,
+        jwksUri: process.env.OIDC_JWKS_URI,
+        requiredClaim: adminRoles?.length ? { name: process.env.OIDC_ADMIN_CLAIM ?? 'roles', values: adminRoles } : undefined,
+      })
     : undefined
   if (!security.adminToken && !oidcVerifier) {
     console.warn('Neither SYNC_ADMIN_TOKEN nor OIDC_ISSUER is set — the tenant-admin API (/admin/*) is disabled.')

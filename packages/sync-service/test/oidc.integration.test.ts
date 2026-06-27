@@ -4,7 +4,8 @@ import { generateKeyPairSync, createSign, type KeyObject } from 'node:crypto'
 import { buildApp } from '../src/app.js'
 import { OpStore, migrate, type Queryable } from '../src/ops-store.js'
 import { TenantStore, migrateTenants } from '../src/tenant-store.js'
-import { createOidcVerifier } from '../src/oidc.js'
+import { AdminAuditStore, migrateAdminAudit } from '../src/admin-audit-store.js'
+import { createOidcVerifier, type OidcConfig } from '../src/oidc.js'
 
 const ISSUER = 'https://idp.test'
 const AUDIENCE = 'triage-admin'
@@ -93,5 +94,51 @@ describe('OIDC admin authentication', () => {
     expect((await both.adminGet('Bearer admin-secret')).statusCode).toBe(200)
     expect((await both.adminGet(`Bearer ${jwt(validClaims())}`)).statusCode).toBe(200)
     expect((await both.adminGet('Bearer wrong')).statusCode).toBe(401)
+  })
+})
+
+async function poolWith(): Promise<Queryable> {
+  const db = newDb()
+  const pg = db.adapters.createPg()
+  const pool = new pg.Pool() as unknown as Queryable
+  await migrate(pool)
+  await migrateTenants(pool)
+  await migrateAdminAudit(pool)
+  return pool
+}
+
+describe('OIDC admin authorization (role mapping + audit actor)', () => {
+  it('enforces a required role claim when configured', async () => {
+    const cfg: OidcConfig = { issuer: ISSUER, audience: AUDIENCE, requiredClaim: { name: 'roles', values: ['triage-admin'] } }
+    const pool = await poolWith()
+    const app = buildApp({
+      store: new OpStore(pool),
+      tenantStore: new TenantStore(pool),
+      oidcVerifier: createOidcVerifier(cfg, { fetch: idpFetch }),
+      security: {},
+    })
+    const get = (claims: Record<string, unknown>) =>
+      app.inject({ method: 'GET', url: '/admin/tenants', headers: { authorization: `Bearer ${jwt(claims)}` } })
+
+    expect((await get({ ...validClaims(), roles: ['triage-admin', 'other'] })).statusCode).toBe(200)
+    expect((await get({ ...validClaims(), roles: ['other'] })).statusCode).toBe(401) // wrong role
+    expect((await get(validClaims())).statusCode).toBe(401) // no roles claim
+  })
+
+  it('records the JWT subject as the admin-audit actor', async () => {
+    const pool = await poolWith()
+    const app = buildApp({
+      store: new OpStore(pool),
+      tenantStore: new TenantStore(pool),
+      adminAuditStore: new AdminAuditStore(pool),
+      oidcVerifier: createOidcVerifier({ issuer: ISSUER, audience: AUDIENCE }, { fetch: idpFetch }),
+      security: {},
+    })
+    const auth = { authorization: `Bearer ${jwt({ ...validClaims(), sub: 'dr.smith' })}` }
+    await app.inject({ method: 'POST', url: '/admin/tenants', headers: auth, payload: { id: 'org-a', name: 'A' } })
+
+    const entries = (await app.inject({ method: 'GET', url: '/admin/audit', headers: auth })).json().entries
+    expect(entries).toHaveLength(1)
+    expect(entries[0]).toMatchObject({ action: 'tenant.create', actor: 'dr.smith' })
   })
 })

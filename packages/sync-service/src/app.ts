@@ -23,6 +23,9 @@ import type { OidcVerifier } from './oidc.js'
 declare module 'fastify' {
   interface FastifyRequest {
     tenantId: string
+    /** The authenticated admin's OIDC subject, or null for the static admin
+     *  token (and on non-admin routes). Recorded as the admin-audit actor. */
+    adminSubject: string | null
   }
 }
 
@@ -157,6 +160,7 @@ export function buildApp(
   // resolves a specific one. Decorated unconditionally so handlers can always
   // read req.tenantId (dev/tests with no auth run under the single default tenant).
   app.decorateRequest('tenantId', DEFAULT_TENANT)
+  app.decorateRequest('adminSubject', null)
 
   // Bearer-token gate on the data + EHR routes (/health stays open for probes).
   // Active only when at least one token is configured, so dev/tests stay open; a
@@ -172,19 +176,20 @@ export function buildApp(
   const adminAuthConfigured = !!adminToken || !!oidcVerifier
 
   // Authorize an admin request: the static admin token OR a valid IdP-issued
-  // JWT (OIDC). Either suffices; OIDC failures fall through to a 401.
-  const adminAuthorized = async (header: string | undefined): Promise<boolean> => {
-    if (adminToken && bearerOk(header, adminToken)) return true
+  // JWT (OIDC). Returns the principal (with its OIDC subject, null for the
+  // static token) on success, or null to deny.
+  const adminPrincipal = async (header: string | undefined): Promise<{ subject: string | null } | null> => {
+    if (adminToken && bearerOk(header, adminToken)) return { subject: null }
     const token = oidcVerifier ? bearerToken(header) : null
-    if (!token) return false
+    if (!token) return null
     // Grant only after the verifier accepts the token (signature + iss + aud +
-    // exp); any failure denies. The grant is gated by verification, not by a
+    // exp + required claim); any failure denies. Gated by verification, not by a
     // user-controlled value.
     try {
-      await oidcVerifier!.verify(token)
-      return true
+      const claims = await oidcVerifier!.verify(token)
+      return { subject: typeof claims.sub === 'string' ? claims.sub : null }
     } catch {
-      return false
+      return null
     }
   }
 
@@ -209,9 +214,11 @@ export function buildApp(
 
       // Admin API: its own gate (static admin token or OIDC), separate from tenants.
       if (path.startsWith('/admin')) {
-        if (!(await adminAuthorized(req.headers.authorization))) {
+        const principal = await adminPrincipal(req.headers.authorization)
+        if (!principal) {
           return reply.code(401).send({ error: 'unauthorized', message: 'Admin authentication required' })
         }
+        req.adminSubject = principal.subject // recorded as the admin-audit actor
         return
       }
 

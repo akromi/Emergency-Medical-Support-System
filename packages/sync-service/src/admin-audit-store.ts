@@ -16,6 +16,9 @@ export interface AdminAuditEntry {
   tenantId: string | null
   /** Non-secret context: { name } / { status } / { keyId, label } / { keyId }. */
   detail: unknown
+  /** Who: the OIDC subject (`sub`) when SSO-authenticated, else null (the holder
+   *  of the shared admin token, identified only by `ip`). */
+  actor: string | null
   ip: string | null
   createdAt?: string
 }
@@ -27,9 +30,12 @@ export async function migrateAdminAudit(db: Queryable): Promise<void> {
       action text NOT NULL,
       tenant_id text,
       detail text,
+      actor text,
       ip text,
       created_at timestamptz NOT NULL DEFAULT now()
     )`)
+  // Upgrade-safe: backfill the actor column onto a pre-SSO table.
+  await db.query(`ALTER TABLE admin_audit ADD COLUMN IF NOT EXISTS actor text`)
   await db.query(`CREATE INDEX IF NOT EXISTS admin_audit_tenant_idx ON admin_audit (tenant_id)`)
 }
 
@@ -38,8 +44,8 @@ export class AdminAuditStore {
 
   async record(e: AdminAuditEntry): Promise<void> {
     await this.db.query(
-      `INSERT INTO admin_audit (action, tenant_id, detail, ip) VALUES ($1,$2,$3,$4)`,
-      [e.action, e.tenantId, JSON.stringify(e.detail ?? null), e.ip],
+      `INSERT INTO admin_audit (action, tenant_id, detail, actor, ip) VALUES ($1,$2,$3,$4,$5)`,
+      [e.action, e.tenantId, JSON.stringify(e.detail ?? null), e.actor, e.ip],
     )
   }
 
@@ -54,6 +60,7 @@ export class AdminAuditStore {
       action: r.action,
       tenantId: r.tenant_id ?? null,
       detail: r.detail == null ? null : JSON.parse(r.detail),
+      actor: r.actor ?? null,
       ip: r.ip ?? null,
       createdAt: String(r.created_at),
     }))

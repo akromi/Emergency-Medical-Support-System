@@ -39,7 +39,7 @@ export function registerAdminRoutes(
   // operation (or leak a token) on an audit-write hiccup.
   const logAdmin = async (req: FastifyRequest, action: AdminAction, tenantId: string | null, detail: unknown) => {
     if (!adminAudit) return
-    try { await adminAudit.record({ action, tenantId, detail, ip: req.ip }) } catch { /* best-effort */ }
+    try { await adminAudit.record({ action, tenantId, detail, actor: req.adminSubject, ip: req.ip }) } catch { /* best-effort */ }
   }
 
   // Per-tenant operational counters (in-memory, per-instance).
