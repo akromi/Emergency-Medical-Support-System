@@ -3,6 +3,8 @@
 *Prepared 2026-06-27. Method: multi-source deep research — 5 search angles, 20 sources fetched, 40 candidate claims extracted, 25 verified by 3-vote adversarial checking (2/3 refutes to kill); 24 confirmed, 1 refuted. Findings below are graded by confidence and carry their sources.*
 
 > **Scope (as requested):** competitive positioning across three capability areas — **prehospital ePCR**, **MCI / mass-casualty triage**, and **FHIR R4 hospital handover** — covering **commercial vendors**, **provincial/government systems**, and **open-source/academic** tools with a Canadian lens.
+>
+> **Updated 2026-06-27** with a focused **second pass** (§9) that closes several first-pass gaps — ESO/Interdev (iMedic), BCEHS's Siren, the Prehos→Interdev migration — and refines one key nuance: Siren actually supports **offline ePCR creation with ~5-minute sync**, so TRIAGE-LINK's edge is more precisely *no-backend / no-sync-server* than simply "works offline."
 
 ---
 
@@ -72,9 +74,10 @@ The Canadian prehospital-software market is dominated by **established, backend-
 | Product | ePCR | MCI/START triage | FHIR R4 handover | Offline-first (no backend) | Canadian footprint | Multilingual / RTL |
 |---|:--:|:--:|:--:|:--:|:--:|:--:|
 | **TRIAGE-LINK** | ✅ | ✅ | ✅ | ✅ (PWA, no backend) | n/a (new) | ✅ EN/FR/AR/FA (RTL) |
-| Siren / Medusa (ESO) | ✅ deep | — | — | ❌ networked | ✅ NS (historic) | not evidenced |
+| Siren / Medusa (ESO) | ✅ deep | — | — | ◐ offline create + ~5-min sync | ✅ NS (historic) · **BC (BCEHS official)** | not evidenced |
+| ESO / Interdev — **iMedic** | ✅ | — | generic (no named FHIR) | ❌ cloud/SaaS | ✅ ON (+ Prehos migrations) | not evidenced |
 | ImageTrend | ✅ deep | — | ✅ (Hub) | ❌ SaaS | ✅ ON (growing) | not evidenced |
-| Prehos | ✅ | — | — | ❌ cloud (defunct 2026) | ✅ ON (~22, collapsed) | not evidenced |
+| Prehos | ✅ | — | — | ❌ cloud (defunct Jul 2026) | ✅ ON (~22, collapsed) | not evidenced |
 | Sahana Eden | partial | partial | — | ❌ server | — | — |
 | Hikma Health | clinic EHR | — | — | ◐ offline but syncs | — | (multilingual; not RTL-evidenced) |
 | KatApp | — | ✅ | — | not evidenced | — | — |
@@ -123,6 +126,42 @@ TRIAGE-LINK should position **not** as a head-to-head ePCR replacement, but as t
 
 ## 8. Refuted claim (transparency)
 - ✗ *"Siren covers all 150 EHS ground ambulances + both LifeFlight air ambulances, 800+ paramedics trained"* — **refuted 0-3** as stated from the EMS1 mirror. The **province-wide scale** is still independently supported by Government of Nova Scotia primary sources [2][3]; only the precise unit/headcount figures from that single secondary mirror failed verification.
+
+---
+
+## 9. Second pass — closing the gaps (focused, 2026-06-27)
+
+A focused re-run targeted the players the first pass left uncovered. New verified findings below; several requested players still produced **no** verifiable facts (see *Still unanswered*). *(Second pass: 6 angles · 21 sources · 25 claims verified · 20 confirmed / 5 refuted.)*
+
+### Commercial vendors (newly covered)
+- **ESO + Interdev / iMedic** — ESO's principal Canadian footprint is its **March 14, 2022 acquisition of Toronto-based Interdev Technologies**, whose flagship **iMedic** is a **cloud/SaaS ePCR**. Hospital interoperability is described only generically ("integrates with hospital software applications") — **no named FHIR R4, no advertised MCI/START triage, not marketed offline-first**; CADLink real-time dispatch implies a cloud-connected design. ESO's stated intent: "a comprehensive, localized [Canadian] ecosystem… in all the provinces." **Confidence: high.** [a][b]
+- **ESO + Medusa / Siren** — Siren is **now an ESO product** (Emergency Reporting acquired Medusa ~2021; ESO acquired Emergency Reporting). Importantly, Siren **supports offline ePCR creation** ("you will not need Wi-Fi connectivity to create ePCRs") and then **syncs ~every 5 minutes** on Panasonic Toughbooks — a **store-and-sync** model, *not* pure-online. This refines the first-pass framing: incumbents can have *some* offline capability, but still depend on a central sync server and advertise **no FHIR/MCI/multilingual**. **Confidence: high.** [c][d]
+- **ImageTrend** — confirms an entrenched Ontario footprint via **OADS v4.0** (implemented March 2025) plus named customers (**Middlesex-London**; **Cochrane District** on Elite). Release framed on standards compliance; **no advertised offline / FHIR / MCI**. **Confidence: high (compliance) / medium (silence on features).** [4]
+
+### Provincial / government (newly covered)
+- **BCEHS — answer to B.1:** its **official provincial ePCR is named "Siren"** (ESO/Medusa), **mandatory for every patient encounter**, store-and-sync on Toughbooks. **No FHIR handover or multilingual field documentation asserted.** **Confidence: high.** [d]
+- **AHS (Alberta) — B.2: contested / unresolved.** A dated Medusa blog links Siren to AHS, but the **specific deployment claims** (provincewide, "first clinical system," "serves 10 EMS orgs") **failed verification (refuted)**. Alberta's *current* ePCR is **not reliably established** here. **Confidence: low.** [c]
+
+### The Prehos migration (answer to C)
+- **PreHos** (parent **Premier Health of America**) entered **CCAA creditor protection** (~$10M owed; FTI Consulting monitor); service ends **July 7, 2026**. **~22 Ontario services affected**; some **reverted to paper** while the Ministry of Health sources paper forms and adjusts reporting timelines. **Confidence: high.** [e][f]
+- **Sault Ste. Marie** is migrating to **Interdev/iMedic** (land-ambulance ePCR) **+ HGlobal** (community paramedicine) at **~$63K/yr** (≈$2K less than Prehos) plus ~$33K one-time — i.e. the **ESO-owned Interdev** is a prime beneficiary. **Confidence: high.** [e]
+
+### Updated positioning read
+The second pass **reinforces the core thesis** but sharpens two nuances:
+1. Incumbents aren't *all* purely online — **Siren does offline ePCR creation + ~5-min sync** — so TRIAGE-LINK's real edge is **"no-backend, no-sync-server, install-anywhere"** rather than simply "works offline."
+2. The biggest near-term market motion (the Prehos collapse → migrations) is flowing to **other cloud incumbents (Interdev/iMedic, ImageTrend)** — the market **defaults to backend platforms**, so the offline-first opening is real but **not yet being chosen** by buyers.
+
+Still **unmatched by any covered player**: the **combined ePCR + MCI/START triage + FHIR R4 + EN/FR/AR/FA (RTL)** single-app set. *Confidence: medium* — these are "**not advertised**" findings, not proof of absence; one over-broad "iMedic lacks X" claim was **explicitly refuted** for overreach.
+
+### Still unanswered (no verifiable facts surfaced)
+- **ZOLL** (emsCharts/RescueNet), **Stryker/Physio-Control** (LIFENET ePCR), **Traumasoft**, **AmbuPad** — Canadian deployment specifics.
+- **Quebec SIPÉ** vendor, **ORNGE** documentation system, **Ontario provincial eACR** data flow under OADS v4.0.
+- Whether **EHS Nova Scotia** still runs ESO/Siren in 2026.
+- Which systems the **other ~20** Prehos-affected services chose.
+
+**Second-pass sources:** [a] ESO — "ESO Acquires Interdev Technologies…" https://www.eso.com/news/press-releases/eso-acquires-interdev-technologies-epcr-software-in-canada/ *(primary; intent)* · [b] Interdev — Mobile ePCR (iMedic) https://www.interdev.ca/solutions/mobile-epcr-software/ *(vendor)* · [c] Medusa Medical (by ESO) — "AHS wins People's Choice Award…" https://www.medusamedical.com/alberta-health-services-wins-peoples-choice-award-for-ems-provincial-epcr-rollout/ *(vendor blog; AHS claims contested)* · [d] BCEHS Handbook — "Learn about Siren" https://handbook.bcehs.ca/operations/siren-reference-epcr/learning-siren/learn-about-siren/ *(primary/government)* · [e] Village Report — "Paramedic service scrambles as digital patient records vendor suddenly folds" https://www.villagereport.ca/village-picks/paramedic-service-scrambles-as-digital-patient-records-vendor-suddenly-folds-12451019 *(secondary)* · [f] Canadian Healthcare Technology — "Paramedics forced to switch e-record systems" (2026-06-24) https://www.canhealth.com/2026/06/24/paramedics-forced-to-switch-e-record-systems/ *(trade press)*
+
+> ⚠️ **Method caveat (second pass):** many primary URLs (eso.com, imagetrend.com, bcehs.ca, ontario.ca, sootoday/canhealth) returned **HTTP 403** to direct fetch; verification leaned on **multiple converging WebSearch index snippets** of those pages rather than line-by-line reads. All "no FHIR / no offline / no MCI" results are scoped to **"not advertised in reviewed sources."**
 
 ---
 
