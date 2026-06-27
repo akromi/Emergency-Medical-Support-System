@@ -3,6 +3,7 @@
 // from the public OpenAPI doc — this is an operational surface, not a client API.
 import type { FastifyInstance } from 'fastify'
 import type { TenantStore } from './tenant-store.js'
+import type { Metrics } from './metrics.js'
 
 // The global rate-limit covers every route, but the admin surface is sensitive
 // (admin-token auth + key issuance), so it gets its own explicit, stricter
@@ -30,7 +31,12 @@ const STATUS_SCHEMA = {
   properties: { status: { type: 'string', enum: ['active', 'disabled'] } },
 }
 
-export function registerAdminRoutes(app: FastifyInstance, tenants: TenantStore): void {
+export function registerAdminRoutes(app: FastifyInstance, tenants: TenantStore, metrics?: Metrics): void {
+  // Per-tenant operational counters (in-memory, per-instance).
+  if (metrics) {
+    app.get('/admin/metrics', HIDDEN, async () => metrics.snapshot())
+  }
+
   // Create a tenant.
   app.post('/admin/tenants', opts(CREATE_TENANT_SCHEMA), async (req, reply) => {
     const { id, name } = req.body as { id: string; name: string }
