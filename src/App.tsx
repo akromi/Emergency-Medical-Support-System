@@ -11,7 +11,7 @@ import {
   toFhirBundle, toHandoverBundle,
 } from '@triage-link/core'
 import { recordRepo } from './db/repository'
-import { exportAll, parseBackup, importBackup, type Backup, type ImportMode } from './db/backup'
+import { exportAll, exportEncrypted, readBackupFile, decryptBackup, importBackup, type Backup, type ImportMode } from './db/backup'
 import { BodyChart, type NewInjuryPlacement } from './components/BodyChart'
 import { CasualtySummary } from './components/CasualtySummary'
 import { TriageBoard } from './components/TriageBoard'
@@ -153,17 +153,22 @@ export function App() {
 
   // ---- backup / restore (all records) ----
   const flashBackup = (msg: string) => { setBackupMsg(msg); window.setTimeout(() => setBackupMsg(''), 5000) }
+  const backupName = (suffix: string) => `triage-link-backup${suffix}-${new Date().toISOString().slice(0, 10)}.json`
   async function exportAllRecords() {
     try {
       const backup = await exportAll()
-      const blob = new Blob([JSON.stringify(backup)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `triage-link-backup-${new Date().toISOString().slice(0, 10)}.json`
-      a.click()
-      URL.revokeObjectURL(url)
+      downloadJson(backup, backupName(''))
       flashBackup(`Backed up ${backup.records.length} record${backup.records.length === 1 ? '' : 's'}.`)
+    } catch { flashBackup('Backup failed.') }
+  }
+  async function exportEncryptedRecords() {
+    const pass = window.prompt(t('backup.encPrompt'))
+    if (pass == null) return // cancelled
+    if (pass.length < 8) { flashBackup(t('backup.passShort')); return }
+    try {
+      const env = await exportEncrypted(pass)
+      downloadJson(env, backupName('-encrypted'))
+      flashBackup(t('backup.encDone'))
     } catch { flashBackup('Backup failed.') }
   }
   function pickBackupFile() {
@@ -174,8 +179,15 @@ export function App() {
       const file = input.files?.[0]
       if (!file) return
       try {
-        const backup = parseBackup(await file.text())
-        setPendingImport({ backup, count: backup.records.length })
+        const res = readBackupFile(await file.text())
+        if (res.encrypted) {
+          const pass = window.prompt(t('backup.decPrompt'))
+          if (pass == null) return // cancelled
+          const backup = await decryptBackup(res.env, pass)
+          setPendingImport({ backup, count: backup.records.length })
+        } else {
+          setPendingImport({ backup: res.backup, count: res.backup.records.length })
+        }
       } catch (e) { flashBackup((e as Error).message) }
     }
     input.click()
@@ -432,7 +444,8 @@ export function App() {
           <section className="panel">
             <div className="panel-h"><h2>{t('saved.title')}</h2>
               <button type="button" className="minibtn" onClick={exportAllRecords} title="Download a backup file of every saved record">{t('saved.backup')}</button>
-              <button type="button" className="minibtn" onClick={pickBackupFile} title="Restore records from a backup file">{t('saved.restore')}</button>
+              <button type="button" className="minibtn" onClick={exportEncryptedRecords} title="Download a passphrase-encrypted backup (PHI is unreadable without the passphrase)">{t('saved.backupEnc')}</button>
+              <button type="button" className="minibtn" onClick={pickBackupFile} title="Restore records from a backup file (encrypted or plain)">{t('saved.restore')}</button>
               <span className="count">{saved.length}</span>
             </div>
             <div className="panel-b">
