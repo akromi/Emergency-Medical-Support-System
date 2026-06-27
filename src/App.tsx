@@ -298,7 +298,7 @@ export function App() {
         {/* Patient + Incident — top of the workflow: who, and what happened */}
         <div className="idband">
           {/* ---- tombstone ---- */}
-          <section className="panel">
+          <section className="panel" data-tour="patient">
             <div className="panel-h"><h2>{t('tomb.title')}</h2></div>
             <div className="panel-b grid2">
               <label className="field col2"><span>{t('tomb.name')}</span><input value={record.tombstone.name} onChange={(e) => setTomb('name', e.target.value)} placeholder={t('tomb.name_ph')} /></label>
@@ -764,7 +764,7 @@ function HandoverPanel({ handover, onChange, onShare }: {
   const [facility, setFacility] = useState(handover?.facility ?? '')
   const sign = () => onChange({ at: Date.now(), clinician: clinician.trim(), facility: facility.trim() })
   return (
-    <section className="panel">
+    <section className="panel" data-tour="handover">
       <div className="panel-h"><h2>{t('ho.title')}</h2></div>
       <div className="panel-b">
         {handover ? (
