@@ -1,8 +1,9 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import {
   subscribeOperators, getOperatorSnapshot, listOperators, addOperator, removeOperator,
-  setActiveOperator, verifyPin, canManageOperators, type Operator, type Role,
+  setActiveOperator, setOperatorPin, verifyPin, canManageOperators, type Operator, type Role,
 } from '../db/operators'
+import { requireStepUp } from '../db/stepup'
 import { useLang } from '../i18n'
 
 /** Live operator state (active operator + whether the roster is empty). */
@@ -39,6 +40,7 @@ export function OperatorPanel({ onClose }: { onClose: () => void }) {
   async function add(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) return
+    if (!(await requireStepUp(t, 'op.add'))) { setMsg(t('auth.denied')); return }
     await addOperator(name, role, pin || undefined)
     setName(''); setPin(''); setRole('field')
     await reload()
@@ -46,7 +48,20 @@ export function OperatorPanel({ onClose }: { onClose: () => void }) {
 
   async function remove(op: Operator) {
     if (!window.confirm(t('op.removeConfirm', { name: op.name }))) return
+    if (!(await requireStepUp(t, 'op.remove'))) { setMsg(t('auth.denied')); return }
     await removeOperator(op.id)
+    await reload()
+  }
+
+  // Set or change an operator's PIN — the "login password" that gates sensitive
+  // actions. Re-auth first (no-op until someone has a PIN), then prompt for the
+  // new PIN; an empty value clears it.
+  async function changePin(op: Operator) {
+    if (!(await requireStepUp(t, 'op.pin'))) { setMsg(t('auth.denied')); return }
+    const next = window.prompt(t('op.newPinPrompt', { name: op.name }))
+    if (next == null) return
+    await setOperatorPin(op.id, next.trim())
+    setMsg(t('op.pinUpdated'))
     await reload()
   }
 
@@ -74,6 +89,7 @@ export function OperatorPanel({ onClose }: { onClose: () => void }) {
                 <span className="op-role">{t(`op.role.${op.role}`)}{op.pinHash ? ' · 🔑' : ''}</span>
               </button>
               {op.id === active?.id && <span className="op-active">{t('op.onDuty')}</span>}
+              {manage && <button type="button" className="op-pin" onClick={() => changePin(op)} title={t('op.pinTitle')}>{op.pinHash ? t('op.changePin') : t('op.setPin')}</button>}
               {manage && <button type="button" className="x" aria-label={t('op.remove')} onClick={() => remove(op)}>×</button>}
             </li>
           ))}
@@ -89,6 +105,8 @@ export function OperatorPanel({ onClose }: { onClose: () => void }) {
             <button type="submit" className="btn" disabled={!name.trim()}>{t('op.add')}</button>
           </form>
         )}
+
+        <p className="op-hint">{t('op.protectHint')}</p>
       </div>
     </div>
   )
