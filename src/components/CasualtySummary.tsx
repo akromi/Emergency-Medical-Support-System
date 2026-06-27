@@ -4,6 +4,7 @@ import {
   TRIAGE_COLORS, AGE_BAND_LABELS,
 } from '@triage-link/core'
 import { useLang, regionLabel } from '../i18n'
+import { VitalsTrend } from './VitalsTrend'
 
 // Printable one-page casualty card. On screen it's a light "paper" sheet over a
 // backdrop; print CSS (styles.css @media print) hides the app + chrome and
@@ -152,6 +153,7 @@ export function CasualtySummary({ record, onClose }: { record: CasualtyRecord; o
               </tbody>
             </table>
           )}
+          {vitals.length >= 2 && <VitalsTrend vitals={vitals} className="sm-trend" />}
         </Section>
 
         <Section title={t('sm.treatments')} count={treatments.length}>
