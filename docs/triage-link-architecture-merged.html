@@ -166,7 +166,7 @@ code{font-family:var(--mono);font-size:.92em;background:#EEF2F7;padding:1px 5px;
   <main>
   <svg width="0" height="0" style="position:absolute"><defs><filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1A2330" flood-opacity="0.10"/></filter></defs></svg>
 
-  <div class="part"><div class="pl">Part I</div><h2>As Built — current prototype</h2><p>The system exactly as it exists in this repository today: a client-only, offline-first PWA — capture and FHIR export run entirely on the device, with no backend required. PHI can be encrypted at rest (opt-in photo vault + passphrase-encrypted backups); end-user auth is still target-only.</p></div>
+  <div class="part"><div class="pl">Part I</div><h2>As Built — current prototype</h2><p>The system exactly as it exists in this repository today: a client-only, offline-first PWA — capture and FHIR export run entirely on the device, with no backend required. all on-device PHI can be encrypted at rest (an opt-in vault encrypts records, op-log, and photos) plus passphrase-encrypted backups; end-user auth is still target-only.</p></div>
 
   <section id="s1"><div class="sec-h"><span class="n">01</span><h2>Purpose &amp; context</h2></div>
     <p class="lead">TRIAGE-LINK is a digital replacement for the paper triage tag used by emergency responders at accident scenes and mass-casualty incidents. A single responder, often with no network connectivity, captures a patient's identity, injuries, vital signs and treatments at the point of care, then hands that record to a receiving hospital as an HL7&nbsp;FHIR&nbsp;R4 bundle.</p>
@@ -264,7 +264,8 @@ code{font-family:var(--mono);font-size:.92em;background:#EEF2F7;padding:1px 5px;
     database.ts    Dexie schema (records / ops / meta / photos tables)
     repository.ts  save / get / list / remove / clear (+ op-log journaling)
     crypto.ts      WebCrypto AES-256-GCM + PBKDF2 primitives
-    vault.ts       opt-in photo vault (encrypt photos at rest + lock)
+    vault.ts       opt-in vault (encrypt records/ops/photos at rest + lock)
+    record-crypto.ts seal/open record + op-log rows under the vault key
     backup.ts      plain & passphrase-encrypted backup / restore
   <b>components/</b>
     BodyChart.tsx  Interactive anterior/posterior injury-marking SVG
@@ -301,7 +302,7 @@ code{font-family:var(--mono);font-size:.92em;background:#EEF2F7;padding:1px 5px;
     <p>PHI is most exposed in the <strong>exported backup file</strong> (it leaves the device) and the <strong>wound photos</strong> (the heaviest, most identifiable PHI). Both can be encrypted with <strong>AES-256-GCM</strong>, the key derived from a user passphrase via <strong>PBKDF2-SHA-256 (210,000 iterations)</strong> — WebCrypto only, no dependency (<code>src/db/crypto.ts</code>).</p>
     <ul>
       <li><strong>Encrypted backups</strong> (<code>src/db/backup.ts</code>) — alongside the plain JSON export, a backup can be written as a <code>pbkdf2-aesgcm-v1</code> envelope carrying only ciphertext + the KDF salt. Restore auto-detects encrypted vs plain and prompts for the passphrase when needed.</li>
-      <li><strong>Photo vault</strong> (<code>src/db/vault.ts</code>, opt-in, default off) — when enabled, photo blobs are encrypted at rest. <code>enableVault()</code> derives a key, encrypts every existing photo, and persists a passphrase <em>verifier</em> so a wrong passphrase is rejected without touching a photo. <code>photos.ts</code> then transparently encrypts on save and decrypts on load using the in-memory key. The key lives <strong>only in memory</strong> while unlocked; a full-screen <strong>lock screen</strong> gates the UI and a 5-minute <strong>auto-lock</strong> drops it on inactivity. <code>disableVault()</code> decrypts everything back. Only the photo bytes are encrypted (the indexed keys stay clear, so no migration is needed); record text fields remain in the clear today (§14). A lost passphrase is unrecoverable — the encrypted backup is the recovery path.</li>
+      <li><strong>Vault</strong> (<code>src/db/vault.ts</code> + <code>record-crypto.ts</code>, opt-in, default off) — when enabled, <strong>all on-device PHI is encrypted at rest</strong>: record rows, the op-log, and photo blobs. <code>enableVault()</code> derives a key, seals every existing row, and persists a passphrase <em>verifier</em> so a wrong passphrase is rejected without touching data. The repository then transparently <strong>seals on write and opens on read</strong>. Only PHI is encrypted; the indexed / structural keys stay clear (a record keeps <code>id</code>+<code>updatedAt</code>, an op keeps <code>id</code>+<code>recordId</code>+<code>lamport</code>, a photo keeps <code>mime</code>), so no schema migration is needed. The op-log is sealed too because <code>resolve()</code> can rebuild a record from its ops. The key lives <strong>only in memory</strong> while unlocked; a full-screen <strong>lock screen</strong> gates the UI and a 5-minute <strong>auto-lock</strong> drops it on inactivity; while locked nothing decrypts. <code>disableVault()</code> decrypts everything back. The key is committed before sealing (config removed after decrypting) so a crash mid-migration never orphans data. A lost passphrase is unrecoverable — the encrypted backup is the recovery path.</li>
     </ul>
   </section>
 
@@ -769,7 +770,7 @@ code{font-family:var(--mono);font-size:.92em;background:#EEF2F7;padding:1px 5px;
   </section>
 
   <section id="s14"><div class="sec-h"><span class="n">14</span><h2>Security &amp; privacy</h2></div>
-    <p><strong>Status: partially implemented.</strong> Hardened so far: at-rest encryption of wound photos (opt-in vault) and exported backups, both AES-256-GCM/PBKDF2 (§6.1); a passphrase lock screen with auto-lock; backend API auth (bearer token, constant-time compare), rate-limiting, CORS allowlist and <code>helmet</code> headers on the sync service; a client Content-Security-Policy and security headers; and CI security scanning (CodeQL, secret scan, <code>npm audit</code>). Still open: end-user auth on the PWA, encryption of record text fields, RBAC, and immutable audit logging. A real deployment applies defense-in-depth across every layer rather than a perimeter alone.</p>
+    <p><strong>Status: partially implemented.</strong> Hardened so far: at-rest encryption of <strong>all on-device PHI</strong> — records, op-log, and photos — via the opt-in vault, plus exported backups, all AES-256-GCM/PBKDF2 (§6.1); a passphrase lock screen with auto-lock; backend API auth (bearer token, constant-time compare), rate-limiting, CORS allowlist and <code>helmet</code> headers on the sync service; a client Content-Security-Policy and security headers; and CI security scanning (CodeQL, secret scan, <code>npm audit</code>). Still open: end-user auth on the PWA, RBAC, and immutable audit logging. A real deployment applies defense-in-depth across every layer rather than a perimeter alone.</p>
     <figure>
       <div class="figbody">
       <svg viewBox="0 0 900 300" role="img" aria-label="Defense in depth security layers">
@@ -790,7 +791,7 @@ code{font-family:var(--mono);font-size:.92em;background:#EEF2F7;padding:1px 5px;
       <figcaption><b>FIG 8</b> — Defense in depth. Each ring is independently enforced; a breach of one does not expose the PHI at the centre.</figcaption>
     </figure>
     <table><thead><tr><th>Domain</th><th>Requirement</th><th></th></tr></thead><tbody>
-      <tr><td><b>Encryption</b></td><td>TLS 1.3 in transit; AES-256 at rest on device, DB, backups; mTLS between services. <em>Partly built:</em> AES-256-GCM at rest for photos (opt-in vault) and encrypted backups (§6.1)</td><td><span class="pill p-must">Must</span></td></tr>
+      <tr><td><b>Encryption</b></td><td>TLS 1.3 in transit; AES-256 at rest on device, DB, backups; mTLS between services. <em>Partly built:</em> AES-256-GCM at rest for records, op-log, and photos (opt-in vault) and encrypted backups (§6.1)</td><td><span class="pill p-must">Must</span></td></tr>
       <tr><td><b>Device security</b></td><td>Full-disk encryption, biometric lock, MDM, remote wipe for lost devices</td><td><span class="pill p-must">Must</span></td></tr>
       <tr><td><b>Authentication</b></td><td>OAuth2/OIDC for users; SMART-on-FHIR for EHR integration; MFA for privileged roles</td><td><span class="pill p-must">Must</span></td></tr>
       <tr><td><b>Authorisation</b></td><td>RBAC with least privilege; field / dispatch / clinician / admin scoped separately</td><td><span class="pill p-must">Must</span></td></tr>
@@ -834,7 +835,7 @@ code{font-family:var(--mono);font-size:.92em;background:#EEF2F7;padding:1px 5px;
       <li><strong>Conflict-aware sync.</strong> Wrap <code>recordRepo</code> with an operation log and reconcile records against a central service (§12).</li>
       <li><strong>Anatomical body chart.</strong> Replace the rectangular <code>regions.ts</code> zones with a precise anatomical SVG (burn TBSA, named bones) — <code>regionAt()</code> is the single seam to swap.</li>
       <li><strong>Handover scanning.</strong> NFC/QR handover plus master-patient-index reconciliation.</li>
-      <li><strong>Security hardening.</strong> Auth (OAuth2/OIDC, SMART-on-FHIR), audit logging, and extending at-rest encryption to record text fields — photos &amp; backups already done (§6.1, §14).</li>
+      <li><strong>Security hardening.</strong> Auth (OAuth2/OIDC, SMART-on-FHIR), audit logging, RBAC — at-rest encryption of records, op-log, photos &amp; backups already done (§6.1, §14).</li>
       <li><strong>Reuse on other clients.</strong> The <code>domain</code> + <code>fhir</code> modules could back a React Native app or a Node sync service unchanged.</li>
     </ul>
   </section>

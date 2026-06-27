@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie'
 import { diffToOps, type CasualtyRecord, type Op } from '@triage-link/core'
+import type { SealedRecord, SealedOp } from './record-crypto'
 
 /** Sync bookkeeping: persistent clientId and the device's Lamport clock. */
 export interface MetaRow {
@@ -22,8 +23,10 @@ export interface PhotoRow {
 
 // IndexedDB store. Works fully offline; the unit of sync is one record.
 export class TriageDB extends Dexie {
-  records!: Table<CasualtyRecord, string>
-  ops!: Table<Op, string>
+  // Rows may be plaintext or vault-sealed (see db/record-crypto.ts); the
+  // repository seals on write and opens on read.
+  records!: Table<CasualtyRecord | SealedRecord, string>
+  ops!: Table<Op | SealedOp, string>
   meta!: Table<MetaRow, string>
   photos!: Table<PhotoRow, string>
 

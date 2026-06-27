@@ -1,6 +1,7 @@
 import Dexie from 'dexie'
 import { db } from './database'
 import { deriveKey, randomSaltB64, encryptBytes, decryptBytes, encryptString, decryptString, VAULT_CHECK_PLAINTEXT } from './crypto'
+import { encryptAllRecords, decryptAllRecords, encryptAllOps, decryptAllOps } from './record-crypto'
 
 // Opt-in "photo vault": when enabled, wound-photo bytes are encrypted at rest
 // (AES-256-GCM, key derived from a passphrase via PBKDF2). Photos are the
@@ -119,21 +120,27 @@ async function decryptAllPhotos(k: CryptoKey): Promise<void> {
 }
 
 /**
- * Turn the vault on: derive a key from the passphrase, encrypt all existing
- * photos, persist the verifier, and leave the vault unlocked. Idempotent-safe:
- * throws if already enabled.
+ * Turn the vault on: derive a key from the passphrase, persist the verifier,
+ * then encrypt all existing photos, records, and op-log entries at rest, leaving
+ * the vault unlocked. Idempotent-safe: throws if already enabled.
+ *
+ * The verifier + key are committed BEFORE sealing data so a crash mid-migration
+ * leaves the vault enabled and every row still openable on unlock (sealed and
+ * plaintext rows both read correctly) — data is never orphaned.
  */
 export async function enableVault(passphrase: string): Promise<void> {
   if (enabled) throw new Error('Vault is already enabled.')
   const salt = randomSaltB64()
   const k = await deriveKey(passphrase, salt, PBKDF2_ITER)
-  await encryptAllPhotos(k)
   const config: VaultConfig = { salt, iter: PBKDF2_ITER, check: await encryptString(k, VAULT_CHECK_PLAINTEXT) }
   await db.meta.put({ key: META_KEY, value: JSON.stringify(config) })
   key = k
   enabled = true
-  armAutoLock()
   emit()
+  await encryptAllPhotos(k)
+  await encryptAllRecords(k)
+  await encryptAllOps(k)
+  armAutoLock()
 }
 
 /** Unlock with a passphrase; returns false (and stays locked) if it's wrong. */
@@ -153,7 +160,9 @@ export async function unlock(passphrase: string): Promise<boolean> {
   return true
 }
 
-/** Turn the vault off: requires the passphrase, decrypts all photos to plaintext. */
+/** Turn the vault off: requires the passphrase, decrypts photos, records, and
+ *  ops back to plaintext. The config row is removed LAST so a crash mid-decrypt
+ *  leaves the vault enabled and the data readable on unlock. */
 export async function disableVault(passphrase: string): Promise<boolean> {
   const config = await readConfig()
   if (!config) { enabled = false; emit(); return true }
@@ -164,6 +173,8 @@ export async function disableVault(passphrase: string): Promise<boolean> {
     return false
   }
   await decryptAllPhotos(k)
+  await decryptAllRecords(k)
+  await decryptAllOps(k)
   await db.meta.delete(META_KEY)
   key = null
   enabled = false

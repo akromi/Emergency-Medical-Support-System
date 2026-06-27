@@ -50,22 +50,24 @@ describe('photo vault (opt-in at-rest encryption)', () => {
     expect(got!.injuries[0].photos[0]).toBe(TINY_PNG)
   })
 
-  it('hides photos when locked and reveals them after unlock', async () => {
+  it('hides the whole record when locked and reveals it after unlock', async () => {
     await recordRepo.save(recordWithPhoto('CASE-A'))
     await enableVault('passphrase-1')
 
     lock()
     expect(getState()).toBe('locked')
     expect(getKey()).toBeNull()
-    const locked = await recordRepo.get('CASE-A')
-    expect(locked!.injuries[0].photos[0]).toMatch(/^idb:/) // unreadable ref, no bytes
+    // Sealed record + ops are unreadable while locked: get() returns undefined,
+    // list() returns nothing.
+    expect(await recordRepo.get('CASE-A')).toBeUndefined()
+    expect(await recordRepo.list()).toEqual([])
 
     expect(await unlock('wrong')).toBe(false)
     expect(getState()).toBe('locked')
 
     expect(await unlock('passphrase-1')).toBe(true)
     const unlocked = await recordRepo.get('CASE-A')
-    expect(unlocked!.injuries[0].photos[0]).toBe(TINY_PNG)
+    expect(unlocked!.injuries[0].photos[0]).toBe(TINY_PNG) // record + photo readable again
   })
 
   it('round-trips photos saved while the vault is on', async () => {

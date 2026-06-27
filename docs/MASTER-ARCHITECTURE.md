@@ -567,14 +567,15 @@ via SMART-on-FHIR; the provincial EHR via the ONE Access Gateway with mutual TLS
 
 ## 10. Security & privacy
 
-**Status: prototype (partially hardened).** Data is local to the device; wound photos and
-exported backups can be encrypted at rest (AES-256-GCM/PBKDF2), and the sync backend is
-auth/rate-limit/CORS-gated. There is still no end-user auth on the PWA, and record text fields
-are not yet encrypted. A production deployment applies defense-in-depth:
+**Status: prototype (partially hardened).** Data is local to the device; an opt-in vault
+encrypts **all on-device PHI at rest** — records, the op-log, and photos — and exported backups
+can be passphrase-encrypted (AES-256-GCM/PBKDF2), and the sync backend is
+auth/rate-limit/CORS-gated. There is still no end-user auth on the PWA. A production deployment
+applies defense-in-depth:
 
 | Domain | Requirement | Priority |
 |---|---|---|
-| Encryption | TLS 1.3 in transit; AES-256 at rest (device, DB, backups); **mTLS** to the EHR gateway. *Partly built:* AES-256-GCM at rest for photos (opt-in vault) and encrypted backups | Must |
+| Encryption | TLS 1.3 in transit; AES-256 at rest (device, DB, backups); **mTLS** to the EHR gateway. *Partly built:* AES-256-GCM at rest for records, op-log, and photos (opt-in vault) and encrypted backups | Must |
 | Device security | Full-disk encryption, screen/biometric lock, MDM, remote wipe | Must |
 | Authentication | OAuth2/OIDC for users; **ONE ID** for the EHR; SMART-on-FHIR for hospital EHR; MFA for privileged roles | Must |
 | Authorisation | RBAC, least privilege; field/dispatch/clinician/admin scoped separately | Must |
@@ -583,9 +584,10 @@ are not yet encrypted. A production deployment applies defense-in-depth:
 | Secrets | ONE ID secrets and client certs live only on the backend; never in the PWA, source, or images | Must |
 | Integrity at handover | Signing / provenance on the exported/contributed bundle | Should |
 
-**Implemented today:** opt-in **photo vault** — wound photos encrypted at rest (AES-256-GCM,
-key from a passphrase via PBKDF2-SHA-256, 210k iterations), with a passphrase lock screen and
-auto-lock, the key held only in memory; **passphrase-encrypted backups**; sync-service **bearer
+**Implemented today:** opt-in **vault** — all on-device PHI (records, op-log, and photos)
+encrypted at rest (AES-256-GCM, key from a passphrase via PBKDF2-SHA-256, 210k iterations), with
+a passphrase lock screen and auto-lock, the key held only in memory; **passphrase-encrypted
+backups**; sync-service **bearer
 auth** (constant-time), **rate-limiting**, **CORS allowlist** and `helmet` headers; a client
 **Content-Security-Policy** and security headers; **CI security scanning** (CodeQL, secret scan,
 `npm audit`); fail-closed EHR provider selection; idempotent-only retries (no duplicate writes);
@@ -619,8 +621,8 @@ per-access ATNA audit persisted to PostgreSQL; the PWA never holds EHR credentia
 
 Because the domain, FHIR, and EHR layers are framework-free, several items add without UI changes:
 
-- **Sync hardening** — end-user auth, encryption of record text fields at rest (photos + backups
-  already encryptable), incremental per-client cursors, cross-device tombstone deletes.
+- **Sync hardening** — end-user auth, incremental per-client cursors, cross-device tombstone
+  deletes. (At-rest encryption of records, op-log, photos, and backups is already built.)
 - **EHR breadth** — richer `fetchContext` (typed DHDR/OLIS/Patient Summary resources); SMART-on-FHIR.
 - **Profiles** — validate emitted resources against CA Baseline / Ontario PCR profiles.
 - **Handover scanning** — NFC/QR handover + master-patient-index reconciliation.
