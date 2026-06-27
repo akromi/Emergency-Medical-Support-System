@@ -16,6 +16,7 @@ import { type TenantStore, bearerToken } from './tenant-store.js'
 import { registerAdminRoutes } from './admin-routes.js'
 import type { Metrics, AccessLogEntry } from './metrics.js'
 import type { AdminAuditStore } from './admin-audit-store.js'
+import type { OidcVerifier } from './oidc.js'
 
 // The authenticated tenant for the current request (DEFAULT_TENANT when auth is
 // off or the single-tenant authToken is used).
@@ -99,7 +100,7 @@ const SYNC_BODY_SCHEMA = {
 }
 
 export function buildApp(
-  { store, ehr, ehrAudit, tenantStore, adminAuditStore, metrics, onAccessLog, docs = true, security = {} }: {
+  { store, ehr, ehrAudit, tenantStore, adminAuditStore, oidcVerifier, metrics, onAccessLog, docs = true, security = {} }: {
     store: OpStore
     ehr?: EhrGateway
     ehrAudit?: EhrAuditStore
@@ -110,6 +111,9 @@ export function buildApp(
     /** Audit trail for admin-action logging; with the admin API, mutations are
      *  recorded and readable at `/admin/audit`. */
     adminAuditStore?: AdminAuditStore
+    /** OIDC verifier for the admin surface. When provided, a valid IdP-issued
+     *  JWT authenticates `/admin/*` (alongside the static `adminToken`, if any). */
+    oidcVerifier?: OidcVerifier
     /** Per-tenant operational counters. When provided, requests are counted and
      *  (with the admin API) exposed at `/admin/metrics`. */
     metrics?: Metrics
@@ -165,6 +169,18 @@ export function buildApp(
     ...(security.authToken ? [{ id: DEFAULT_TENANT, token: security.authToken }] : []),
   ]
   const adminToken = security.adminToken
+  const adminAuthConfigured = !!adminToken || !!oidcVerifier
+
+  // Authorize an admin request: the static admin token OR a valid IdP-issued
+  // JWT (OIDC). Either suffices; OIDC failures fall through to a 401.
+  const adminAuthorized = async (header: string | undefined): Promise<boolean> => {
+    if (adminToken && bearerOk(header, adminToken)) return true
+    if (oidcVerifier) {
+      const token = bearerToken(header)
+      if (token) { try { await oidcVerifier.verify(token); return true } catch { /* not a valid OIDC token */ } }
+    }
+    return false
+  }
 
   // Resolve a bearer credential to a tenant id: static tokens first
   // (constant-time; first match wins, count isn't secret), then the runtime
@@ -180,15 +196,15 @@ export function buildApp(
   // Data routes are authenticated when any static token is configured OR the
   // admin API is enabled (which implies runtime-managed DB credentials). With
   // none of these, the service stays open under the single default tenant.
-  const dataAuthEnabled = tenantTokens.length > 0 || !!adminToken
-  if (dataAuthEnabled || adminToken) {
+  const dataAuthEnabled = tenantTokens.length > 0 || adminAuthConfigured
+  if (dataAuthEnabled || adminAuthConfigured) {
     app.addHook('onRequest', async (req, reply) => {
       const path = req.url.split('?')[0]
 
-      // Admin API: its own gate (a single operator token), separate from tenants.
+      // Admin API: its own gate (static admin token or OIDC), separate from tenants.
       if (path.startsWith('/admin')) {
-        if (!adminToken || !bearerOk(req.headers.authorization, adminToken)) {
-          return reply.code(401).send({ error: 'unauthorized', message: 'Admin token required' })
+        if (!(await adminAuthorized(req.headers.authorization))) {
+          return reply.code(401).send({ error: 'unauthorized', message: 'Admin authentication required' })
         }
         return
       }
@@ -268,8 +284,9 @@ export function buildApp(
   if (ehr) registerEhrRoutes(app, ehr)
   if (ehrAudit) registerEhrAuditRoute(app, ehrAudit)
 
-  // Tenant-admin API — only when a tenant store AND an admin token are both set.
-  if (tenantStore && adminToken) registerAdminRoutes(app, tenantStore, metrics, adminAuditStore)
+  // Tenant-admin API — only when a tenant store AND admin auth (static token or
+  // OIDC) are configured.
+  if (tenantStore && adminAuthConfigured) registerAdminRoutes(app, tenantStore, metrics, adminAuditStore)
 
   // Push a batch of ops and pull back the resolved state + full op set.
   app.post('/sync', {
