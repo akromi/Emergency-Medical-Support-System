@@ -11,6 +11,7 @@ import { AdminAuditStore, migrateAdminAudit } from './admin-audit-store.js'
 import { Metrics } from './metrics.js'
 import { DEFAULT_TENANT } from './ops-store.js'
 import { currentTenant } from './tenant-context.js'
+import { createOidcVerifier, type OidcVerifier } from './oidc.js'
 
 // Select the provincial EHR adapter from the environment.
 //
@@ -128,8 +129,18 @@ async function main(): Promise<void> {
   await migrateAdminAudit(pool)
   const ehrAudit = new EhrAuditStore(pool)
   const security = buildSecurity()
-  if (!security.adminToken) {
-    console.warn('SYNC_ADMIN_TOKEN is not set — the tenant-admin API (/admin/*) is disabled.')
+  // OIDC admin auth (optional): set OIDC_ISSUER (+ OIDC_AUDIENCE, OIDC_JWKS_URI)
+  // to let admins authenticate /admin/* with an IdP-issued JWT. OIDC_AUDIENCE is
+  // REQUIRED when OIDC_ISSUER is set — without it, a token minted for any other
+  // app in the same IdP would be accepted at /admin/*.
+  if (process.env.OIDC_ISSUER && !process.env.OIDC_AUDIENCE) {
+    throw new Error('OIDC_AUDIENCE is required when OIDC_ISSUER is set.')
+  }
+  const oidcVerifier: OidcVerifier | undefined = process.env.OIDC_ISSUER
+    ? createOidcVerifier({ issuer: process.env.OIDC_ISSUER, audience: process.env.OIDC_AUDIENCE!, jwksUri: process.env.OIDC_JWKS_URI })
+    : undefined
+  if (!security.adminToken && !oidcVerifier) {
+    console.warn('Neither SYNC_ADMIN_TOKEN nor OIDC_ISSUER is set — the tenant-admin API (/admin/*) is disabled.')
   }
   // Structured access logging is opt-in (LOG_REQUESTS=true) so it doesn't spam
   // dev consoles; per-tenant counters are always collected and exposed at
@@ -141,6 +152,7 @@ async function main(): Promise<void> {
     ehrAudit,
     tenantStore: new TenantStore(pool),
     adminAuditStore: new AdminAuditStore(pool),
+    oidcVerifier,
     metrics: new Metrics(),
     onAccessLog: logRequests ? (e) => console.log(JSON.stringify({ t: 'access', ...e })) : undefined,
     security,

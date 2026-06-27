@@ -55,6 +55,20 @@ IP, but **never the token** — readable at **`GET /admin/audit`** (optionally
 `?tenant=`). A SOC 2 / forensics control; reads (GET) are not audited. Covered by
 `test/admin-audit.integration.test.ts`.
 
+### Admin SSO (OIDC)
+
+Instead of (or alongside) the shared `SYNC_ADMIN_TOKEN`, the admin surface accepts
+an **IdP-issued JWT** — vendor-neutral (Auth0, Okta, Entra ID, Keycloak, Google).
+Set **`OIDC_ISSUER`** and **`OIDC_AUDIENCE`** (both required — without an
+audience, a token minted for any other app in the same IdP would be accepted;
+optionally `OIDC_JWKS_URI` to skip discovery) and `/admin/*` accepts
+`Authorization: Bearer <jwt>` when the token's signature (RS256/384/512 against
+the issuer's JWKS), issuer, audience, and a numeric future expiry all check out. `none`, HS\* (the alg-confusion
+vector), and EC algorithms are rejected; JWKS is cached and refetched on key
+rotation. Covered by `test/oidc.integration.test.ts`. *(Role/claim → admin
+mapping and recording the JWT subject as the admin-audit actor are the next
+step.)*
+
 ### Per-tenant observability
 
 The service collects in-memory, **per-tenant** counters — `syncRequests`,
