@@ -26,22 +26,10 @@ import { contributeHandover, EhrUnavailableError } from './ehr/client'
 import { useLang, regionLabel, nextLang } from './i18n'
 
 const TRIAGE_ORDER: TriageCategory[] = ['immediate', 'delayed', 'minor', 'deceased']
-// The EHR Test Lab is developer/QA furniture (offline, mock-only). Hide it from
-// the field UI in production, but reveal it on demand with a ?lab (or ?lab=1)
-// URL flag — and always show it in dev. The flag persists to sessionStorage so
-// it survives in-app navigation within the tab.
-const labEnabled = (): boolean => {
-  if (import.meta.env.DEV) return true
-  try {
-    const params = new URLSearchParams(window.location.search)
-    if (params.has('lab') && params.get('lab') !== '0') {
-      sessionStorage.setItem('tl.lab', '1')
-    }
-    return sessionStorage.getItem('tl.lab') === '1'
-  } catch {
-    return false
-  }
-}
+// The EHR Test Lab is developer/QA furniture (offline, mock-only). It is gated
+// on `import.meta.env.DEV`, so production builds tree-shake the whole console
+// (and its mock gateway) out of the bundle — there is no production URL flag
+// or other way to reach it.
 const VITALS_KEYS = ['hr', 'bp', 'rr', 'spo2', 'gcs', 'pain'] as const
 const VITALS_PH: Record<(typeof VITALS_KEYS)[number], string> = {
   hr: 'bpm', bp: '120/80', rr: '/min', spo2: '%', gcs: '3–15', pain: '0–10',
@@ -70,7 +58,6 @@ export function App() {
   const [photoError, setPhotoError] = useState('')
   const [showTour, setShowTour] = useState(false)
   const [showEhrLab, setShowEhrLab] = useState(false)
-  const [showLab] = useState(labEnabled)
   const [menuOpen, setMenuOpen] = useState(false)
   const [tourOffered, dismissTourOffer] = useDismissed('tour-offered')
   const [backupMsg, setBackupMsg] = useState('')
@@ -245,7 +232,7 @@ export function App() {
           <button className="topbtn" data-tour="summary" onClick={() => setShowSummary(true)} title="One-page casualty card — print or save as PDF for handover">{t('hdr.summary')}</button>
           <button className="topbtn" onClick={() => setShowTour(true)} title="Replay the guided tour">{t('hdr.tour')}</button>
           <button className="topbtn" onClick={sendToEhr} title="Contribute this handover to the provincial EHR">{t('hdr.ehr')}</button>
-          {showLab && (
+          {import.meta.env.DEV && (
             <button className="topbtn" onClick={() => setShowEhrLab(true)} title="Interactive lab to test the EHR integration against a stubbed gateway">{t('hdr.ehrlab')}</button>
           )}
           <button className="topbtn primary" onClick={exportFhir} title="Download an interoperable FHIR record">{t('hdr.fhir')}</button>
@@ -493,7 +480,7 @@ export function App() {
         onClose={() => setShowTour(false)}
       />
     )}
-    {showLab && showEhrLab && <EhrTestConsole record={record} onClose={() => setShowEhrLab(false)} />}
+    {import.meta.env.DEV && showEhrLab && <EhrTestConsole record={record} onClose={() => setShowEhrLab(false)} />}
     </>
   )
 }

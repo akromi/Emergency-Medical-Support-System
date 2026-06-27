@@ -1,0 +1,14 @@
+# Security response headers for static hosts that honour a `_headers` file
+# (Netlify, Cloudflare Pages). These are the headers a <meta> tag CANNOT set —
+# the Content-Security-Policy is injected as a meta tag at build time (see
+# vite.config.ts) so it also applies on hosts without header support (e.g.
+# GitHub Pages). nginx/Apache operators should set the same headers in their
+# server config.
+/*
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(self), microphone=(), geolocation=(), payment=(), usb=(), accelerometer=(), gyroscope=(), magnetometer=()
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
