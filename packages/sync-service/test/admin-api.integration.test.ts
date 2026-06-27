@@ -118,8 +118,16 @@ describe('tenant-admin API', () => {
     expect((await h.sync(key.token, [], 'a')).statusCode).toBe(200)
   })
 
-  it('issuing a key for an unknown tenant is a 404', async () => {
+  it('issuing or listing keys for an unknown tenant is a 404', async () => {
     expect((await h.admin('POST', '/admin/tenants/ghost/keys')).statusCode).toBe(404)
+    // An unknown tenant must be distinguishable from a real, key-less one.
+    expect((await h.admin('GET', '/admin/tenants/ghost/keys')).statusCode).toBe(404)
+  })
+
+  it('rejects a non-numeric keyId with 400 (not a 500)', async () => {
+    await h.admin('POST', '/admin/tenants', { id: 'org-a', name: 'A' })
+    const bad = await h.admin('DELETE', '/admin/tenants/org-a/keys/not-a-number')
+    expect(bad.statusCode).toBe(400)
   })
 
   it('lists tenants', async () => {

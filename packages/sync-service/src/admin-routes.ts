@@ -66,16 +66,26 @@ export function registerAdminRoutes(app: FastifyInstance, tenants: TenantStore):
     return reply.code(201).send(await tenants.issueKey(id, label))
   })
 
-  // List a tenant's keys (hints + metadata only — never the tokens).
-  app.get('/admin/tenants/:id/keys', HIDDEN, async (req) => {
+  // List a tenant's keys (hints + metadata only — never the tokens). 404 on an
+  // unknown tenant so a typo'd id is distinguishable from a real empty tenant.
+  app.get('/admin/tenants/:id/keys', HIDDEN, async (req, reply) => {
     const { id } = req.params as { id: string }
+    if (!(await tenants.getTenant(id))) {
+      return reply.code(404).send({ error: 'not_found', message: `Tenant '${id}' not found` })
+    }
     return { keys: await tenants.listKeys(id) }
   })
 
   // Revoke a key (rotation = issue a new key, then revoke the old one).
   app.delete('/admin/tenants/:id/keys/:keyId', HIDDEN, async (req, reply) => {
     const { id, keyId } = req.params as { id: string; keyId: string }
-    if (!(await tenants.revokeKey(id, Number(keyId)))) {
+    // Guard the id: a non-numeric path segment would otherwise reach a bigint
+    // comparison and surface as a 500 instead of a controlled 400.
+    const numericKeyId = Number(keyId)
+    if (!Number.isInteger(numericKeyId) || numericKeyId <= 0) {
+      return reply.code(400).send({ error: 'bad_request', message: 'keyId must be a positive integer' })
+    }
+    if (!(await tenants.revokeKey(id, numericKeyId))) {
       return reply.code(404).send({ error: 'not_found', message: 'Key not found or already revoked' })
     }
     return { revoked: true }
