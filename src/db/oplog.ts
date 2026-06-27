@@ -12,6 +12,18 @@ async function getMeta(key: string): Promise<string | undefined> {
   return (await db.meta.get(key))?.value
 }
 
+/** Ids of ops the server has acknowledged (so we don't re-push them). Bounded to
+ *  the live op-log — pruned on each sync, reset when the log is wiped. */
+async function getAckedOpIds(): Promise<Set<string>> {
+  const raw = await getMeta('sync.acked')
+  if (!raw) return new Set()
+  try {
+    return new Set(JSON.parse(raw) as string[])
+  } catch {
+    return new Set()
+  }
+}
+
 /**
  * Stable per-device id, created once and persisted. The get-or-create runs in a
  * single `rw` transaction so overlapping callers/tabs can't persist two ids
@@ -54,11 +66,15 @@ export async function allOps(): Promise<Op[]> {
 export async function syncWithServer(baseUrl: string): Promise<void> {
   const clientId = await getClientId()
   const localOps = await allOps()
+  // Narrowed push: send only ops the server hasn't already acknowledged, so a
+  // sync uploads the delta instead of the whole local log every time.
+  const acked = await getAckedOpIds()
+  const toPush = acked.size ? localOps.filter((o) => !acked.has(o.id)) : localOps
   // Incremental pull: send the cursor from our last sync so the server returns
   // only ops appended since it. Absent on the first sync (or after a wipe) → the
   // server replies with full state and we adopt its cursor below.
   const cursor = await getMeta('sync.cursor')
-  const body: { clientId: string; ops: Op[]; since?: number } = { clientId, ops: localOps }
+  const body: { clientId: string; ops: Op[]; since?: number } = { clientId, ops: toPush }
   if (cursor != null) body.since = Number(cursor)
   const res = await fetch(`${baseUrl}/sync`, {
     method: 'POST',
@@ -88,6 +104,17 @@ export async function syncWithServer(baseUrl: string): Promise<void> {
     if (typeof data.cursor === 'number') {
       await db.meta.put({ key: 'sync.cursor', value: String(data.cursor) })
     }
+
+    // Record which ops the server now has — previously-acked ops still present,
+    // the ops we just pushed, and the ops it returned — so the next push skips
+    // them. Intersected with the live log (no overlap between the three sets) so
+    // it stays bounded and drops ids of deleted records.
+    const live = new Set(allOpsNow.map((o) => o.id))
+    const nextAcked: string[] = []
+    for (const id of acked) if (live.has(id)) nextAcked.push(id)
+    for (const o of toPush) if (live.has(o.id) && !acked.has(o.id)) nextAcked.push(o.id)
+    for (const o of incoming) nextAcked.push(o.id)
+    await db.meta.put({ key: 'sync.acked', value: JSON.stringify(nextAcked) })
 
     // Re-fold each record from the CURRENT local op-log (server ops + any ops
     // appended while the request was in flight) rather than trusting the server
