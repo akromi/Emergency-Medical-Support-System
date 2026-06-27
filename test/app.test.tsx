@@ -118,6 +118,24 @@ describe('App — Arabic via URL switch (RTL)', () => {
   })
 })
 
+describe('App — Persian via URL switch (RTL)', () => {
+  it('reads ?lang=fa, renders Persian, and sets RTL direction', async () => {
+    localStorage.removeItem('tl.lang')
+    window.history.replaceState({}, '', '/?lang=fa')
+    try {
+      render(<LangProvider><App /></LangProvider>)
+      expect(await screen.findByText('پرونده مصدوم میدانی')).toBeInTheDocument()
+      expect(document.documentElement.lang).toBe('fa')
+      expect(document.documentElement.dir).toBe('rtl')
+      expect(localStorage.getItem('tl.lang')).toBe('fa')
+    } finally {
+      window.history.replaceState({}, '', '/')
+      document.documentElement.dir = 'ltr'
+      localStorage.removeItem('tl.lang')
+    }
+  })
+})
+
 describe('App — handover sign-off', () => {
   it('stamps a handover from the receiving clinician and can undo it', async () => {
     const user = userEvent.setup()

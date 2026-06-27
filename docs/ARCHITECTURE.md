@@ -42,7 +42,7 @@ as an HL7 FHIR R4 bundle.
 2. **Runs anywhere, installs like an app.** Responders carry heterogeneous devices; a single codebase must run on all of them.
 3. **Interoperates with hospital systems.** Handover output must be in a format hospital EHRs already understand.
 4. **Fast, low-friction capture.** Tap-to-mark injuries; auto-save; no modal "save" step.
-5. **Usable in the responder's language.** The interface is multilingual (English / French / Arabic, including right-to-left) and selectable offline via a toggle or a `?lang=` URL switch.
+5. **Usable in the responder's language.** The interface is multilingual (English / French / Arabic / Persian, including right-to-left) and selectable offline via a toggle or a `?lang=` URL switch.
 
 ## 2. Architectural goals & principles
 
@@ -63,7 +63,7 @@ as an HL7 FHIR R4 bundle.
 | Build / dev server | **Vite 8** | Fast dev server, simple static production build |
 | Offline storage | **IndexedDB** via **Dexie 4** | Durable, async, on-device store with a typed table API; no backend needed |
 | Offline shell | **vite-plugin-pwa** (Workbox) | Service worker precaches the app so it loads with no network |
-| Localization | In-house **React-context i18n** (EN/FR/AR, RTL) | No dependency; offline-first; flat dictionaries with English fallback; `?lang=` URL switch |
+| Localization | In-house **React-context i18n** (EN/FR/AR/FA, RTL) | No dependency; offline-first; flat dictionaries with English fallback; `?lang=` URL switch |
 | Interop | **HL7 FHIR R4** | The de-facto hospital EHR exchange standard |
 
 There are intentionally **no runtime dependencies** beyond React and Dexie — the domain,

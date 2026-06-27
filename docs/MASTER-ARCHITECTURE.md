@@ -52,8 +52,8 @@ The system has three cooperating tiers:
 The defining constraint is **offline-first**: the scene may have no signal, so the device is
 authoritative locally and reconciles later. The defining interoperability choice is **HL7
 FHIR R4**, so hospital EHRs and the provincial registry understand the record without a
-bespoke format. The interface is **trilingual** (English / French / Arabic, including
-right-to-left), so a responder captures and hands over in their own language.
+bespoke format. The interface is **multilingual** (English / French / Arabic / Persian,
+including right-to-left), so a responder captures and hands over in their own language.
 
 ### Primary actors
 
@@ -87,7 +87,7 @@ right-to-left), so a responder captures and hands over in their own language.
 | **F-13** | Pull clinical context (meds/allergies/labs) for a resolved patient | ✅ |
 | **F-14** | Contribute a casualty handover to the EHR (write) where entitled | ✅ |
 | **F-15** | Durable, queryable audit trail of every EHR access (ATNA AuditEvent) | ✅ |
-| **F-16** | Multilingual UI (English / French / Arabic) with persistent choice and right-to-left layout; selectable via in-app toggle or a `?lang=` URL switch | ✅ |
+| **F-16** | Multilingual UI (English / French / Arabic / Persian) with persistent choice and right-to-left layout (Arabic & Persian); selectable via in-app toggle or a `?lang=` URL switch | ✅ |
 | **F-17** | Live time-since-injury clock (`T+` elapsed) on the acuity glance, triage board, and casualty card | ✅ |
 | **F-18** | Handover sign-off (receiving clinician + facility, auto-timestamped) reflected on the saved list, triage board, and casualty card | ✅ |
 | **F-19** | Triage board search (name / ID / mechanism / location) and on-scene vs handed-over filtering | ✅ |
@@ -167,8 +167,8 @@ right-to-left), so a responder captures and hands over in their own language.
 
 ### UC-8 — Document in the responder's language (multilingual / RTL)
 **Actor:** Field responder. **Precondition:** None (works fully offline).
-1. The interface loads in the responder's language — chosen from the header 🌐 toggle (cycles English → French → Arabic) or forced by a `?lang=ar` URL switch (handy for kiosks/QR links). The choice persists to `localStorage`, so it sticks until switched.
-2. For Arabic, the document direction flips to right-to-left; the whole clinical UI, the guided tour voice-over, the anatomical region names, and the printable casualty card render in-language. Patient data (names, IDs, treatment/injury *keys*) stays language-neutral so the record and its FHIR export are unaffected.
+1. The interface loads in the responder's language — chosen from the header 🌐 toggle (cycles English → French → Arabic → Persian) or forced by a `?lang=ar` / `?lang=fa` URL switch (handy for kiosks/QR links). The choice persists to `localStorage`, so it sticks until switched.
+2. For Arabic and Persian, the document direction flips to right-to-left; the whole clinical UI, the guided tour voice-over, the anatomical region names, and the printable casualty card render in-language. Patient data (names, IDs, treatment/injury *keys*) stays language-neutral so the record and its FHIR export are unaffected.
 **Outcome:** A field responder captures and hands over entirely in their own language without changing the underlying record.
 
 ### UC-9 — Sign off and share a handover
@@ -189,7 +189,7 @@ right-to-left), so a responder captures and hands over in their own language.
 | Build / dev | **Vite** | 8.1 | Fast dev server; simple static production build |
 | Offline storage | **IndexedDB** via **Dexie** | 4.0 | Durable, async, typed on-device store; no backend needed |
 | Offline shell | **vite-plugin-pwa** (Workbox) | 1.3 | Service worker precaches the app for offline use |
-| Localization | In-house **React-context i18n** (EN/FR/AR, RTL) | — | No dependency; offline-first; flat dictionaries with English fallback; `?lang=` URL switch |
+| Localization | In-house **React-context i18n** (EN/FR/AR/FA, RTL) | — | No dependency; offline-first; flat dictionaries with English fallback; `?lang=` URL switch |
 | Interop | **HL7 FHIR R4** | — | De-facto hospital/registry exchange standard |
 
 ### 4.2 Backend (sync service + EHR gateway)
@@ -356,7 +356,7 @@ as `ConflictReport`s.
 
 - **`App.tsx`** — capture UI; immutable state mutators; 400 ms debounced auto-save via `recordRepo`;
   the handover sign-off panel and the FHIR export / share-slice downloads.
-- **`i18n.tsx`** — in-house React-context i18n: flat EN/FR/AR dictionaries with English fallback,
+- **`i18n.tsx`** — in-house React-context i18n: flat EN/FR/AR/FA dictionaries with English fallback,
   `t(key, params)`, `regionLabel()` for localised anatomy, a `?lang=` URL switch that wins over the
   persisted choice, and `document.dir = rtl` for Arabic. `useNow.ts` drives the live elapsed clock.
 - **`components/BodyChart.tsx`** — anterior/posterior injury-marking SVG; the same polygons are
@@ -420,8 +420,8 @@ Framework-free, built to `dist/` (ESM + `.d.ts`) and consumed by both the PWA an
 ## 8. Test cases
 
 All suites run under **Vitest**; the backend uses **pg-mem** (in-memory PostgreSQL) so DB tests
-run with identical SQL and no external service. **146 tests pass** across the workspaces
-(core 68, field client 32, sync 27, EHR gateway 19).
+run with identical SQL and no external service. **148 tests pass** across the workspaces
+(core 68, field client 34, sync 27, EHR gateway 19).
 
 ### 8.1 Core (`packages/core/test/`, 68 tests)
 
@@ -434,13 +434,13 @@ run with identical SQL and no external service. **146 tests pass** across the wo
 | `injuries.test.ts`, `types.test.ts`, `id.test.ts` | Catalog, factories, id generation |
 | `ehr.test.ts` | `identityFromTombstone`; `$match` Parameters; **match-grade extension is authoritative**; `certainly-not` with a high score does not resolve; AuditEvent builder |
 
-### 8.1b Field client (`test/`, 32 tests, jsdom)
+### 8.1b Field client (`test/`, 34 tests, jsdom)
 
 | Suite | Covers |
 |---|---|
-| `app.test.tsx` | Core capture flows; vitals + GCS; AT-MIST card; DOB → age; calendar popup; triage from the header; **language toggle persists**; **`?lang=ar` URL switch flips to Arabic + RTL**; **handover sign-off → confirmation → undo** |
+| `app.test.tsx` | Core capture flows; vitals + GCS; AT-MIST card; DOB → age; calendar popup; triage from the header; **language toggle persists**; **`?lang=ar` and `?lang=fa` URL switches flip to Arabic / Persian + RTL**; **handover sign-off → confirmation → undo** |
 | `board.test.tsx` | Triage-board search (`matchesQuery`) and the on-scene / handed-over filter; handover detail on cards |
-| `i18n.test.ts` | **EN/FR/AR dictionary parity** (no missing keys / English leaks); language cycle; RTL flag; region-name localisation incl. Arabic |
+| `i18n.test.ts` | **EN/FR/AR/FA dictionary parity** (no missing keys / English leaks); the four-language cycle; RTL flags; region-name localisation incl. Arabic & Persian |
 | `ehr-console.test.tsx`, `db.integration.test.ts` | EHR Test Lab console; IndexedDB repository round-trips |
 
 ### 8.2 EHR gateway (`packages/ehr-gateway/test/`, ~19 tests)

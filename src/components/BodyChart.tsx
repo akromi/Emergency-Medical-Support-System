@@ -31,10 +31,11 @@ function patientSide(side: 'left' | 'right', view: BodyView): 'L' | 'R' {
 }
 
 // Anatomical side abbreviation in the chosen language (French G/D = gauche/droite;
-// Arabic يس/يم = يسار/يمين).
+// Arabic يس/يم = يسار/يمين; Persian چپ/راست).
 function sideLetter(side: 'L' | 'R', lang: string): string {
   if (lang === 'fr') return side === 'L' ? 'G' : 'D'
   if (lang === 'ar') return side === 'L' ? 'يس' : 'يم'
+  if (lang === 'fa') return side === 'L' ? 'چپ' : 'راست'
   return side
 }
 

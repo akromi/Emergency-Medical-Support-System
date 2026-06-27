@@ -4,8 +4,8 @@ import { DICTS, LANGS, nextLang, isRtl, regionLabel } from '../src/i18n'
 const EN_KEYS = Object.keys(DICTS.en).sort()
 
 describe('i18n dictionaries', () => {
-  it('defines all three languages in cycle order', () => {
-    expect(LANGS).toEqual(['en', 'fr', 'ar'])
+  it('defines all four languages in cycle order', () => {
+    expect(LANGS).toEqual(['en', 'fr', 'ar', 'fa'])
   })
 
   // Every language must define exactly the English key set — no missing
@@ -16,30 +16,34 @@ describe('i18n dictionaries', () => {
     })
   }
 
-  it('no value is left identical to English in fr/ar (spot-check core labels)', () => {
+  it('no value is left identical to English in fr/ar/fa (spot-check core labels)', () => {
     // A few high-visibility keys that must actually be translated.
     for (const key of ['app.sub', 'hdr.new', 'vit.title', 'board.title', 'saved.title']) {
       expect(DICTS.fr[key]).not.toBe(DICTS.en[key])
       expect(DICTS.ar[key]).not.toBe(DICTS.en[key])
+      expect(DICTS.fa[key]).not.toBe(DICTS.en[key])
     }
   })
 
-  it('cycles languages en → fr → ar → en', () => {
+  it('cycles languages en → fr → ar → fa → en', () => {
     expect(nextLang('en')).toBe('fr')
     expect(nextLang('fr')).toBe('ar')
-    expect(nextLang('ar')).toBe('en')
+    expect(nextLang('ar')).toBe('fa')
+    expect(nextLang('fa')).toBe('en')
   })
 
-  it('marks Arabic as right-to-left, others left-to-right', () => {
+  it('marks Arabic and Persian as right-to-left, others left-to-right', () => {
     expect(isRtl('ar')).toBe(true)
+    expect(isRtl('fa')).toBe(true)
     expect(isRtl('en')).toBe(false)
     expect(isRtl('fr')).toBe(false)
   })
 
-  it('localises region names with the anatomical side (incl. Arabic)', () => {
+  it('localises region names with the anatomical side (incl. Arabic & Persian)', () => {
     expect(regionLabel('L Forearm', 'en')).toBe('L Forearm')
     expect(regionLabel('L Forearm', 'fr')).toBe('G Avant-bras')
     expect(regionLabel('L Forearm', 'ar')).toBe('يس الساعد')
-    expect(regionLabel('Chest', 'ar')).toBe('الصدر')
+    expect(regionLabel('L Forearm', 'fa')).toBe('چپ ساعد')
+    expect(regionLabel('Chest', 'fa')).toBe('قفسه سینه')
   })
 })

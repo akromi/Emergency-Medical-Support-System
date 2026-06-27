@@ -3,8 +3,8 @@
 > Offline-first Progressive Web App for casualty care & transport documentation.
 > Field responders capture patient identity, injuries on an anatomical 2-D body
 > chart, vitals, and treatments — then sign off and hand over to a hospital as an
-> HL7 FHIR bundle. Fully usable with zero connectivity, and trilingual
-> (English / French / Arabic, including right-to-left).
+> HL7 FHIR bundle. Fully usable with zero connectivity, and multilingual
+> (English / French / Arabic / Persian, including right-to-left).
 
 > ⚠️ **Prototype — not a medical device and not for clinical use.** See _Regulatory_ below.
 
@@ -21,7 +21,7 @@ files to any host or CDN — one codebase, no per-platform builds.
 | Offline shell | **vite-plugin-pwa** (Workbox) | Service worker caches the app for offline use |
 | Domain logic | Framework-free **TypeScript** core (`@triage-link/core`) | Reusable; single source of truth |
 | Interop | **HL7 FHIR R4** mapping | Hospital EHR exchange standard |
-| Localization | In-house React-context i18n (EN/FR/AR, RTL) | No dependency; offline-first; English fallback |
+| Localization | In-house React-context i18n (EN/FR/AR/FA, RTL) | No dependency; offline-first; English fallback |
 
 The domain model and FHIR mapping live in a framework-free package
 (`packages/core`) so they can be reused by a future React Native client or the
@@ -50,7 +50,7 @@ backend both depend on the framework-free core; nothing depends on the UI.
 ```
 src/                       Field client (PWA)
   App.tsx                  Capture UI wiring everything together
-  i18n.tsx                 In-house i18n (EN/FR/AR + RTL, ?lang= switch)
+  i18n.tsx                 In-house i18n (EN/FR/AR/FA + RTL, ?lang= switch)
   useNow.ts                Shared ticking clock for live elapsed time
   db/                      IndexedDB persistence (Dexie schema + repository)
   ehr/                     Browser-side EHR client (talks to the backend)
@@ -80,8 +80,9 @@ packages/
   contribute-to-EHR, with an offline EHR Test Lab for QA
 - **FHIR R4 export** — full bundle, plus a focused **handover slice** (Patient +
   Encounter + Provenance); a signed handover closes the Encounter and emits a Provenance
-- **Trilingual UI** — English / French / Arabic with right-to-left layout; switch via the
-  header 🌐 toggle or a `?lang=ar` URL parameter (the choice persists)
+- **Multilingual UI** — English / French / Arabic / Persian, with right-to-left layout for
+  Arabic & Persian; switch via the header 🌐 toggle or a `?lang=` URL parameter
+  (e.g. `?lang=fa`) — the choice persists
 - Offline persistence to IndexedDB; multiple casualties; auto-save; backup/restore
 
 ## Roadmap
