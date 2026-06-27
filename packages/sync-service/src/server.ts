@@ -7,6 +7,7 @@ import { buildApp, type SecurityOptions } from './app.js'
 import { OpStore, migrate } from './ops-store.js'
 import { EhrAuditStore, migrateEhrAudit } from './ehr-audit-store.js'
 import { TenantStore, migrateTenants } from './tenant-store.js'
+import { AdminAuditStore, migrateAdminAudit } from './admin-audit-store.js'
 import { Metrics } from './metrics.js'
 import { DEFAULT_TENANT } from './ops-store.js'
 import { currentTenant } from './tenant-context.js'
@@ -124,6 +125,7 @@ async function main(): Promise<void> {
   await migrate(pool)
   await migrateEhrAudit(pool)
   await migrateTenants(pool)
+  await migrateAdminAudit(pool)
   const ehrAudit = new EhrAuditStore(pool)
   const security = buildSecurity()
   if (!security.adminToken) {
@@ -138,6 +140,7 @@ async function main(): Promise<void> {
     ehr: buildEhrGateway(ehrAudit),
     ehrAudit,
     tenantStore: new TenantStore(pool),
+    adminAuditStore: new AdminAuditStore(pool),
     metrics: new Metrics(),
     onAccessLog: logRequests ? (e) => console.log(JSON.stringify({ t: 'access', ...e })) : undefined,
     security,

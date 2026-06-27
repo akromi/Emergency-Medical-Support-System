@@ -15,6 +15,7 @@ import type { EhrAuditStore } from './ehr-audit-store.js'
 import { type TenantStore, bearerToken } from './tenant-store.js'
 import { registerAdminRoutes } from './admin-routes.js'
 import type { Metrics, AccessLogEntry } from './metrics.js'
+import type { AdminAuditStore } from './admin-audit-store.js'
 
 // The authenticated tenant for the current request (DEFAULT_TENANT when auth is
 // off or the single-tenant authToken is used).
@@ -98,7 +99,7 @@ const SYNC_BODY_SCHEMA = {
 }
 
 export function buildApp(
-  { store, ehr, ehrAudit, tenantStore, metrics, onAccessLog, docs = true, security = {} }: {
+  { store, ehr, ehrAudit, tenantStore, adminAuditStore, metrics, onAccessLog, docs = true, security = {} }: {
     store: OpStore
     ehr?: EhrGateway
     ehrAudit?: EhrAuditStore
@@ -106,6 +107,9 @@ export function buildApp(
      *  against its stored (hashed) API keys; with `security.adminToken` it also
      *  mounts the tenant-admin API at `/admin/*`. */
     tenantStore?: TenantStore
+    /** Audit trail for admin-action logging; with the admin API, mutations are
+     *  recorded and readable at `/admin/audit`. */
+    adminAuditStore?: AdminAuditStore
     /** Per-tenant operational counters. When provided, requests are counted and
      *  (with the admin API) exposed at `/admin/metrics`. */
     metrics?: Metrics
@@ -265,7 +269,7 @@ export function buildApp(
   if (ehrAudit) registerEhrAuditRoute(app, ehrAudit)
 
   // Tenant-admin API — only when a tenant store AND an admin token are both set.
-  if (tenantStore && adminToken) registerAdminRoutes(app, tenantStore, metrics)
+  if (tenantStore && adminToken) registerAdminRoutes(app, tenantStore, metrics, adminAuditStore)
 
   // Push a batch of ops and pull back the resolved state + full op set.
   app.post('/sync', {
