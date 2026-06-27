@@ -20,6 +20,7 @@ import { PhotoLightbox } from './components/PhotoLightbox'
 import { Tip, OfflineBanner, InstallPrompt, useDismissed } from './components/hints'
 import { Tutorial } from './components/Tutorial'
 import { Elapsed } from './components/Elapsed'
+import { VitalsTrend } from './components/VitalsTrend'
 import { EhrTestConsole } from './components/EhrTestConsole'
 import { PcrVerify } from './components/PcrVerify'
 import { contributeHandover, EhrUnavailableError } from './ehr/client'
@@ -573,6 +574,7 @@ function AcuityGlance({ record, tbsa }: { record: CasualtyRecord; tbsa: number }
               {latest.gcs && <span>{t('vit.gcs')} {latest.gcs}</span>}{latest.pain && <span>{t('vit.pain')} {latest.pain}</span>}
             </div>
             <div className="glance-time">{fmtTime(latest.takenAt)}</div>
+            <VitalsTrend vitals={record.vitals} className="glance-trend" />
           </>
         ) : (
           <span className="glance-empty">{t('glance.novitals')}</span>
@@ -704,6 +706,12 @@ function VitalsPanel({ vitals, onAdd, onRemove }: {
         <GcsCalc value={f.gcs} onChange={(v) => set('gcs', v)} />
         <button className="btn full" onClick={submit}>{t('vit.record')}</button>
         {vitals.length === 0 && <p className="hint-inline panel-hint">{t('vit.hint')}</p>}
+        {vitals.length >= 2 && (
+          <div className="vtrend-block">
+            <span className="vtrend-h">{t('vit.trend')}</span>
+            <VitalsTrend vitals={vitals} />
+          </div>
+        )}
         {vitals.slice().reverse().map((v) => (
           <div className="row" key={v.id}>
             <div className="body">

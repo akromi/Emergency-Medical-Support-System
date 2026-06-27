@@ -543,3 +543,21 @@ input::placeholder { color:var(--txt-faint); }
 .vault-lock-card input:focus { outline:none; border-color:var(--ekg); }
 .vault-lock-card input[aria-invalid="true"] { border-color:#e0564f; }
 .vault-lock-err { color:#e0564f; font-size:12.5px; font-weight:600; }
+
+/* ---- Vitals trend sparklines (deterioration at a glance) ---- */
+.vtrend { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:flex-end; }
+.vtrend-cell { display:grid; grid-template-columns:auto auto; grid-template-rows:auto auto;
+  align-items:center; gap:0 6px; }
+.vtrend-cell .spark { grid-row:1 / span 2; color:var(--ekg); }
+.vtrend-k { font-family:var(--mono); font-size:10px; letter-spacing:.04em; color:var(--txt-faint);
+  text-transform:uppercase; }
+.vtrend-d { font-family:var(--mono); font-size:10.5px; color:var(--txt-dim); white-space:nowrap; }
+.glance-trend { margin-top:8px; }
+.vtrend-block { margin:12px 0 4px; padding-top:10px; border-top:1px solid var(--line-soft); }
+.vtrend-h { display:block; font-family:var(--mono); font-size:10px; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--txt-faint); margin-bottom:8px; }
+/* On the printable white card, ink the sparklines for contrast. */
+.sm-trend { margin-top:10px; color:#14181d; }
+.sm-trend .spark { color:#14181d; }
+.sm-trend .vtrend-k { color:#666; }
+.sm-trend .vtrend-d { color:#444; }

@@ -206,12 +206,42 @@ left/right count separately), capped at 100%.
 
 `src/db/` provides durable, offline on-device storage.
 
-- **`database.ts`** declares a Dexie database named `triage-link` with a single `records` table, indexed on `id` (primary key) and `updatedAt`.
-- **`repository.ts`** is a thin repository exposing `save`, `get`, `list`, `remove`. `save()` stamps `updatedAt` and `put`s the whole record; `list()` returns records newest-first by `updatedAt`.
+- **`database.ts`** declares a Dexie database named `triage-link` with four tables: `records`
+  (indexed on `id` and `updatedAt`), `ops` (the append-only sync op-log, indexed on `id`,
+  `recordId`, `lamport`), `meta` (sync bookkeeping + the vault config), and `photos`
+  (out-of-line wound-photo blobs, keyed on `id`).
+- **`repository.ts`** is a thin repository exposing `save`, `get`, `list`, `remove`, `clear`.
+  `save()` stamps `updatedAt`, dehydrates embedded photos to `idb:<id>` blob references, journals
+  the field/item diff as immutable ops, and writes records + ops + photos in **one Dexie
+  transaction**; `get()` rehydrates photo references back to data URLs; `list()` stays
+  lightweight (newest-first, no photo rehydration).
 
 Because IndexedDB is local to the browser/device, the core workflow needs **no server**.
-The repository is intentionally thin so a future sync layer can wrap it with an operation
+The repository is intentionally thin so the sync layer can wrap it with an operation
 log without the UI changing.
+
+### 6.1 At-rest encryption (as built)
+
+PHI is most exposed in two places — the **exported backup file** (it leaves the device) and
+the **wound photos** (the heaviest, most identifiable PHI). Both can be encrypted with
+**AES-256-GCM**, the key derived from a user passphrase via **PBKDF2-SHA-256 (210,000
+iterations)**. WebCrypto only; no dependency. The primitives live in `src/db/crypto.ts`.
+
+- **Encrypted backups** (`src/db/backup.ts`). Alongside the plain JSON export, a backup can be
+  written as a `pbkdf2-aesgcm-v1` envelope carrying only ciphertext + the KDF salt — no
+  plaintext PHI. Restore reads the file, auto-detects encrypted vs plain, and prompts for the
+  passphrase when needed.
+- **Photo vault** (`src/db/vault.ts`, opt-in, default off). When enabled, photo blobs are
+  encrypted at rest: `enableVault()` derives a key, encrypts every existing photo, and persists
+  a passphrase *verifier* (an encrypted known string) so a wrong passphrase is rejected without
+  touching a photo. `photos.ts` then transparently encrypts on save and decrypts on load using
+  the in-memory key (`Dexie.waitFor` keeps the WebCrypto await inside the surrounding
+  transaction). The key lives **only in memory** while unlocked; a full-screen **lock screen**
+  gates the UI and a 5-minute **auto-lock** drops the key on inactivity. `disableVault()`
+  decrypts everything back. Only `PhotoRow.bytes` is encrypted; `mime` and the indexed keys stay
+  in the clear, so no schema/index migration is needed. *Scope:* photos only — record text
+  fields remain in the clear today (see §14). A lost passphrase is unrecoverable, so the enable
+  prompt warns and points at the encrypted backup as the recovery path.
 
 ## 7. Runtime data flow
 
@@ -414,8 +444,9 @@ The target design above is realised in this repo as a deterministic op-log:
   append-only `audit` table; `GET /sync/:recordId` returns snapshot + op-log +
   audit. A `Queryable` seam lets prod use `pg` and tests use in-memory `pg-mem`.
 
-Still target-only (not yet built): auth, encryption at rest, incremental
-per-client cursors, and cross-device tombstone deletes.
+Still target-only (not yet built): end-user auth, encryption of record text fields at rest
+(photos and backups are already encryptable — §6.1), incremental per-client cursors, and
+cross-device tombstone deletes.
 
 ## 13. Deployment topology
 
@@ -458,9 +489,14 @@ flowchart LR
 
 ## 14. Security & privacy requirements
 
-**Status: not implemented — this is a prototype.** Today, data is local to the device and
-unencrypted, and there is no auth. A deployment processing real PHI would apply
-defense-in-depth across every layer rather than a perimeter alone.
+**Status: partially implemented — this is a prototype.** Hardened so far: at-rest encryption of
+wound photos (opt-in vault) and of exported backups, both AES-256-GCM/PBKDF2 (§6.1); a
+passphrase lock screen with auto-lock; backend API auth (bearer token, constant-time compare),
+rate-limiting, CORS allowlist and security headers (`helmet`) on the sync service; a client
+Content-Security-Policy and security headers; and CI security scanning (CodeQL, secret scan,
+`npm audit`). Still open: end-user auth on the PWA, encryption of record *text* fields, RBAC,
+and immutable audit logging. A deployment processing real PHI would apply defense-in-depth
+across every layer rather than a perimeter alone.
 
 ```mermaid
 flowchart TB
@@ -474,7 +510,7 @@ flowchart TB
 
 | Domain | Requirement | Priority |
 |---|---|---|
-| **Encryption** | TLS 1.3 in transit; AES-256 at rest on device, database, backups; mTLS between services | Must |
+| **Encryption** | TLS 1.3 in transit; AES-256 at rest on device, database, backups; mTLS between services. *Partly built:* AES-256-GCM at rest for photos (opt-in vault) and for encrypted backups (§6.1) | Must |
 | **Device security** | Full-disk encryption, screen lock / biometric, MDM enrolment, remote wipe for lost devices | Must |
 | **Authentication** | OAuth2 / OIDC for users; SMART-on-FHIR for EHR integration; MFA for privileged roles | Must |
 | **Authorisation** | Role-based access control with least privilege; field / dispatch / clinician / admin scoped separately | Must |
@@ -528,7 +564,8 @@ without touching the UI:
 - **Conflict-aware sync.** _Scaffolded_ (§12): an append-only op-log wraps `recordRepo` and a Fastify + PostgreSQL service reconciles records with the deterministic resolver. Remaining: auth, incremental cursors, transport hardening.
 - **Anatomical body chart.** Replace the rectangular `regions.ts` zones with a precise anatomical SVG supporting burn TBSA and named bones — `regionAt()` is the single seam to swap.
 - **Handover scanning.** NFC/QR handover plus master-patient-index reconciliation.
-- **Security hardening.** Auth (OAuth2/OIDC, SMART-on-FHIR), audit logging, encryption at rest (§14).
+- **Security hardening.** Auth (OAuth2/OIDC, SMART-on-FHIR), audit logging, and extending
+  at-rest encryption to record text fields (photos + backups already done — §6.1, §14).
 - **Reuse on other clients.** The `domain`/`fhir`/`sync` modules are factored into the `@triage-link/core` package (built to `dist/` as ESM + `.d.ts` with a Node-resolvable `exports` map) — already consumed by the sync service, ready for a React Native client.
 
 ## 18. Build, run, deploy
