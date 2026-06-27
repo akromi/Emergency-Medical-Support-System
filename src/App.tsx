@@ -28,6 +28,7 @@ import { contributeHandover, EhrUnavailableError } from './ehr/client'
 import { LockScreen, useVaultState } from './components/VaultLock'
 import { initVault, enableVault, disableVault, lock as lockVault, noteActivity, isRequired } from './db/vault'
 import { audit } from './db/audit'
+import { requireStepUp } from './db/stepup'
 import { AuditLog } from './components/AuditLog'
 import { OperatorPanel, useOperators } from './components/OperatorPanel'
 import { initOperators, canViewAdmin } from './db/operators'
@@ -105,6 +106,7 @@ export function App() {
 
   // ---- photo vault (encrypt wound photos at rest) ----
   async function enablePhotoVault() {
+    if (!(await guard('vault.enable'))) { setMenuOpen(false); return }
     const pass = window.prompt(t('vault.enablePrompt'))
     if (pass == null) return
     if (pass.length < 8) { flashBackup(t('backup.passShort')); return }
@@ -116,6 +118,7 @@ export function App() {
     setMenuOpen(false)
   }
   async function disablePhotoVault() {
+    if (!(await guard('vault.disable'))) { setMenuOpen(false); return }
     const pass = window.prompt(t('vault.disablePrompt'))
     if (pass == null) return
     try {
@@ -203,6 +206,7 @@ export function App() {
     if (r) { setRecord(r); setSelectedInjury(null); audit('record.view', { recordId: id }) }
   }
   async function deleteCase(id: string) {
+    if (!(await guard('record.delete'))) return
     await recordRepo.remove(id)
     setSaved(await recordRepo.list())
     if (id === record.id) newCase()
@@ -210,8 +214,17 @@ export function App() {
 
   // ---- backup / restore (all records) ----
   const flashBackup = (msg: string) => { setBackupMsg(msg); window.setTimeout(() => setBackupMsg(''), 5000) }
+  // Step-up re-auth gate: sensitive actions re-prompt for the on-duty operator's
+  // PIN ("login password"). A no-op when the roster is empty or the operator has
+  // no PIN. On denial we flash a toast and the caller aborts.
+  async function guard(action: string): Promise<boolean> {
+    const ok = await requireStepUp(t, action)
+    if (!ok) flashBackup(t('auth.denied'))
+    return ok
+  }
   const backupName = (suffix: string) => `triage-link-backup${suffix}-${new Date().toISOString().slice(0, 10)}.json`
   async function exportAllRecords() {
+    if (!(await guard('backup.export'))) return
     try {
       const backup = await exportAll()
       downloadJson(backup, backupName(''))
@@ -220,6 +233,7 @@ export function App() {
     } catch { flashBackup('Backup failed.') }
   }
   async function exportEncryptedRecords() {
+    if (!(await guard('backup.export.enc'))) return
     const pass = window.prompt(t('backup.encPrompt'))
     if (pass == null) return // cancelled
     if (pass.length < 8) { flashBackup(t('backup.passShort')); return }
@@ -252,7 +266,8 @@ export function App() {
     input.click()
   }
   // ---- CSV roster export / import (scalar identity + incident layer) ----
-  function exportRecordsCsv() {
+  async function exportRecordsCsv() {
+    if (!(await guard('csv.export'))) return
     recordRepo.list().then((records) => {
       const blob = new Blob([recordsToCsv(records)], { type: 'text/csv;charset=utf-8' })
       const url = URL.createObjectURL(blob)
@@ -283,6 +298,9 @@ export function App() {
   }
   async function runImport(mode: ImportMode) {
     if (!pendingImport) return
+    // Gate at EXECUTION time (not file-pick): this is the destructive step, and
+    // the Merge/Replace buttons can be reached later by a different user.
+    if (!(await guard('data.restore'))) return
     try {
       const n = await importBackup(pendingImport.backup, mode)
       setSaved(await recordRepo.list())
@@ -293,6 +311,7 @@ export function App() {
   }
 
   async function sendToEhr() {
+    if (!(await guard('ehr.send'))) return
     setEhrStatus('Sending…')
     try {
       const res = await contributeHandover(record)
@@ -312,7 +331,7 @@ export function App() {
     a.click()
     URL.revokeObjectURL(url)
   }
-  const exportFhir = () => { downloadJson(toFhirBundle(record), `${record.id}-fhir-bundle.json`); audit('record.export', { recordId: record.id }) }
+  const exportFhir = async () => { if (!(await guard('record.export'))) return; downloadJson(toFhirBundle(record), `${record.id}-fhir-bundle.json`); audit('record.export', { recordId: record.id }) }
 
   // ---- runtime language packs (add a language with no code release) ----
   function downloadTemplate() {
@@ -336,7 +355,7 @@ export function App() {
     }
     input.click()
   }
-  const shareHandover = () => { downloadJson(toHandoverBundle(record), `${record.id}-handover-fhir.json`); audit('record.export', { recordId: record.id, detail: 'handover' }) }
+  const shareHandover = async () => { if (!(await guard('handover.share'))) return; downloadJson(toHandoverBundle(record), `${record.id}-handover-fhir.json`); audit('record.export', { recordId: record.id, detail: 'handover' }) }
 
   const selected = record.injuries.find((i) => i.id === selectedInjury) ?? null
   const triage = record.incident.triage
@@ -365,7 +384,7 @@ export function App() {
           <button className="topbtn" onClick={downloadTemplate} title="Download the English strings as a starter template to translate">{t('lang.template')}</button>
           <button className="topbtn" onClick={() => { setShowOperators(true); setMenuOpen(false) }} title="Assign records to the operator on duty (shared-device attribution)">{t('op.menu')}</button>
           {canViewAdmin() && (
-            <button className="topbtn" onClick={() => { setShowAudit(true); setMenuOpen(false) }} title="Tamper-evident log of data access and security events">{t('audit.menu')}</button>
+            <button className="topbtn" onClick={async () => { setMenuOpen(false); if (await guard('audit.view')) setShowAudit(true) }} title="Tamper-evident log of data access and security events">{t('audit.menu')}</button>
           )}
           <button className="topbtn" onClick={sendToEhr} title="Contribute this handover to the provincial EHR">{t('hdr.ehr')}</button>
           {vaultState === 'disabled' && (

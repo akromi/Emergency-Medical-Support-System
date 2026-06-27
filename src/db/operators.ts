@@ -70,6 +70,15 @@ export async function addOperator(name: string, role: Role, pin?: string): Promi
   return op
 }
 
+/** Set or clear an operator's PIN (the "login password" used for step-up
+ *  re-auth on sensitive actions). An empty pin removes it. */
+export async function setOperatorPin(id: string, pin: string): Promise<void> {
+  const patch = { pinHash: pin ? await sha256Hex(`${id}:${pin}`) : undefined }
+  await db.operators.update(id, patch) // Dexie deletes the key when pinHash is undefined
+  if (active?.id === id) active = { ...active, ...patch }
+  changed()
+}
+
 export async function setRole(id: string, role: Role): Promise<void> {
   await db.operators.update(id, { role })
   if (active?.id === id) active = { ...active, role }

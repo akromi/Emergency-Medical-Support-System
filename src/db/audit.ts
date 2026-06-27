@@ -18,6 +18,7 @@ export type AuditAction =
   | 'record.create' | 'record.view' | 'record.delete' | 'record.export'
   | 'backup.create' | 'backup.restore'
   | 'vault.enable' | 'vault.disable' | 'vault.unlock' | 'vault.lock'
+  | 'auth.stepup'
 
 const HEAD_KEY = 'audit.head'
 const GENESIS = 'genesis'
