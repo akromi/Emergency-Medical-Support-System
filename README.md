@@ -83,13 +83,18 @@ packages/
 - **Multilingual UI** — English / French / Arabic / Persian, with right-to-left layout for
   Arabic & Persian; switch via the header 🌐 toggle or a `?lang=` URL parameter
   (e.g. `?lang=fa`) — the choice persists
-- Offline persistence to IndexedDB; multiple casualties; auto-save; backup/restore
+- Offline persistence to IndexedDB; multiple casualties; auto-save
+- **Backup / restore** — export every record to a single portable JSON file, or a
+  **passphrase-encrypted** backup (AES-256-GCM); restore auto-detects which it is
+- **Photo vault (opt-in)** — encrypt wound photos **at rest** behind a passphrase, with a
+  full-screen lock and auto-lock; the key lives only in memory while unlocked
 
 ## Roadmap
 
 - Conflict-aware sync (op-log) wired from the client to the central service — see the architecture doc
 - NFC/QR handover scan + master patient index reconciliation
-- Auth (OAuth2/OIDC, SMART-on-FHIR), audit logging, encryption at rest
+- Auth (OAuth2/OIDC, SMART-on-FHIR), audit logging; full-record encryption at rest
+  (today the photo vault encrypts wound photos; text fields are still in the clear)
 - Vitals trend mini-charts; scene-wide summary export for incident command
 
 ## Regulatory & security
