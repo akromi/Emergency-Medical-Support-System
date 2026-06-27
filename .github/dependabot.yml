@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # npm dependencies — one entry covers the root + all workspaces (single lockfile).
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      # Batch low-risk version bumps so they don't flood the PR list.
+      dev-and-minor:
+        update-types:
+          - minor
+          - patch
+    labels:
+      - dependencies
+      - security
+
+  # Keep GitHub Actions pinned versions current (and patched).
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - github-actions
