@@ -77,16 +77,36 @@ function buildEhrGateway(audit: EhrAuditStore): EhrGateway | undefined {
 
 // Transport/access hardening from the environment. A production deploy should
 // set SYNC_API_TOKEN (bearer auth) and CORS_ORIGINS (the PWA's origin).
+// Per-tenant API keys for a multi-tenant deployment. SYNC_TENANTS is a JSON
+// array of { id, token }; each token authenticates AND isolates that tenant's
+// data. Malformed config fails loudly rather than silently disabling tenancy.
+function parseTenants(): SecurityOptions['tenants'] {
+  const raw = process.env.SYNC_TENANTS
+  if (!raw) return undefined
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    throw new Error('SYNC_TENANTS must be valid JSON: a list of { "id", "token" } objects.')
+  }
+  if (!Array.isArray(parsed) || !parsed.every((t) => t && typeof t.id === 'string' && typeof t.token === 'string')) {
+    throw new Error('SYNC_TENANTS must be a JSON array of { "id": string, "token": string }.')
+  }
+  return parsed.map((t) => ({ id: t.id, token: t.token }))
+}
+
 function buildSecurity(): SecurityOptions {
   const corsOrigins = process.env.CORS_ORIGINS?.split(',').map((s) => s.trim()).filter(Boolean)
-  if (!process.env.SYNC_API_TOKEN) {
-    console.warn('SYNC_API_TOKEN is not set — /sync and /ehr/* are UNAUTHENTICATED. Set it in production.')
+  const tenants = parseTenants()
+  if (!process.env.SYNC_API_TOKEN && !tenants?.length) {
+    console.warn('Neither SYNC_API_TOKEN nor SYNC_TENANTS is set — /sync and /ehr/* are UNAUTHENTICATED. Set one in production.')
   }
   if (!corsOrigins?.length) {
     console.warn('CORS_ORIGINS is not set — cross-origin browser requests are blocked (same-origin only).')
   }
   return {
     authToken: process.env.SYNC_API_TOKEN,
+    tenants,
     corsOrigins,
     rateLimitMax: process.env.RATE_LIMIT_MAX ? Number(process.env.RATE_LIMIT_MAX) : undefined,
     trustProxy: process.env.TRUST_PROXY === 'true',

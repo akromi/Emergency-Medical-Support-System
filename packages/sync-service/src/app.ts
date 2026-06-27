@@ -9,9 +9,17 @@ import { timingSafeEqual } from 'node:crypto'
 import swagger from '@fastify/swagger'
 import swaggerUi from '@fastify/swagger-ui'
 import { resolve, type Op, type EhrGateway } from '@triage-link/core'
-import { OpStore } from './ops-store.js'
+import { OpStore, DEFAULT_TENANT } from './ops-store.js'
 import { registerEhrRoutes, registerEhrAuditRoute } from './ehr-routes.js'
 import type { EhrAuditStore } from './ehr-audit-store.js'
+
+// The authenticated tenant for the current request (DEFAULT_TENANT when auth is
+// off or the single-tenant authToken is used).
+declare module 'fastify' {
+  interface FastifyRequest {
+    tenantId: string
+  }
+}
 
 interface SyncBody {
   clientId?: string
@@ -22,8 +30,15 @@ interface SyncBody {
  *  dev/tests stay open). A production deploy should set at least `authToken`
  *  and `corsOrigins`. */
 export interface SecurityOptions {
-  /** When set, `/sync` and `/ehr/*` require `Authorization: Bearer <token>`. */
+  /** When set, `/sync` and `/ehr/*` require `Authorization: Bearer <token>`.
+   *  This is the single-tenant token — requests authenticated with it are scoped
+   *  to the `default` tenant. */
   authToken?: string
+  /** Per-tenant API keys for a multi-tenant deployment: each `{ id, token }`
+   *  authenticates requests AND scopes their data to that tenant. Tenants are
+   *  fully isolated — one can never read or resolve another's records. May be
+   *  combined with `authToken` (which remains the `default` tenant). */
+  tenants?: Array<{ id: string; token: string }>
   /** Allowed browser origins for CORS. Empty/undefined → cross-origin disabled. */
   corsOrigins?: string[]
   /** Max requests per IP per minute (default 300). */
@@ -107,17 +122,33 @@ export function buildApp(
   // Abuse / DoS guard — per-IP request budget.
   app.register(rateLimit, { max: security.rateLimitMax ?? 300, timeWindow: '1 minute' })
 
+  // Every request carries a tenant; it stays DEFAULT_TENANT unless authentication
+  // resolves a specific one. Decorated unconditionally so handlers can always
+  // read req.tenantId (dev/tests with no auth run under the single default tenant).
+  app.decorateRequest('tenantId', DEFAULT_TENANT)
+
   // Bearer-token gate on the data + EHR routes (/health stays open for probes).
-  // Active only when a token is configured, so dev/tests stay open; a
-  // production deploy MUST set one (server.ts reads SYNC_API_TOKEN).
-  if (security.authToken) {
-    const token = security.authToken
+  // Active only when at least one token is configured, so dev/tests stay open; a
+  // production deploy MUST configure one (server.ts reads SYNC_API_TOKEN /
+  // SYNC_TENANTS). The matched token also selects the request's tenant, which
+  // scopes every store read/write — so isolation is enforced at the data layer,
+  // not merely at the edge.
+  const tenantTokens: Array<{ id: string; token: string }> = [
+    ...(security.tenants ?? []),
+    ...(security.authToken ? [{ id: DEFAULT_TENANT, token: security.authToken }] : []),
+  ]
+  if (tenantTokens.length) {
     app.addHook('onRequest', async (req, reply) => {
       const path = req.url.split('?')[0]
       const protectedRoute = path === '/sync' || path.startsWith('/sync/') || path.startsWith('/ehr')
-      if (protectedRoute && !bearerOk(req.headers.authorization, token)) {
+      if (!protectedRoute) return
+      // Each comparison is constant-time; the first matching token wins and
+      // selects the tenant. (Token count is config-sized, not secret.)
+      const match = tenantTokens.find((t) => bearerOk(req.headers.authorization, t.token))
+      if (!match) {
         return reply.code(401).send({ error: 'unauthorized', message: 'Missing or invalid bearer token' })
       }
+      req.tenantId = match.id
     })
   }
 
@@ -162,9 +193,10 @@ export function buildApp(
   }, async (req, reply) => {
     const body = (req.body ?? {}) as SyncBody
     const ops = Array.isArray(body.ops) ? body.ops : []
+    const tenantId = req.tenantId // scopes every store call below to this tenant
 
     // Idempotent ingest: only ids not already present are inserted.
-    const inserted = new Set(await store.insertOps(ops))
+    const inserted = new Set(await store.insertOps(ops, tenantId))
     for (const op of ops) {
       if (inserted.has(op.id)) {
         await store.appendAudit({
@@ -172,7 +204,7 @@ export function buildApp(
           opId: op.id,
           eventType: 'op-ingested',
           detail: { clientId: op.clientId, kind: op.kind, path: op.path, itemId: op.itemId ?? null },
-        })
+        }, tenantId)
       }
     }
 
@@ -180,35 +212,35 @@ export function buildApp(
     // and the audit trail free of duplicate resolution events).
     const changed = [...new Set(ops.filter((o) => inserted.has(o.id)).map((o) => o.recordId))]
     for (const recordId of changed) {
-      const all = await store.getOps(recordId)
+      const all = await store.getOps(recordId, tenantId)
       const { record, conflicts } = resolve(recordId, all)
-      await store.upsertSnapshot(recordId, record)
+      await store.upsertSnapshot(recordId, record, tenantId)
       // Only audit conflicts touched by THIS ingest — re-folding the full history
       // would otherwise re-log every pre-existing conflict on each sync.
       for (const c of conflicts) {
         const involvesNewOp = inserted.has(c.winningOpId) || c.supersededOpIds.some((id) => inserted.has(id))
         if (involvesNewOp) {
-          await store.appendAudit({ recordId, opId: c.winningOpId, eventType: 'conflict-resolved', detail: c })
+          await store.appendAudit({ recordId, opId: c.winningOpId, eventType: 'conflict-resolved', detail: c }, tenantId)
         }
       }
     }
 
-    // Full-state response: return EVERY record the server knows about (not just
+    // Full-state response: return every record THIS TENANT knows about (not just
     // those in this upload), so a device receives cases created on other devices
-    // — multi-device caseload sharing. (A production system would use a
-    // per-client cursor / since-lamport to make this incremental.)
-    const knownRecordIds = await store.allRecordIds()
+    // in the same tenant — multi-device caseload sharing. (A production system
+    // would use a per-client cursor / since-lamport to make this incremental.)
+    const knownRecordIds = await store.allRecordIds(tenantId)
     const records: Record<string, unknown> = {}
     let merged: Op[] = []
     for (const recordId of knownRecordIds) {
-      const recOps = await store.getOps(recordId)
-      let snapshot = await store.getSnapshot(recordId)
+      const recOps = await store.getOps(recordId, tenantId)
+      let snapshot = await store.getSnapshot(recordId, tenantId)
       // Defensive: if a record has ops but no stored snapshot (e.g. a pure
       // replay sync, or a snapshot that was never persisted), resolve it on
       // demand so the client never receives a null for a record it has ops for.
       if (snapshot == null && recOps.length > 0) {
         snapshot = resolve(recordId, recOps).record
-        await store.upsertSnapshot(recordId, snapshot)
+        await store.upsertSnapshot(recordId, snapshot, tenantId)
       }
       records[recordId] = snapshot
       merged = merged.concat(recOps)
@@ -219,16 +251,17 @@ export function buildApp(
   // Inspect a record: resolved snapshot, its full op-log, and the audit trail.
   app.get('/sync/:recordId', async (req) => {
     const { recordId } = req.params as { recordId: string }
+    const tenantId = req.tenantId
     const [stored, ops, audit] = await Promise.all([
-      store.getSnapshot(recordId),
-      store.getOps(recordId),
-      store.getAudit(recordId),
+      store.getSnapshot(recordId, tenantId),
+      store.getOps(recordId, tenantId),
+      store.getAudit(recordId, tenantId),
     ])
     // Same contract as POST /sync: never return null for a record that has ops.
     let snapshot = stored
     if (snapshot == null && ops.length > 0) {
       snapshot = resolve(recordId, ops).record
-      await store.upsertSnapshot(recordId, snapshot)
+      await store.upsertSnapshot(recordId, snapshot, tenantId)
     }
     return { snapshot, ops, audit }
   })
