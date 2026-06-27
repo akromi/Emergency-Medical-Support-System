@@ -25,10 +25,17 @@ export const DEFAULT_TENANT = 'default'
 
 // Every table is partitioned by `tenant_id`: ops/snapshots/audit are isolated
 // per organization so one tenant can never read or resolve another's records.
-// The id keys are composite ((tenant_id, id) / (tenant_id, record_id)) so op
-// ids only need to be unique WITHIN a tenant. (This is a greenfield schema; an
-// existing single-tenant deployment would add the column via a data migration
-// that backfills tenant_id = 'default'.)
+// Uniqueness is composite ((tenant_id, id) / (tenant_id, record_id)) so op ids
+// only need to be unique WITHIN a tenant.
+//
+// migrate() is idempotent AND upgrade-safe. CREATE TABLE IF NOT EXISTS handles a
+// fresh database; the ALTER … ADD COLUMN IF NOT EXISTS lines retrofit a database
+// created by the pre-tenant schema (the column's DEFAULT backfills existing rows
+// to 'default'), so the tenant indexes below can be built either way. Uniqueness
+// is enforced by named UNIQUE INDEXes (not an inline composite PK), so the exact
+// same index DDL applies whether the table is new or upgraded — an old table's
+// single-column PK predates tenant_id and would otherwise satisfy no composite
+// ON CONFLICT target.
 export async function migrate(db: Queryable): Promise<void> {
   await db.query(`
     CREATE TABLE IF NOT EXISTS ops (
@@ -42,18 +49,20 @@ export async function migrate(db: Queryable): Promise<void> {
       path text NOT NULL,
       item_id text,
       value text,
-      received_at timestamptz NOT NULL DEFAULT now(),
-      PRIMARY KEY (tenant_id, id)
+      received_at timestamptz NOT NULL DEFAULT now()
     )`)
+  await db.query(`ALTER TABLE ops ADD COLUMN IF NOT EXISTS tenant_id text NOT NULL DEFAULT 'default'`)
+  await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS ops_pk ON ops (tenant_id, id)`)
   await db.query(`CREATE INDEX IF NOT EXISTS ops_tenant_record_idx ON ops (tenant_id, record_id)`)
   await db.query(`
     CREATE TABLE IF NOT EXISTS snapshots (
       tenant_id text NOT NULL DEFAULT 'default',
       record_id text NOT NULL,
       record text NOT NULL,
-      updated_at timestamptz NOT NULL DEFAULT now(),
-      PRIMARY KEY (tenant_id, record_id)
+      updated_at timestamptz NOT NULL DEFAULT now()
     )`)
+  await db.query(`ALTER TABLE snapshots ADD COLUMN IF NOT EXISTS tenant_id text NOT NULL DEFAULT 'default'`)
+  await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS snapshots_pk ON snapshots (tenant_id, record_id)`)
   await db.query(`
     CREATE TABLE IF NOT EXISTS audit (
       id bigserial PRIMARY KEY,
@@ -64,6 +73,7 @@ export async function migrate(db: Queryable): Promise<void> {
       detail text,
       created_at timestamptz NOT NULL DEFAULT now()
     )`)
+  await db.query(`ALTER TABLE audit ADD COLUMN IF NOT EXISTS tenant_id text NOT NULL DEFAULT 'default'`)
   await db.query(`CREATE INDEX IF NOT EXISTS audit_tenant_record_idx ON audit (tenant_id, record_id)`)
 }
 
