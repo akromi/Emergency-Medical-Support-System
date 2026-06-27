@@ -49,7 +49,7 @@ export function AuditLog({ onClose }: { onClose: () => void }) {
         )}
 
         {rows.length === 0 ? (
-          <div className="sm-empty">{t('audit.empty')}</div>
+          <div className="empty">{t('audit.empty')}</div>
         ) : (
           <table className="sm-tbl audit-tbl">
             <thead><tr>
