@@ -90,9 +90,31 @@ describe('App — language toggle (FR)', () => {
     unmount()
     render(<LangProvider><App /></LangProvider>)
     expect(await screen.findByText('Fiche de blessé sur le terrain')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /🌐 EN/ })).toBeInTheDocument()
+    // The toggle cycles en → fr → ar, so from French it now offers Arabic.
+    expect(screen.getByRole('button', { name: /🌐 AR/ })).toBeInTheDocument()
 
     localStorage.removeItem('tl.lang')
+  })
+})
+
+describe('App — Arabic via URL switch (RTL)', () => {
+  it('reads ?lang=ar, renders Arabic, sets RTL direction, and persists', async () => {
+    localStorage.removeItem('tl.lang')
+    window.history.replaceState({}, '', '/?lang=ar')
+    try {
+      render(<LangProvider><App /></LangProvider>)
+      // Header subtitle is in Arabic.
+      expect(await screen.findByText('سجل المصابين الميداني')).toBeInTheDocument()
+      // Document language + writing direction flip to Arabic / RTL.
+      expect(document.documentElement.lang).toBe('ar')
+      expect(document.documentElement.dir).toBe('rtl')
+      // The URL switch is persisted so it sticks after the param is gone.
+      expect(localStorage.getItem('tl.lang')).toBe('ar')
+    } finally {
+      window.history.replaceState({}, '', '/')
+      document.documentElement.dir = 'ltr'
+      localStorage.removeItem('tl.lang')
+    }
   })
 })
 

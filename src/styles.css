@@ -21,7 +21,7 @@ button { font-family:inherit; }
 .brand { display:flex; align-items:baseline; gap:9px; }
 .brand .mark { font-family:var(--mono); font-weight:600; color:var(--ekg); letter-spacing:.4px; }
 .brand .sub { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--txt-faint); }
-.pid { margin-left:auto; font-family:var(--mono); font-size:12px; color:var(--txt-dim);
+.pid { margin-inline-start:auto; font-family:var(--mono); font-size:12px; color:var(--txt-dim);
   border:1px solid var(--line); padding:5px 9px; border-radius:7px; background:var(--panel); }
 .pid b { color:var(--ekg); }
 .topbtn { border:1px solid var(--line); background:var(--panel); color:var(--txt); padding:8px 13px;
@@ -44,7 +44,7 @@ button { font-family:inherit; }
   font-weight:600; cursor:pointer; }
 .tb-opt:hover { background:var(--raised); }
 .tb-opt .sw { width:10px; height:10px; border-radius:3px; display:inline-block; }
-.tb-current { margin-left:auto; font-size:12.5px; font-weight:700; color:var(--txt-dim); letter-spacing:.02em; }
+.tb-current { margin-inline-start:auto; font-size:12.5px; font-weight:700; color:var(--txt-dim); letter-spacing:.02em; }
 .topbtn.primary { background:var(--ekg); color:#06210f; border-color:var(--ekg); }
 /* Language toggle — compact pill that sits before the action buttons. */
 .langbtn { font-family:var(--mono); letter-spacing:.04em; }
@@ -54,19 +54,19 @@ button { font-family:inherit; }
 @media (max-width:640px) {
   .topbar { position:relative; gap:8px; padding:10px 12px; }
   .topbtn { padding:6px 10px; font-size:12px; }
-  .pid { margin-left:0; font-size:11px; }
+  .pid { margin-inline-start:0; font-size:11px; }
   .brand .sub { display:none; }
   .pid .pid-label { display:none; } /* drop "CASE " label, keep the id — frees room for buttons */
   .triagebar { top:0; padding:7px 12px; }
-  .tb-current { margin-left:0; }
+  .tb-current { margin-inline-start:0; }
   /* Keep + New casualty and Board inline; tuck the rest into a "More" menu. */
-  .more-btn { display:inline-flex; margin-left:auto; }
+  .more-btn { display:inline-flex; margin-inline-start:auto; }
   .topbar-rest { display:none; }
   .topbar-rest.open { display:flex; flex-direction:column; gap:8px;
     position:absolute; top:100%; right:12px; z-index:60; min-width:210px;
     background:var(--panel); border:1px solid var(--line); border-radius:10px;
     padding:8px; box-shadow:0 14px 34px rgba(0,0,0,.55); }
-  .topbar-rest.open .topbtn { width:100%; text-align:left; padding:10px 12px; font-size:13px; }
+  .topbar-rest.open .topbtn { width:100%; text-align:start; padding:10px 12px; font-size:13px; }
   .topmenu-backdrop { position:fixed; inset:0; z-index:55; }
 }
 
@@ -80,12 +80,12 @@ button { font-family:inherit; }
 .panel + .panel { margin-top:16px; }
 .panel-h { display:flex; align-items:center; gap:10px; padding:12px 15px; border-bottom:1px solid var(--line-soft); }
 .panel-h h2 { margin:0; font-size:12px; letter-spacing:1.6px; text-transform:uppercase; color:var(--txt-dim); font-weight:600; }
-.panel-h .count, .chart-head .count { margin-left:auto; font-family:var(--mono); font-size:12px; color:var(--txt-faint); }
+.panel-h .count, .chart-head .count { margin-inline-start:auto; font-family:var(--mono); font-size:12px; color:var(--txt-faint); }
 /* Burn TBSA readout chip (burn-orange), sits with the count at the right. */
-.panel-h .tbsa { margin-left:auto; font-family:var(--mono); font-size:12px; font-weight:700;
+.panel-h .tbsa { margin-inline-start:auto; font-family:var(--mono); font-size:12px; font-weight:700;
   color:#F2820F; background:rgba(242,130,15,.12); border:1px solid rgba(242,130,15,.4);
   padding:3px 9px; border-radius:999px; }
-.panel-h .tbsa ~ .count { margin-left:8px; }
+.panel-h .tbsa ~ .count { margin-inline-start:8px; }
 /* Age-band segmented selector. */
 .ageband { display:flex; gap:5px; flex-wrap:wrap; }
 .ageband button { border:1px solid var(--line); background:var(--panel-2); color:var(--txt-dim);
@@ -214,7 +214,7 @@ input::placeholder { color:var(--txt-faint); }
 .gcs-calc > summary::-webkit-details-marker { display:none; }
 .gcs-calc > summary::before { content:'▸'; color:var(--txt-faint); font-size:11px; }
 .gcs-calc[open] > summary::before { content:'▾'; }
-.gcs-calc .gcs-total { margin-left:auto; font-family:var(--mono); color:var(--ekg); letter-spacing:0; }
+.gcs-calc .gcs-total { margin-inline-start:auto; font-family:var(--mono); color:var(--ekg); letter-spacing:0; }
 .gcs-rows { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; padding:0 11px 11px; }
 @media (max-width:420px) { .gcs-rows { grid-template-columns:1fr; } }
 .gcs-rows select { font-size:12px; padding:7px 8px; }
@@ -258,9 +258,9 @@ input::placeholder { color:var(--txt-faint); }
 .minibtn { border:1px solid var(--line); background:var(--panel-2); color:var(--txt-dim);
   padding:4px 9px; border-radius:7px; font-size:11px; font-weight:700; letter-spacing:.3px; cursor:pointer; }
 .minibtn:hover { background:var(--raised); color:var(--txt); }
-.panel-h .minibtn { margin-left:8px; }
-.panel-h .minibtn + .minibtn { margin-left:5px; }
-.panel-h .minibtn ~ .count { margin-left:8px; }
+.panel-h .minibtn { margin-inline-start:8px; }
+.panel-h .minibtn + .minibtn { margin-inline-start:5px; }
+.panel-h .minibtn ~ .count { margin-inline-start:8px; }
 .backup-msg { font-size:12px; color:var(--ekg); background:rgba(63,224,138,.08);
   border:1px solid rgba(63,224,138,.25); border-radius:7px; padding:7px 10px; margin-bottom:10px; }
 .import-confirm { display:flex; flex-wrap:wrap; align-items:center; gap:8px; justify-content:space-between;
@@ -272,7 +272,7 @@ input::placeholder { color:var(--txt-faint); }
 .ho-badge { font-weight:700; color:var(--ekg); background:rgba(63,224,138,.08);
   border:1px solid rgba(63,224,138,.25); border-radius:7px; padding:7px 11px; font-size:13px; }
 .ho-detail { font-size:13px; color:var(--txt-dim); }
-.ho-actions { display:flex; gap:8px; margin-left:auto; }
+.ho-actions { display:flex; gap:8px; margin-inline-start:auto; }
 .ho-actions .btn { padding:6px 12px; font-size:12px; }
 
 .rec { display:flex; align-items:center; gap:9px; padding:10px 11px; border:1px solid var(--line);
@@ -281,7 +281,7 @@ input::placeholder { color:var(--txt-faint); }
 .rec .tri { width:6px; align-self:stretch; border-radius:4px; min-height:32px; }
 .rec .nm { font-weight:600; font-size:13px; }
 .rec .mt { font-family:var(--mono); font-size:11px; color:var(--txt-faint); margin-top:2px; }
-.rec .x { margin-left:auto; border:none; background:none; color:var(--txt-faint); cursor:pointer; font-size:16px; padding:4px 6px; border-radius:6px; }
+.rec .x { margin-inline-start:auto; border:none; background:none; color:var(--txt-faint); cursor:pointer; font-size:16px; padding:4px 6px; border-radius:6px; }
 .rec .x:hover { color:#E5484D; background:rgba(229,72,77,.12); }
 
 .footnote { max-width:1320px; margin:0 auto; padding:6px 18px 40px; color:var(--txt-faint); font-size:11.5px; }
@@ -307,7 +307,7 @@ input::placeholder { color:var(--txt-faint); }
 .sm-k { color:#777; min-width:96px; }
 .sm-v { font-weight:600; color:#14181d; }
 .sm-tbl { width:100%; border-collapse:collapse; }
-.sm-tbl th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:#888; border-bottom:1px solid #ccc; padding:4px 6px; }
+.sm-tbl th { text-align:start; font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:#888; border-bottom:1px solid #ccc; padding:4px 6px; }
 .sm-tbl td { padding:4px 6px; border-bottom:1px solid #eee; vertical-align:top; }
 .sm-empty { color:#999; font-style:italic; }
 .sm-tbsa { margin-top:8px; font-size:13px; }
@@ -326,7 +326,7 @@ input::placeholder { color:var(--txt-faint); }
 .board { max-width:1280px; margin:0 auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px; }
 .board-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
 .board-title { font-size:14px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--txt); }
-.board-total { margin-left:12px; font-family:var(--mono); font-size:12px; color:var(--txt-dim); }
+.board-total { margin-inline-start:12px; font-family:var(--mono); font-size:12px; color:var(--txt-dim); }
 .board-search { position:relative; margin-bottom:14px; }
 .board-search input { width:100%; box-sizing:border-box; padding:9px 32px 9px 12px; border:1px solid var(--line);
   border-radius:8px; background:var(--panel-2); color:var(--txt); font-size:13px; }
@@ -348,10 +348,10 @@ input::placeholder { color:var(--txt-faint); }
 .board-colhead { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:var(--txt);
   text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid; padding-bottom:6px; margin-bottom:8px; }
 .board-colhead .dot { width:10px; height:10px; border-radius:3px; }
-.board-colhead .n { margin-left:auto; font-family:var(--mono); background:var(--raised); border-radius:999px; padding:1px 8px; font-size:12px; color:var(--txt-dim); }
+.board-colhead .n { margin-inline-start:auto; font-family:var(--mono); background:var(--raised); border-radius:999px; padding:1px 8px; font-size:12px; color:var(--txt-dim); }
 .board-cards { display:flex; flex-direction:column; gap:6px; }
 .board-empty { color:var(--txt-faint); text-align:center; padding:6px; }
-.board-card { text-align:left; width:100%; background:var(--raised); border:1px solid var(--line); border-left:3px solid;
+.board-card { text-align:start; width:100%; background:var(--raised); border:1px solid var(--line); border-left:3px solid;
   border-radius:6px; padding:7px 9px; cursor:pointer; color:var(--txt); font-family:inherit; }
 .board-card:hover { background:#2a3440; }
 .board-card.active { outline:1px solid var(--ekg); }
@@ -438,7 +438,7 @@ input::placeholder { color:var(--txt-faint); }
 .tour-head { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
 .tour-step { font-family:var(--mono); font-size:11px; color:var(--txt-faint); }
 .tour-title { font-weight:700; font-size:14px; color:var(--txt); }
-.tour-mute { margin-left:auto; border:0; background:transparent; cursor:pointer; font-size:15px; padding:0; }
+.tour-mute { margin-inline-start:auto; border:0; background:transparent; cursor:pointer; font-size:15px; padding:0; }
 .tour-say { margin:0 0 11px; font-size:13px; line-height:1.5; color:var(--txt-dim); }
 .tour-ctrls { display:flex; align-items:center; justify-content:space-between; }
 .tour-skip { border:0; background:transparent; color:var(--txt-faint); font-size:12px; cursor:pointer; }
@@ -455,7 +455,7 @@ input::placeholder { color:var(--txt-faint); }
 .lab-head { display:flex; align-items:flex-start; gap:14px; padding:16px 18px; border-bottom:1px solid var(--line); }
 .lab-head h2 { margin:0; font-size:16px; }
 .lab-sub { margin:5px 0 0; font-size:12.5px; color:var(--txt-dim); }
-.lab-head .topbtn { margin-left:auto; }
+.lab-head .topbtn { margin-inline-start:auto; }
 .lab code { font-family:var(--mono); background:var(--panel-2); border:1px solid var(--line-soft);
   border-radius:5px; padding:1px 5px; font-size:11.5px; color:#bfe2fb; }
 
@@ -514,7 +514,17 @@ input::placeholder { color:var(--txt-faint); }
 .lab-payload:focus { border-color:var(--ekg); }
 .lab-run-row { display:flex; align-items:center; gap:16px; margin:6px 0 4px; }
 .lab-outage { font-size:12.5px; color:var(--txt-dim); display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
-.lab-run-row .btn { margin-left:auto; }
+.lab-run-row .btn { margin-inline-start:auto; }
 
 .lab-foot { padding:12px 18px; border-top:1px solid var(--line); font-size:12px; color:var(--txt-dim);
   background:var(--panel-2); line-height:1.6; }
+
+/* ── RTL (Arabic) refinements ───────────────────────────────────────────────
+   Logical margins + text-align:start handle most mirroring automatically.
+   These cover the few physically-positioned bits, and keep IDs / numbers /
+   dates in left-to-right order even inside the right-to-left layout. */
+[dir="rtl"] .topbar-rest.open { right:auto; left:12px; }
+[dir="rtl"] .board-search input { padding:9px 12px 9px 32px; }
+[dir="rtl"] .board-search-x { right:auto; left:8px; }
+[dir="rtl"] .dobf { direction:ltr; text-align:left; }
+[dir="rtl"] .mono { unicode-bidi:plaintext; text-align:start; }

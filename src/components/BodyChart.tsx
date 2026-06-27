@@ -30,10 +30,12 @@ function patientSide(side: 'left' | 'right', view: BodyView): 'L' | 'R' {
   return isRight ? 'R' : 'L'
 }
 
-// Anatomical side abbreviation in the chosen language (French: G/D = gauche/droite).
+// Anatomical side abbreviation in the chosen language (French G/D = gauche/droite;
+// Arabic يس/يم = يسار/يمين).
 function sideLetter(side: 'L' | 'R', lang: string): string {
-  if (lang !== 'fr') return side
-  return side === 'L' ? 'G' : 'D'
+  if (lang === 'fr') return side === 'L' ? 'G' : 'D'
+  if (lang === 'ar') return side === 'L' ? 'يس' : 'يم'
+  return side
 }
 
 // The figure (presentation only). It carries no hit-testing: taps are resolved

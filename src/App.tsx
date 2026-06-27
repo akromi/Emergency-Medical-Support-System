@@ -23,7 +23,7 @@ import { Elapsed } from './components/Elapsed'
 import { EhrTestConsole } from './components/EhrTestConsole'
 import { PcrVerify } from './components/PcrVerify'
 import { contributeHandover, EhrUnavailableError } from './ehr/client'
-import { useLang, regionLabel } from './i18n'
+import { useLang, regionLabel, nextLang } from './i18n'
 
 const TRIAGE_ORDER: TriageCategory[] = ['immediate', 'delayed', 'minor', 'deceased']
 // The EHR Test Lab is developer/QA furniture (offline, mock-only). Hide it from
@@ -237,7 +237,7 @@ export function App() {
       <header className="topbar">
         <div className="brand"><span className="mark">◇<span className="bn"> TRIAGE-LINK</span></span><span className="sub">{t('app.sub')}</span></div>
         <div className="pid"><span className="pid-label">{t('hdr.case')} </span><b>{record.id}</b></div>
-        <button type="button" className="topbtn langbtn" onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')} title="Language / Langue">🌐 {t('lang.toggle')}</button>
+        <button type="button" className="topbtn langbtn" onClick={() => setLang(nextLang(lang))} title="Language / Langue / اللغة">🌐 {t('lang.toggle')}</button>
         <button className="topbtn" onClick={newCase} title="Start a fresh record (the current one is auto-saved)">{t('hdr.new')}</button>
         <button className="topbtn" data-tour="board" onClick={() => setShowBoard(true)} title="All saved casualties grouped by triage (scene picture)">{t('hdr.board')}{saved.length > 0 ? ` · ${saved.length}` : ''}</button>
         <button type="button" className="topbtn more-btn" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)} title="More actions">{t('hdr.more')}</button>

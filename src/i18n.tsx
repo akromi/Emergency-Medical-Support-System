@@ -5,8 +5,16 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 // single flat dictionary keyed by dotted ids; t() falls back to English, then
 // to the key itself, so a missing translation never blanks the UI.
 
-export type Lang = 'en' | 'fr'
+export type Lang = 'en' | 'fr' | 'ar'
 const STORAGE_KEY = 'tl.lang'
+/** Languages in toggle-cycle order. */
+export const LANGS: Lang[] = ['en', 'fr', 'ar']
+/** Right-to-left scripts (drive document dir + RTL CSS). */
+const RTL_LANGS = new Set<Lang>(['ar'])
+export const isRtl = (l: Lang): boolean => RTL_LANGS.has(l)
+const isLang = (v: string | null): v is Lang => v === 'en' || v === 'fr' || v === 'ar'
+/** The next language in the cycle — drives the header toggle. */
+export const nextLang = (l: Lang): Lang => LANGS[(LANGS.indexOf(l) + 1) % LANGS.length]
 
 type Dict = Record<string, string>
 
@@ -269,7 +277,7 @@ const EN: Dict = {
 }
 
 const FR: Dict = {
-  'lang.toggle': 'EN',
+  'lang.toggle': 'AR',
   'app.sub': 'Fiche de blessé sur le terrain',
   'hdr.case': 'CAS',
   'hdr.new': '+ Nouveau blessé',
@@ -506,7 +514,246 @@ const FR: Dict = {
   'lab.foot.4': '…) — « Try it out » appelle la passerelle simulée via HTTP.',
 }
 
-const DICTS: Record<Lang, Dict> = { en: EN, fr: FR }
+const AR: Dict = {
+  'lang.toggle': 'EN',
+  'app.sub': 'سجل المصابين الميداني',
+  'hdr.case': 'حالة',
+  'hdr.new': '+ مصاب جديد',
+  'hdr.board': '🚩 اللوحة',
+  'hdr.summary': '🖨 ملخّص',
+  'hdr.tour': '❔ جولة',
+  'hdr.ehr': 'إرسال إلى السجل الصحي ↑',
+  'hdr.fhir': 'تصدير FHIR ↓',
+  'hdr.more': '⋯ المزيد',
+  'triage.label': 'الفرز',
+  'triage.notset': 'غير محدّد — اختر مستوى',
+  'triage.immediate': 'فوري (أحمر)',
+  'triage.delayed': 'مؤجّل (أصفر)',
+  'triage.minor': 'بسيط (أخضر)',
+  'triage.deceased': 'متوفّى (أسود)',
+  'tour.offer': '👋 جديد هنا؟ خذ جولة إرشادية مدّتها 60 ثانية مع تعليق صوتي.',
+  'tour.start': 'ابدأ الجولة',
+  'tour.skip': 'تخطٍّ', 'tour.back': 'رجوع', 'tour.next': 'التالي', 'tour.done': 'تم',
+  'tour.mute': 'كتم التعليق الصوتي', 'tour.unmute': 'تشغيل التعليق الصوتي', 'tour.toggle': 'تبديل التعليق الصوتي',
+  'tour.welcome.title': 'مرحبًا',
+  'tour.welcome.say': 'مرحبًا بك في Triage-Link. سأرشدك خلال توثيق حالة مصاب. تابع على الشاشة أو اضغط التالي.',
+  'tour.palette.title': 'اختر نوع الإصابة',
+  'tour.palette.say': 'ابدأ باختيار نوع الإصابة من هذه اللوحة — مثلًا تمزّق أو حرق.',
+  'tour.charts.title': 'حدّدها على الجسم',
+  'tour.charts.say': 'انقر منطقة من الجسم للتكبير، ثم انقر مجددًا لوضع علامة في موضع الإصابة تمامًا.',
+  'tour.editor.title': 'أضف التفاصيل',
+  'tour.editor.say': 'للإصابة المحددة، اضبط شدّتها، وأضف ملاحظات، وأرفق صورة للجرح بالكاميرا.',
+  'tour.triage.title': 'حدّد الفرز',
+  'tour.triage.say': 'حدّد مستوى فرز المريض. يظهر على بطاقة المصاب وعلى لوحة الفرز.',
+  'tour.vitals.title': 'سجّل العلامات الحيوية',
+  'tour.vitals.say': 'سجّل هنا مجموعة علامات حيوية موقّتة. أضف مجموعة جديدة عند كل إعادة تقييم.',
+  'tour.summary.title': 'التسليم',
+  'tour.summary.say': 'عند التسليم، افتح الملخّص لطباعة أو حفظ بطاقة مصاب من صفحة واحدة بصيغة PDF.',
+  'tour.board.title': 'شاهد المشهد كاملًا',
+  'tour.board.say': 'مع وجود عدة مصابين، تجمع اللوحة الجميع حسب الفرز — صورة المشهد للقيادة.',
+  'tour.done.title': 'أنت جاهز',
+  'tour.done.say': 'هذا هو التدفّق الأساسي. كل شيء يُحفظ دون اتصال على هذا الجهاز. يمكنك إعادة الجولة في أي وقت من زر المساعدة.',
+  'tomb.title': 'الهوية',
+  'tomb.name': 'الاسم الكامل',
+  'tomb.name_ph': 'اللقب، الاسم',
+  'tomb.dob': 'تاريخ الميلاد',
+  'tomb.sex': 'الجنس',
+  'sex.female': 'أنثى',
+  'sex.male': 'ذكر',
+  'sex.other': 'آخر',
+  'sex.unknown': 'غير معروف',
+  'tomb.mrn': 'معرّف المريض / الرقم الطبي',
+  'tomb.blood': 'فصيلة الدم',
+  'tomb.blood_ph': 'غير معروفة',
+  'tomb.nok': 'أقرب الأقارب',
+  'tomb.nokphone': 'هاتف القريب',
+  'inc.title': 'الحادث',
+  'inc.time': 'وقت الإصابة',
+  'inc.mech': 'الآلية',
+  'inc.mech_ph': 'رضّ، حادث سير، طلق ناري…',
+  'inc.loc': 'موقع الحادث',
+  'inc.loc_ph': 'العنوان / الإحداثيات / GPS',
+  'inc.ageband': 'الفئة العمرية',
+  'inc.ageband_note': '· تضبط نسبة مساحة الحرق (لوند–براودر)',
+  'inc.fromdob': '· {n} سنة حسب الميلاد',
+  'elapsed.prefix': 'ت+', 'elapsed.d': 'ي', 'elapsed.h': 'س', 'elapsed.m': 'د',
+  'elapsed.title': 'الوقت منذ الإصابة', 'elapsed.label': 'منذ الإصابة',
+  'age.infant': '<1 سنة',
+  'age.age1': 'سنة',
+  'age.age5': '5 سنوات',
+  'age.age10': '10 سنوات',
+  'age.age15': '15 سنة',
+  'age.adult': 'بالغ',
+  'chart.title': 'مخطّط الإصابات — أمامي / خلفي',
+  'chart.hint': 'اختر نوع الإصابة · انقر منطقة من الجسم لتكبيرها · انقر مجددًا لوضع علامة. انقر العلامة لتعديلها أدناه.',
+  'chart.tip': 'بعد وضع علامة، انقرها لضبط الشدّة وإضافة ملاحظات و📷 إرفاق صور الجرح. عند التكبير، استخدم ← الجسم كاملًا للرجوع.',
+  'bc.anterior': 'أمامي · الواجهة', 'bc.posterior': 'خلفي · الظهر', 'bc.fullbody': '← الجسم كاملًا', 'bc.patient': 'المريض',
+  'injury.fracture': 'كسر',
+  'injury.laceration': 'تمزّق',
+  'injury.burn': 'حرق',
+  'injury.gsw': 'طلق ناري',
+  'injury.contusion': 'كدمة',
+  'injury.amputation': 'بتر',
+  'injury.abrasion': 'سحجة',
+  'injury.puncture': 'وخز',
+  'inj.title': 'الإصابات المسجّلة',
+  'inj.empty': 'لا توجد إصابات محدّدة بعد.',
+  'inj.notes_ph': 'ملاحظات — الحجم، العمق، التلوّث…',
+  'inj.addphoto': '📷 إضافة صورة',
+  'inj.photohint': 'صوّر الجرح — يُحفظ مع هذه الإصابة',
+  'inj.photoerr': 'تعذّر التقاط صورة — اسمح بالوصول إلى الكاميرا في إعدادات المتصفّح/التطبيق.',
+  'inj.selecthint': 'انقر علامة إصابة (أو صفًّا أعلاه) لتعديلها أو إرفاق 📷 صورة.',
+  'sev.minor': 'بسيطة',
+  'sev.moderate': 'متوسطة',
+  'sev.severe': 'شديدة',
+  'sev.critical': 'حرجة',
+  'tbsa': 'من مساحة الجسم',
+  'glance.title': 'الخطورة بلمحة',
+  'glance.notriage': 'الفرز غير محدّد',
+  'glance.vitals': 'أحدث العلامات الحيوية',
+  'glance.novitals': 'لا شيء مسجّل بعد',
+  'glance.injuries_one': '{n} إصابة',
+  'glance.injuries_many': '{n} إصابات',
+  'vit.title': 'العلامات الحيوية',
+  'vit.hr': 'النبض', 'vit.bp': 'الضغط', 'vit.rr': 'التنفّس', 'vit.spo2': 'SpO₂', 'vit.gcs': 'GCS', 'vit.pain': 'الألم',
+  'vit.hr_name': 'معدّل النبض', 'vit.bp_name': 'ضغط الدم', 'vit.rr_name': 'معدّل التنفّس',
+  'vit.spo2_name': 'تشبّع الأكسجين', 'vit.gcs_name': 'مقياس غلاسكو للغيبوبة', 'vit.pain_name': 'درجة الألم',
+  'vit.gcscalc': 'حاسبة GCS',
+  'gcs.eye': 'العين (E)', 'gcs.verbal': 'اللفظي (V)', 'gcs.motor': 'الحركي (M)',
+  'gcsopt.Spontaneous': 'تلقائي', 'gcsopt.To speech': 'عند الكلام', 'gcsopt.To pain': 'عند الألم', 'gcsopt.None': 'لا شيء',
+  'gcsopt.Oriented': 'واعٍ ومتوجّه', 'gcsopt.Confused': 'مشوّش', 'gcsopt.Inappropriate words': 'كلمات غير ملائمة',
+  'gcsopt.Incomprehensible sounds': 'أصوات غير مفهومة', 'gcsopt.Obeys commands': 'يطيع الأوامر',
+  'gcsopt.Localises pain': 'يحدّد موضع الألم', 'gcsopt.Withdraws from pain': 'ينسحب من الألم',
+  'gcsopt.Abnormal flexion': 'انثناء غير طبيعي', 'gcsopt.Abnormal extension': 'تمدّد غير طبيعي',
+  'vit.record': 'تسجيل العلامات',
+  'vit.hint': 'أدخل أي حقول واضغط تسجيل — سجّل مجموعة موقّتة جديدة عند كل إعادة تقييم.',
+  'tx.title': 'سجل العلاج',
+  'tx.intervention': 'التدخّل',
+  'tx.detail': 'التفاصيل (الجرعة / الطريق / الموضع)',
+  'tx.detail_ph': 'مثال: مورفين 10 ملغ عضلي',
+  'tx.location': 'المكان',
+  'tx.place.scene': 'في الموقع', 'tx.place.enroute': 'أثناء النقل', 'tx.place.handover': 'عند التسليم',
+  'tx.provider': 'المُقدِّم',
+  'tx.provider_ph': 'الأحرف الأولى / الوحدة',
+  'tx.log': 'تسجيل التدخّل',
+  'tx.hint': 'تظهر التدخّلات المسجّلة هنا مع الوقت والمكان والمُقدِّم.',
+  'txt.Tourniquet': 'عاصبة', 'txt.Hemostatic dressing': 'ضمادة مرقئة', 'txt.Pressure dressing': 'ضمادة ضاغطة',
+  'txt.Airway (NPA/OPA)': 'مجرى هوائي (أنفي/فموي)', 'txt.Needle decompression': 'تخفيف ضغط بالإبرة',
+  'txt.IV access / fluids': 'وريد / سوائل', 'txt.Medication': 'دواء', 'txt.Splint / immobilisation': 'جبيرة / تثبيت',
+  'txt.Wound packing': 'حشو الجرح', 'txt.Burn cooling': 'تبريد الحرق', 'txt.CPR': 'إنعاش قلبي رئوي', 'txt.Other': 'أخرى',
+  'saved.title': 'المصابون المحفوظون',
+  'saved.backup': '⬇ نسخ احتياطي',
+  'saved.restore': '⬆ استعادة',
+  'saved.empty': 'تُحفظ السجلات تلقائيًا أثناء الكتابة.',
+  'saved.tip': '🚩 اللوحة (الشريط العلوي) تعرض كل مصاب مجمّعًا حسب الفرز · 🖨 الملخّص يطبع بطاقة تسليم من صفحة واحدة.',
+  'saved.unidentified': 'غير معروف الهوية',
+  'saved.handedover': ' · تم التسليم',
+  'saved.inj': 'إصابة',
+  'imp.q': 'استيراد {n} سجلات؟',
+  'imp.merge': 'دمج',
+  'imp.replace': 'استبدال الكل',
+  'ho.title': 'تأكيد التسليم',
+  'ho.clinician': 'الطبيب المستلِم',
+  'ho.clinician_ph': 'الاسم / الدور',
+  'ho.facility': 'المنشأة المستلِمة',
+  'ho.facility_ph': 'المستشفى / الوحدة',
+  'ho.sign': '✓ تأكيد التسليم',
+  'ho.done': 'تم التسليم',
+  'ho.share': '⤳ مشاركة التسليم',
+  'ho.undo': 'تراجع عن التسليم',
+  'ho.hint': 'يسجّل من تولّى الرعاية ومتى — يُختم الوقت تلقائيًا.',
+  'footnote': 'نموذج أولي — ليس جهازًا طبيًا وليس للاستخدام السريري. تُخزَّن البيانات محليًا على هذا الجهاز فقط.',
+  'dob.ph': 'YYYY-MM-DD',
+  'sm.card': '◇ TRIAGE-LINK — بطاقة مصاب',
+  'sm.atmist': 'تسليم AT-MIST',
+  'sm.a': 'العمر / الجنس', 'sm.t': 'وقت الحادث', 'sm.m': 'الآلية',
+  'sm.i': 'الإصابات', 'sm.s': 'العلامات', 'sm.tx': 'العلاج',
+  'sm.patient': 'المريض', 'sm.name': 'الاسم', 'sm.dob': 'الميلاد', 'sm.sex': 'الجنس', 'sm.ageband': 'الفئة العمرية',
+  'sm.mrn': 'الرقم الطبي', 'sm.blood': 'فصيلة الدم', 'sm.nok': 'أقرب الأقارب', 'sm.nokphone': 'هاتف القريب', 'sm.address': 'العنوان',
+  'sm.incident': 'الحادث', 'sm.timeofinjury': 'وقت الإصابة', 'sm.location': 'الموقع',
+  'sm.injuries': 'الإصابات', 'sm.none': 'لا شيء مسجّل.',
+  'sm.region': 'المنطقة', 'sm.view': 'الجهة', 'sm.type': 'النوع', 'sm.severity': 'الشدّة', 'sm.notes': 'ملاحظات',
+  'sm.burntbsa': 'مساحة الحرق', 'sm.time': 'الوقت', 'sm.vitals': 'العلامات الحيوية', 'sm.treatments': 'العلاجات',
+  'sm.intervention': 'التدخّل', 'sm.detail': 'التفاصيل', 'sm.place': 'المكان', 'sm.provider': 'المُقدِّم',
+  'sm.handover': 'التسليم', 'sm.clinician': 'الطبيب', 'sm.facility': 'المنشأة', 'sm.nothandedover': 'لم يُسلَّم بعد.',
+  'sm.print': '🖨 طباعة / حفظ PDF', 'sm.close': 'إغلاق', 'sm.generated': 'أُنشئ في',
+  'view.anterior': 'أمامي', 'view.posterior': 'خلفي',
+  'board.title': 'لوحة الفرز',
+  'board.immediate': 'فوري', 'board.delayed': 'مؤجّل', 'board.minor': 'بسيط', 'board.deceased': 'متوفّى', 'board.untriaged': 'دون فرز',
+  'board.count_one': '{n} مصاب', 'board.count_many': '{n} مصابين',
+  'board.matchcount': '{n} من {m}',
+  'board.search_ph': 'ابحث بالاسم أو المعرّف أو الآلية…',
+  'board.clear': 'مسح البحث',
+  'board.scope.label': 'تصفية حسب حالة التسليم',
+  'board.scope.all': 'الكل', 'board.scope.onscene': 'في الموقع', 'board.scope.handed': 'تم التسليم',
+  'board.nomatch': 'لا مصاب يطابق «{q}».',
+  'board.noneinview': 'لا مصابون في هذا العرض.',
+  'board.handedover': 'تم التسليم',
+  'board.none': 'لا مصابون بعد — تظهر السجلات هنا عند إنشائها.',
+  'pcr.verify': '⊕ التحقق من الهوية عبر السجل',
+  'pcr.querying': 'جارٍ الاستعلام…',
+  'pcr.hint': 'أدخل رقم البطاقة الصحية (الرقم الطبي)، أو اسمًا + تاريخ ميلاد للاستعلام من السجل.',
+  'pcr.nomatch': 'لا تطابق في السجل.',
+  'pcr.unreachable': 'تعذّر الوصول إلى خدمة السجل الصحي (غير متصل أو الخادم متوقّف).',
+  'pcr.unreachable2': 'تعذّر الوصول إلى خدمة السجل الصحي.',
+  'pcr.use': 'استخدام هذه الهوية',
+  'pcr.loading': 'جارٍ التحميل…',
+  'pcr.loadctx': 'تحميل السياق السريري',
+  'pcr.ctx_one': 'سياق سريري · {n} سجل', 'pcr.ctx_many': 'سياق سريري · {n} سجلات',
+  'pcr.noctx': 'لا سياق متاح.',
+  'install.msg': '📲 ثبّت TRIAGE-LINK على شاشتك الرئيسية — يعمل دون اتصال تمامًا.',
+  'install.btn': 'تثبيت',
+  'offline.msg': '⚡ تعمل دون اتصال — تُحفظ التغييرات على هذا الجهاز وتُزامَن لاحقًا.',
+  'tip.dismiss': 'إغلاق التلميح', 'dismiss': 'إغلاق',
+  'hdr.ehrlab': '🧪 مختبر السجل الصحي',
+  'lab.title': '🧪 مختبر اختبار تكامل السجل الصحي',
+  'lab.sub1': 'يشغّل الحقيقي', 'lab.sub2': 'داخل المتصفّح — PCR / الإرسال إلى السجل محاكاة، دون اتصال تمامًا. بلا ONE ID أو خادم.',
+  'lab.tab.suite': 'مجموعة السيناريوهات', 'lab.tab.manual': 'وحدة تحكّم يدوية',
+  'lab.runall': '▶ تشغيل الكل', 'lab.running': 'جارٍ التشغيل…',
+  'lab.passed': 'نجح {n}/{m} سيناريو',
+  'lab.suitetip': 'يعرض كل سيناريو طلبه، وFHIR المُولَّد، وحدث التدقيق، والاستجابة.',
+  'lab.grp.match': 'Patient $match', 'lab.grp.send': 'الإرسال إلى السجل', 'lab.grp.context': 'السياق السريري', 'lab.grp.failure': 'معالجة الأعطال',
+  'lab.pass': 'نجح', 'lab.fail': 'فشل', 'lab.run': 'تشغيل',
+  'lab.s.mhcn.t': 'التحديد برقم البطاقة الصحية',
+  'lab.s.mhcn.d': 'رقم OHIP دقيق → تطابق واحد مؤكّد (تحديد الهوية).',
+  'lab.s.munknown.t': 'رقم بطاقة صحية غير معروف',
+  'lab.s.munknown.d': 'رقم لا يملكه أي مريض → صفر مرشّحين، غير محدّد.',
+  'lab.s.mnamedob.t': 'الاسم + تاريخ الميلاد',
+  'lab.s.mnamedob.d': 'دون رقم بطاقة، لكن اللقب + تاريخ الميلاد → مرشّح محتمل (غير مؤكّد).',
+  'lab.s.haccept.t': 'المساهمة بتسليم مصاب',
+  'lab.s.haccept.d': 'إرسال CasualtyRecord → مقبول، مع معرّف معاملة. يعرض حزمة معاملة FHIR التي ستُرسَل.',
+  'lab.s.callergy.t': 'جلب السياق لمريض محدّد',
+  'lab.s.callergy.d': 'جلب الأدوية/الحساسية لـ pcr-1001 → حزمة FHIR تتضمّن حساسية عالية الخطورة.',
+  'lab.s.foutage.t': 'انقطاع السجل عند الإرسال',
+  'lab.s.foutage.d': 'تطلق البوابة EhrError("unavailable") → يظهر كـ 503 قابل لإعادة المحاولة، تمامًا كما يجب أن يعالج التطبيق مستودعًا متوقّفًا.',
+  'lab.chk.notransport': 'لا خطأ في النقل', 'lab.chk.zeromatches': 'صفر تطابقات',
+  'lab.chk.notautoresolved': 'دون تحديد تلقائي', 'lab.chk.returnstxid': 'يعيد معرّف معاملة',
+  'lab.chk.isbundle': 'حزمة FHIR', 'lab.chk.includesallergy': 'يتضمّن AllergyIntolerance',
+  'lab.chk.rejectedexpected': 'رُفض الاستدعاء (كما هو متوقّع)', 'lab.chk.retryable': 'مُعلَّم قابلًا لإعادة المحاولة',
+  'lab.chk.rejected': 'مرفوض', 'lab.chk.returnedresult': 'أعاد نتيجة',
+  'lab.chk.returnedbundle': 'أعاد حزمة', 'lab.chk.validjson': 'حمولة JSON صالحة', 'lab.chk.accepted': 'مقبول',
+  'lab.checksword': 'فحوص', 'lab.failedword': 'فشل',
+  'lab.json.request': 'الطلب', 'lab.json.response': 'الاستجابة', 'lab.json.audit': 'حدث تدقيق ATNA (يُسجَّل عند كل وصول)',
+  'lab.fhir.match': 'معاملات PCR FHIR Patient/$match (ما يرسله المحوّل)',
+  'lab.fhir.contribution': 'حزمة مساهمة أونتاريو (معاملة)',
+  'lab.fhir.matchmanual': 'معاملات PCR Patient/$match',
+  'lab.op.handover': 'الإرسال إلى السجل', 'lab.op.context': 'جلب السياق',
+  'lab.f.hcn': 'رقم البطاقة الصحية', 'lab.f.hcn_ph': 'رقم OHIP',
+  'lab.f.family': 'اللقب', 'lab.f.family_ph': 'مثال: عبدالله',
+  'lab.f.given': 'الاسم الأول', 'lab.f.given_ph': 'مثال: مريم',
+  'lab.f.seeded': 'مرضى تجريبيون:', 'lab.f.trynamedob': 'جرّب الاسم + تاريخ الميلاد',
+  'lab.f.pid': 'معرّف المريض', 'lab.f.seededids': 'معرّفات تجريبية:',
+  'lab.f.hasallergies': '(لديه حساسية/أدوية)', 'lab.f.empty': '(فارغ)',
+  'lab.usecurrent': 'استخدام المصاب الحالي ({id})', 'lab.resetsample': 'إعادة تعيين العيّنة',
+  'lab.outage': 'محاكاة انقطاع السجل', 'lab.runreq': 'تشغيل الطلب', 'lab.notjson': 'الحمولة ليست JSON صالحًا',
+  'lab.foot.b': 'الاختبار على الخادم باستخدام Swagger:',
+  'lab.foot.1': 'شغّل sync-service بـ', 'lab.foot.2': 'وافتح',
+  'lab.foot.3': 'لواجهة Swagger تفاعلية على المسارات نفسها (',
+  'lab.foot.4': '…) — «Try it out» يستدعي البوابة المحاكاة عبر HTTP.',
+}
+
+// Exported for the i18n parity test (every language must define every key).
+export const DICTS: Record<Lang, Dict> = { en: EN, fr: FR, ar: AR }
 
 // Anatomical region names are generated by the core body-model (≈150 of them)
 // and stored on the record in English (data stays language-neutral). They're
@@ -539,17 +786,57 @@ const REGION_FR: Dict = {
   Abdomen: 'Abdomen', 'Left lower limb': 'Membre inférieur gauche', 'Right lower limb': 'Membre inférieur droit',
 }
 
+const REGION_AR: Dict = {
+  // head / face
+  Crown: 'قمة الرأس', Forehead: 'الجبين', Nose: 'الأنف', Mouth: 'الفم', Chin: 'الذقن',
+  Eye: 'العين', Cheek: 'الخد', Ear: 'الأذن',
+  'Posterior scalp': 'فروة الرأس الخلفية', Occiput: 'مؤخّرة الرأس', Nape: 'القفا',
+  // neck / trunk
+  'Anterior neck': 'الرقبة الأمامية', 'Posterior neck': 'الرقبة الخلفية',
+  'Upper abdomen': 'أعلى البطن', 'Mid back': 'وسط الظهر',
+  'Lower abdomen': 'أسفل البطن', 'Lower back': 'أسفل الظهر',
+  Shoulder: 'الكتف', Chest: 'الصدر', 'Upper back': 'أعلى الظهر', Pelvis: 'الحوض', Buttock: 'الأرداف',
+  // arm / hand
+  'Upper arm': 'العضد', Elbow: 'المرفق', Forearm: 'الساعد', Wrist: 'الرسغ',
+  Palm: 'راحة اليد', 'Back of hand': 'ظهر اليد',
+  'Thumb proximal': 'الإبهام القريب', 'Thumb distal': 'الإبهام البعيد',
+  'Index proximal': 'السبّابة القريبة', 'Index middle': 'السبّابة الوسطى', 'Index distal': 'السبّابة البعيدة',
+  'Middle proximal': 'الوسطى القريبة', 'Middle middle': 'الوسطى المتوسّطة', 'Middle distal': 'الوسطى البعيدة',
+  'Ring proximal': 'البنصر القريب', 'Ring middle': 'البنصر المتوسّط', 'Ring distal': 'البنصر البعيد',
+  'Little proximal': 'الخنصر القريب', 'Little middle': 'الخنصر المتوسّط', 'Little distal': 'الخنصر البعيد',
+  // leg / foot
+  Thigh: 'الفخذ', Knee: 'الركبة', 'Back of knee': 'مأبض الركبة', Shin: 'الساق', Calf: 'بطّة الساق',
+  Ankle: 'الكاحل', 'Foot dorsum': 'ظهر القدم', Sole: 'باطن القدم',
+  'Great toe': 'إبهام القدم', '2nd toe': 'الإصبع الثاني', '3rd toe': 'الإصبع الثالث', '4th toe': 'الإصبع الرابع', '5th toe': 'الإصبع الخامس',
+  // macro zones + off-silhouette fallbacks
+  Head: 'الرأس', Neck: 'الرقبة', Torso: 'الجذع', Arm: 'الذراع', Hand: 'اليد', Leg: 'الساق', Foot: 'القدم',
+  Abdomen: 'البطن', 'Left lower limb': 'الطرف السفلي الأيسر', 'Right lower limb': 'الطرف السفلي الأيمن',
+}
+
+// Per-language region map + anatomical-side abbreviation. English has no map
+// (region returned unchanged).
+const REGION_MAPS: Partial<Record<Lang, Dict>> = { fr: REGION_FR, ar: REGION_AR }
+const SIDE_ABBR: Partial<Record<Lang, { L: string; R: string }>> = {
+  fr: { L: 'G', R: 'D' },   // gauche / droite
+  ar: { L: 'يس', R: 'يم' }, // يسار / يمين
+}
+
 /**
- * Localise an anatomical region string (e.g. "L Forearm" → "G Avant-bras").
- * English is returned unchanged. The optional "L "/"R " anatomical-side prefix
- * maps to "G "/"D " (gauche/droite); the remainder is looked up in REGION_FR,
+ * Localise an anatomical region string (e.g. "L Forearm" → "G Avant-bras" /
+ * "يس الساعد"). The stored value is English; this translates at render only.
+ * The optional "L "/"R " anatomical-side prefix maps to the language's side
+ * abbreviation; the remainder is looked up in the language's region map,
  * falling back to the original name so an unmapped region never blanks.
  */
 export function regionLabel(region: string, lang: Lang): string {
-  if (lang !== 'fr') return region
+  const map = REGION_MAPS[lang]
+  if (!map) return region
   const m = /^([LR]) (.+)$/.exec(region)
-  if (m) return `${m[1] === 'L' ? 'G' : 'D'} ${REGION_FR[m[2]] ?? m[2]}`
-  return REGION_FR[region] ?? region
+  if (m) {
+    const side = SIDE_ABBR[lang]!
+    return `${m[1] === 'L' ? side.L : side.R} ${map[m[2]] ?? m[2]}`
+  }
+  return map[region] ?? region
 }
 
 export type TFn = (key: string, params?: Record<string, string | number>) => string
@@ -565,19 +852,30 @@ const defaultT: TFn = (key, params) => {
 // outside a provider (e.g. in unit tests).
 const Ctx = createContext<LangCtx>({ lang: 'en', setLang: () => {}, t: defaultT })
 
-function readStored(): Lang {
-  try { return localStorage.getItem(STORAGE_KEY) === 'fr' ? 'fr' : 'en' } catch { return 'en' }
+// Initial language: a ?lang=xx URL switch wins (and is persisted, so it sticks
+// after the param is gone), then the stored choice, then English.
+function readInitial(): Lang {
+  try {
+    const url = new URLSearchParams(window.location.search).get('lang')
+    if (isLang(url)) { try { localStorage.setItem(STORAGE_KEY, url) } catch { /* ignore */ } ; return url }
+  } catch { /* ignore */ }
+  try { const s = localStorage.getItem(STORAGE_KEY); if (isLang(s)) return s } catch { /* ignore */ }
+  return 'en'
 }
 
 export function LangProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(readStored)
+  const [lang, setLangState] = useState<Lang>(readInitial)
 
   const setLang = useCallback((l: Lang) => {
     setLangState(l)
     try { localStorage.setItem(STORAGE_KEY, l) } catch { /* ignore */ }
   }, [])
 
-  useEffect(() => { document.documentElement.lang = lang }, [lang])
+  // Keep the document's language + writing direction in sync (RTL for Arabic).
+  useEffect(() => {
+    document.documentElement.lang = lang
+    document.documentElement.dir = isRtl(lang) ? 'rtl' : 'ltr'
+  }, [lang])
 
   const t = useCallback<TFn>((key, params) => {
     let s = DICTS[lang][key] ?? EN[key] ?? key
