@@ -51,5 +51,18 @@ export async function decryptString(key: CryptoKey, blob: string): Promise<strin
 export const encryptJson = (key: CryptoKey, value: unknown): Promise<string> => encryptString(key, JSON.stringify(value))
 export const decryptJson = async <T = unknown>(key: CryptoKey, blob: string): Promise<T> => JSON.parse(await decryptString(key, blob)) as T
 
+/** Encrypt raw bytes (e.g. a photo blob) → ciphertext + the random IV used.
+ *  Stored as Uint8Arrays so they structured-clone into IndexedDB unchanged. */
+export async function encryptBytes(key: CryptoKey, data: Uint8Array): Promise<{ iv: Uint8Array; ct: Uint8Array }> {
+  const iv = crypto.getRandomValues(new Uint8Array(12))
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data as BufferSource))
+  return { iv, ct }
+}
+
+/** Decrypt bytes produced by encryptBytes. Throws if key/iv/ct don't match. */
+export async function decryptBytes(key: CryptoKey, iv: Uint8Array, ct: Uint8Array): Promise<Uint8Array> {
+  return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv as BufferSource }, key, ct as BufferSource))
+}
+
 /** Round-trip check used to validate a passphrase against a stored verifier. */
 export const VAULT_CHECK_PLAINTEXT = 'triage-link-vault-v1'

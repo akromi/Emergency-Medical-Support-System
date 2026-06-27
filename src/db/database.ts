@@ -13,7 +13,11 @@ export interface MetaRow {
 export interface PhotoRow {
   id: string
   mime: string
+  /** Raw bytes when stored in the clear, or AES-GCM ciphertext when `iv` is set. */
   bytes: Uint8Array
+  /** Present only when the vault is enabled: the 12-byte AES-GCM IV for `bytes`.
+   *  `mime` is non-PHI and stays in the clear so the type survives without a key. */
+  iv?: Uint8Array
 }
 
 // IndexedDB store. Works fully offline; the unit of sync is one record.

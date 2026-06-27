@@ -1,5 +1,8 @@
+import Dexie from 'dexie'
 import { genLocalId } from '@triage-link/core'
 import { db } from './database'
+import { encryptBytes, decryptBytes } from './crypto'
+import { getKey } from './vault'
 
 // Photo blob store. Wound photos are heavy; embedding them as base64 data URLs
 // inside each casualty record bloats every record read, write, and op-log diff.
@@ -29,18 +32,39 @@ function encodeDataUrl(mime: string, bytes: Uint8Array): string {
   return `data:${mime};base64,${btoa(bin)}`
 }
 
-/** Store a data-URL photo as raw bytes; returns its "idb:<id>" reference. */
+/** Store a data-URL photo as raw bytes; returns its "idb:<id>" reference.
+ *  When the vault is unlocked the bytes are encrypted at rest (AES-GCM). */
 export async function putPhoto(dataUrl: string): Promise<string> {
   const id = genLocalId('ph-')
   const { mime, bytes } = decodeDataUrl(dataUrl)
-  await db.photos.put({ id, mime, bytes })
+  const key = getKey()
+  if (key) {
+    // putPhoto runs inside the repository's Dexie save transaction; wrap the
+    // WebCrypto promise in Dexie.waitFor so the transaction stays alive across
+    // the (non-Dexie) await instead of auto-committing early.
+    const { iv, ct } = await Dexie.waitFor(encryptBytes(key, bytes))
+    await db.photos.put({ id, mime, bytes: ct, iv })
+  } else {
+    await db.photos.put({ id, mime, bytes })
+  }
   return PREFIX + id
 }
 
-/** Resolve a reference back to a data URL (null if the bytes are missing). */
+/** Resolve a reference back to a data URL (null if the bytes are missing, or
+ *  the photo is encrypted and the vault is locked). Handles mixed plaintext /
+ *  encrypted rows so a vault toggled mid-life always reads correctly. */
 export async function readPhoto(ref: string): Promise<string | null> {
   const row = await db.photos.get(ref.slice(PREFIX.length))
-  return row ? encodeDataUrl(row.mime, row.bytes) : null
+  if (!row) return null
+  if (!row.iv) return encodeDataUrl(row.mime, row.bytes) // stored in the clear
+  const key = getKey()
+  if (!key) return null // vault locked — caller is gated by the lock screen
+  try {
+    const bytes = await decryptBytes(key, row.iv, row.bytes)
+    return encodeDataUrl(row.mime, bytes)
+  } catch {
+    return null
+  }
 }
 
 export async function deletePhoto(ref: string): Promise<void> {
