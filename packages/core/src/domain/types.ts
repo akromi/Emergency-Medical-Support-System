@@ -74,6 +74,14 @@ export interface Handover {
   facility: string
 }
 
+/** Who created the record — a snapshot of the operator (see db/operators.ts),
+ *  captured at creation so it survives the operator later being renamed/removed.
+ *  Optional: single-operator / community use leaves it undefined. */
+export interface RecordAuthor {
+  id: string
+  name: string
+}
+
 export interface CasualtyRecord {
   id: string
   tombstone: Tombstone
@@ -82,6 +90,7 @@ export interface CasualtyRecord {
   vitals: VitalSign[]
   treatments: Treatment[]
   handover: Handover | null
+  author?: RecordAuthor
   createdAt: number
   updatedAt: number
 }

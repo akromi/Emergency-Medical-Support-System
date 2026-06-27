@@ -3,6 +3,7 @@ import { genLocalId } from '@triage-link/core'
 import { db, type AuditEntry } from './database'
 import { sha256Hex } from './crypto'
 import { getClientId } from './oplog'
+import { getActiveOperator } from './operators'
 
 // Append-only, hash-chained audit log. Every entry records a non-PHI event
 // (UUIDs, an action category, a timestamp) and links to the previous entry via
@@ -25,9 +26,11 @@ const GENESIS = 'genesis'
 const canonical = (e: Omit<AuditEntry, 'seq' | 'hash'>): string =>
   JSON.stringify([e.id, e.ts, e.actor, e.action, e.recordId ?? null, e.detail ?? null, e.prevHash])
 
-/** The actor for new entries — the device id today; the operator once added. */
+/** The actor for new entries — the active operator if one is selected, else the
+ *  device id (community / single-user use). */
 async function actor(): Promise<string> {
-  return getClientId()
+  const op = getActiveOperator()
+  return op ? `${op.name} (${op.role})` : getClientId()
 }
 
 /**

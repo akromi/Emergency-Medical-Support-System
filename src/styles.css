@@ -591,3 +591,28 @@ input::placeholder { color:var(--txt-faint); }
   color:#fff; background:#a5302b; border:1px solid #e0564f; }
 .audit-tbl { width:100%; }
 .audit-tbl td.mono, .audit-tbl th { font-size:11.5px; }
+
+/* ---- Operator roster (attribution + RBAC-lite) ---- */
+.op-chip { border:1px solid var(--line); background:var(--panel-2); color:var(--txt); padding:6px 10px;
+  border-radius:999px; font-size:12.5px; font-weight:600; cursor:pointer; white-space:nowrap; }
+.op-chip:hover { background:var(--raised); }
+.op-overlay { position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.6); overflow:auto; padding:20px;
+  display:flex; align-items:flex-start; justify-content:center; }
+.op { width:100%; max-width:520px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+.op-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.op-head h2 { margin:0; font-size:14px; letter-spacing:1px; text-transform:uppercase; color:var(--txt); }
+.op-head-actions { display:flex; gap:8px; }
+.op-msg { margin-bottom:10px; padding:7px 11px; border-radius:8px; font-size:12.5px; font-weight:600;
+  color:#fff; background:#a5302b; border:1px solid #e0564f; }
+.op-list { list-style:none; margin:0 0 12px; padding:0; display:flex; flex-direction:column; gap:6px; }
+.op-row { display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:9px; padding:4px 8px; }
+.op-row.on { border-color:var(--ekg); background:color-mix(in srgb, var(--ekg) 8%, var(--panel)); }
+.op-pick { flex:1; display:flex; align-items:baseline; gap:10px; border:0; background:none; color:var(--txt);
+  cursor:pointer; padding:6px 4px; text-align:start; }
+.op-name { font-weight:600; font-size:13.5px; }
+.op-role { font-family:var(--mono); font-size:11px; color:var(--txt-faint); text-transform:uppercase; letter-spacing:.04em; }
+.op-active { font-size:11px; font-weight:700; color:var(--ekg); text-transform:uppercase; letter-spacing:.04em; }
+.op-add { display:flex; flex-wrap:wrap; gap:8px; padding-top:12px; border-top:1px solid var(--line-soft); }
+.op-add input, .op-add select { padding:8px 10px; border:1px solid var(--line); border-radius:8px;
+  background:var(--panel-2); color:var(--txt); font-size:13px; }
+.op-add input { flex:1; min-width:120px; }

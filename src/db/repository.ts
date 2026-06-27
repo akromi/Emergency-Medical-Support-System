@@ -6,6 +6,7 @@ import { isDataUrl, isPhotoRef, putPhoto, readPhoto } from './photos'
 import { getKey, isEnabled, isRequired } from './vault'
 import { sealRecord, openRecord, sealOp, VaultLockedError } from './record-crypto'
 import { audit } from './audit'
+import { authorSnapshot } from './operators'
 
 // Thin repository over IndexedDB, wrapped with an append-only op-log: every save
 // journals the field/item changes as immutable ops (for conflict-aware sync)
@@ -57,6 +58,12 @@ export const recordRepo = {
     // the edit re-saves on the next change once the vault is unlocked.
     if ((isEnabled() || isRequired()) && !getKey()) return
     record.updatedAt = Date.now()
+    // Attribute the record to the active operator on creation (if any), kept as
+    // a snapshot so it survives the operator later being renamed/removed.
+    if (!record.author) {
+      const author = authorSnapshot()
+      if (author) record.author = author
+    }
     let wasCreate = false
     await db.transaction('rw', db.records, db.ops, db.meta, db.photos, async () => {
       const key = getKey()

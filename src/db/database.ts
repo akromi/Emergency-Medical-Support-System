@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie'
 import { diffToOps, type CasualtyRecord, type Op } from '@triage-link/core'
 import type { SealedRecord, SealedOp } from './record-crypto'
+import type { Operator } from './operators'
 
 /** Sync bookkeeping: persistent clientId and the device's Lamport clock. */
 export interface MetaRow {
@@ -48,6 +49,7 @@ export class TriageDB extends Dexie {
   meta!: Table<MetaRow, string>
   photos!: Table<PhotoRow, string>
   audit!: Table<AuditEntry, number>
+  operators!: Table<Operator, string>
 
   constructor() {
     super('triage-link')
@@ -101,6 +103,15 @@ export class TriageDB extends Dexie {
       meta: 'key',
       photos: 'id',
       audit: '++seq, ts',
+    })
+    // v5: local operator roster (attribution + RBAC-lite). New empty table.
+    this.version(5).stores({
+      records: 'id, updatedAt',
+      ops: 'id, recordId, lamport',
+      meta: 'key',
+      photos: 'id',
+      audit: '++seq, ts',
+      operators: 'id, name',
     })
   }
 }
