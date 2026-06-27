@@ -28,6 +28,8 @@ import { LockScreen, useVaultState } from './components/VaultLock'
 import { initVault, enableVault, disableVault, lock as lockVault, noteActivity, isRequired } from './db/vault'
 import { audit } from './db/audit'
 import { AuditLog } from './components/AuditLog'
+import { OperatorPanel, useOperators } from './components/OperatorPanel'
+import { initOperators, canViewAdmin } from './db/operators'
 import { useLang, regionLabel, nextLang } from './i18n'
 
 const TRIAGE_ORDER: TriageCategory[] = ['immediate', 'delayed', 'minor', 'deceased']
@@ -64,15 +66,18 @@ export function App() {
   const [showTour, setShowTour] = useState(false)
   const [showEhrLab, setShowEhrLab] = useState(false)
   const [showAudit, setShowAudit] = useState(false)
+  const [showOperators, setShowOperators] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [tourOffered, dismissTourOffer] = useDismissed('tour-offered')
   const [backupMsg, setBackupMsg] = useState('')
   const [pendingImport, setPendingImport] = useState<{ backup: Backup; count: number } | null>(null)
   const saveTimer = useRef<number | undefined>(undefined)
   const vaultState = useVaultState()
+  const { active: activeOperator } = useOperators()
 
   useEffect(() => {
     initVault()
+    initOperators()
   }, [])
 
   // The saved list follows vault state: hidden while locked (records are sealed
@@ -289,6 +294,11 @@ export function App() {
       <header className="topbar">
         <div className="brand"><span className="mark">◇<span className="bn"> TRIAGE-LINK</span></span><span className="sub">{t('app.sub')}</span></div>
         <div className="pid"><span className="pid-label">{t('hdr.case')} </span><b>{record.id}</b></div>
+        {activeOperator && (
+          <button type="button" className="op-chip" onClick={() => setShowOperators(true)} title={t('op.title')}>
+            👤 {activeOperator.name}
+          </button>
+        )}
         <button type="button" className="topbtn langbtn" onClick={() => setLang(nextLang(lang))} title="Language / Langue / اللغة">🌐 {t('lang.toggle')}</button>
         <button className="topbtn" onClick={newCase} title="Start a fresh record (the current one is auto-saved)">{t('hdr.new')}</button>
         <button className="topbtn" data-tour="board" onClick={() => setShowBoard(true)} title="All saved casualties grouped by triage (scene picture)">{t('hdr.board')}{saved.length > 0 ? ` · ${saved.length}` : ''}</button>
@@ -296,7 +306,10 @@ export function App() {
         <div className={`topbar-rest${menuOpen ? ' open' : ''}`} onClick={() => setMenuOpen(false)}>
           <button className="topbtn" data-tour="summary" onClick={() => setShowSummary(true)} title="One-page casualty card — print or save as PDF for handover">{t('hdr.summary')}</button>
           <button className="topbtn" onClick={() => setShowTour(true)} title="Replay the guided tour">{t('hdr.tour')}</button>
-          <button className="topbtn" onClick={() => { setShowAudit(true); setMenuOpen(false) }} title="Tamper-evident log of data access and security events">{t('audit.menu')}</button>
+          <button className="topbtn" onClick={() => { setShowOperators(true); setMenuOpen(false) }} title="Assign records to the operator on duty (shared-device attribution)">{t('op.menu')}</button>
+          {canViewAdmin() && (
+            <button className="topbtn" onClick={() => { setShowAudit(true); setMenuOpen(false) }} title="Tamper-evident log of data access and security events">{t('audit.menu')}</button>
+          )}
           <button className="topbtn" onClick={sendToEhr} title="Contribute this handover to the provincial EHR">{t('hdr.ehr')}</button>
           {vaultState === 'disabled' && (
             <button className="topbtn" onClick={enablePhotoVault} title="Encrypt all wound photos at rest behind a passphrase">{t('vault.enable')}</button>
@@ -560,6 +573,7 @@ export function App() {
     )}
     {import.meta.env.DEV && showEhrLab && <EhrTestConsole record={record} onClose={() => setShowEhrLab(false)} />}
     {showAudit && <AuditLog onClose={() => setShowAudit(false)} />}
+    {showOperators && <OperatorPanel onClose={() => setShowOperators(false)} />}
     {(vaultState === 'locked' || vaultState === 'setup') && <LockScreen />}
     </>
   )

@@ -30,8 +30,9 @@ function UnlockScreen() {
     if (!pass || busy) return
     setBusy(true)
     const ok = await unlock(pass)
-    setBusy(false)
-    if (ok) { setPass(''); setError(false) } else { setError(true) }
+    // On success the vault flips to 'unlocked' and this screen unmounts — don't
+    // set state afterwards. Only the failure path stays mounted.
+    if (!ok) { setError(true); setBusy(false) }
   }
 
   return (
@@ -71,10 +72,11 @@ function SetupScreen() {
     setBusy(true)
     try {
       await enableVault(pass) // derives the key, encrypts existing data, unlocks
+      // success → vault becomes 'unlocked' and this screen unmounts; don't set state.
     } catch {
       setError(t('vault.setupFailed'))
+      setBusy(false)
     }
-    setBusy(false)
   }
 
   return (
