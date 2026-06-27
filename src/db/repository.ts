@@ -135,9 +135,11 @@ export const recordRepo = {
       await db.records.clear()
       await db.ops.clear()
       await db.photos.clear()
-      // Drop the sync cursor: the op-log is gone, so the next sync must re-pull
-      // full state rather than only the delta past a now-meaningless checkpoint.
+      // Drop the sync checkpoints: the op-log is gone, so the next sync must
+      // re-pull full state (cursor) and re-push everything (acked) rather than
+      // resuming past now-meaningless markers.
       await db.meta.delete('sync.cursor')
+      await db.meta.delete('sync.acked')
     })
   },
 }

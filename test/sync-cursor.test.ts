@@ -47,9 +47,44 @@ describe('sync client cursor checkpointing', () => {
     expect(await db.meta.get('sync.cursor')).toBeUndefined()
   })
 
-  it('resets the cursor when the store is cleared (forces a full re-pull)', async () => {
+  it('resets the cursor and acked set when the store is cleared (forces a full resync)', async () => {
     await db.meta.put({ key: 'sync.cursor', value: '5' })
+    await db.meta.put({ key: 'sync.acked', value: '["x"]' })
     await recordRepo.clear()
     expect(await db.meta.get('sync.cursor')).toBeUndefined()
+    expect(await db.meta.get('sync.acked')).toBeUndefined()
+  })
+
+  it('pushes the full log first, then only un-acked ops', async () => {
+    await recordRepo.save(createEmptyRecord('CAS-1'))
+    const firstLog = await db.ops.toArray()
+    expect(firstLog.length).toBeGreaterThan(0)
+
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ records: {}, ops: [], cursor: 1 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    // First sync: nothing acked yet → push the whole local log.
+    await syncWithServer('http://sync.test')
+    expect(bodyOf(fetchMock, 0).ops.map((o: { id: string }) => o.id).sort())
+      .toEqual(firstLog.map((o) => o.id).sort())
+
+    // A new edit adds ops; the prior ops are now acked.
+    await recordRepo.save({ ...createEmptyRecord('CAS-2') })
+    const newIds = (await db.ops.toArray()).map((o) => o.id).filter((id) => !firstLog.some((o) => o.id === id))
+    expect(newIds.length).toBeGreaterThan(0)
+
+    // Second sync: push ONLY the new (un-acked) ops.
+    await syncWithServer('http://sync.test')
+    expect(bodyOf(fetchMock, 1).ops.map((o: { id: string }) => o.id).sort()).toEqual(newIds.sort())
+  })
+
+  it('pushes nothing once everything is acked (pull-only sync)', async () => {
+    await recordRepo.save(createEmptyRecord('CAS-1'))
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ records: {}, ops: [], cursor: 1 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await syncWithServer('http://sync.test') // acks everything
+    await syncWithServer('http://sync.test')
+    expect(bodyOf(fetchMock, 1).ops).toEqual([])
   })
 })
