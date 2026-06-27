@@ -2,6 +2,10 @@
 // deterministic resolver — the server stores ops and folds them; it does not
 // implement its own (divergent) merge logic.
 import Fastify, { type FastifyInstance } from 'fastify'
+import helmet from '@fastify/helmet'
+import cors from '@fastify/cors'
+import rateLimit from '@fastify/rate-limit'
+import { timingSafeEqual } from 'node:crypto'
 import swagger from '@fastify/swagger'
 import swaggerUi from '@fastify/swagger-ui'
 import { resolve, type Op, type EhrGateway } from '@triage-link/core'
@@ -14,16 +18,108 @@ interface SyncBody {
   ops?: Op[]
 }
 
+/** Hardening knobs for a deployed instance (all optional; off by default so
+ *  dev/tests stay open). A production deploy should set at least `authToken`
+ *  and `corsOrigins`. */
+export interface SecurityOptions {
+  /** When set, `/sync` and `/ehr/*` require `Authorization: Bearer <token>`. */
+  authToken?: string
+  /** Allowed browser origins for CORS. Empty/undefined → cross-origin disabled. */
+  corsOrigins?: string[]
+  /** Max requests per IP per minute (default 300). */
+  rateLimitMax?: number
+  /** Max request body size in bytes (default 10 MB — handover bundles embed photos). */
+  bodyLimit?: number
+  /** Trust `X-Forwarded-*` (enable behind a reverse proxy / load balancer). */
+  trustProxy?: boolean
+}
+
+/** Constant-time bearer-token check (avoids leaking the token via timing). */
+function bearerOk(header: string | undefined, token: string): boolean {
+  if (!header) return false
+  const a = Buffer.from(header)
+  const b = Buffer.from(`Bearer ${token}`)
+  return a.length === b.length && timingSafeEqual(a, b)
+}
+
+// Request validation for POST /sync — rejects malformed/oversized op batches at
+// the edge (Ajv via Fastify) instead of trusting the client payload.
+const OP_SCHEMA = {
+  type: 'object',
+  required: ['id', 'recordId', 'clientId', 'lamport', 'ts', 'kind', 'path'],
+  additionalProperties: false,
+  properties: {
+    id: { type: 'string', maxLength: 256 },
+    recordId: { type: 'string', maxLength: 256 },
+    clientId: { type: 'string', maxLength: 256 },
+    lamport: { type: 'integer', minimum: 0 },
+    ts: { type: 'integer', minimum: 0 },
+    kind: { type: 'string', enum: ['scalar', 'item-put', 'item-remove'] },
+    path: { type: 'string', maxLength: 256 },
+    itemId: { type: 'string', maxLength: 256 },
+    value: {},
+  },
+}
+const SYNC_BODY_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    clientId: { type: 'string', maxLength: 256 },
+    ops: { type: 'array', maxItems: 10000, items: OP_SCHEMA },
+  },
+}
+
 export function buildApp(
-  { store, ehr, ehrAudit, docs = true }: {
+  { store, ehr, ehrAudit, docs = true, security = {} }: {
     store: OpStore
     ehr?: EhrGateway
     ehrAudit?: EhrAuditStore
     /** Serve OpenAPI + Swagger UI at /docs (default true). */
     docs?: boolean
+    /** Transport/access hardening (see SecurityOptions). */
+    security?: SecurityOptions
   },
 ): FastifyInstance {
-  const app = Fastify({ logger: false })
+  const app = Fastify({
+    logger: false,
+    bodyLimit: security.bodyLimit ?? 10 * 1024 * 1024,
+    trustProxy: security.trustProxy ?? false,
+  })
+
+  // ---- security middleware (registered first, so it wraps every route) ----
+  // Hardened response headers (nosniff, frameguard DENY, HSTS, no-referrer, …).
+  // CSP is disabled here: this tier serves JSON and (in dev) Swagger UI; the
+  // browser Content-Security-Policy belongs to the web app, not the API.
+  app.register(helmet, {
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    frameguard: { action: 'deny' }, // an API is never meant to be framed
+  })
+
+  // Default-deny CORS: only explicitly-configured browser origins may call the
+  // API; with none set, cross-origin requests get no CORS headers (blocked).
+  app.register(cors, {
+    origin: security.corsOrigins && security.corsOrigins.length ? security.corsOrigins : false,
+    methods: ['GET', 'POST'],
+    maxAge: 600,
+  })
+
+  // Abuse / DoS guard — per-IP request budget.
+  app.register(rateLimit, { max: security.rateLimitMax ?? 300, timeWindow: '1 minute' })
+
+  // Bearer-token gate on the data + EHR routes (/health stays open for probes).
+  // Active only when a token is configured, so dev/tests stay open; a
+  // production deploy MUST set one (server.ts reads SYNC_API_TOKEN).
+  if (security.authToken) {
+    const token = security.authToken
+    app.addHook('onRequest', async (req, reply) => {
+      const path = req.url.split('?')[0]
+      const protectedRoute = path === '/sync' || path.startsWith('/sync/') || path.startsWith('/ehr')
+      if (protectedRoute && !bearerOk(req.headers.authorization, token)) {
+        return reply.code(401).send({ error: 'unauthorized', message: 'Missing or invalid bearer token' })
+      }
+    })
+  }
 
   // OpenAPI doc + interactive Swagger UI. Registered before routes so the
   // onRoute hook captures every endpoint and its schema. Run the service with
@@ -61,7 +157,9 @@ export function buildApp(
   if (ehrAudit) registerEhrAuditRoute(app, ehrAudit)
 
   // Push a batch of ops and pull back the resolved state + full op set.
-  app.post('/sync', async (req, reply) => {
+  app.post('/sync', {
+    schema: { tags: ['sync'], summary: 'Push ops, pull resolved state', body: SYNC_BODY_SCHEMA },
+  }, async (req, reply) => {
     const body = (req.body ?? {}) as SyncBody
     const ops = Array.isArray(body.ops) ? body.ops : []
 
