@@ -58,7 +58,9 @@ export function Tutorial({ signals, onClose }: { signals: TourSignals; onClose: 
     window.speechSynthesis.cancel()
     const u = new SpeechSynthesisUtterance(text)
     u.rate = 1.02
-    const bcp = SPEECH_LANG[lang] ?? 'en-US'
+    // Built-ins map to a full BCP-47 tag; a runtime language pack uses its own
+    // code as the speech tag (e.g. 'sw', 'uk-UA'), falling back to en-US.
+    const bcp = SPEECH_LANG[lang] ?? lang ?? 'en-US'
     u.lang = bcp
     // Prefer a platform voice in the same language as the utterance (match on the
     // primary subtag, e.g. "ar" → ar-SA / ar-EG), so prosody matches the script.

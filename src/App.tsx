@@ -30,7 +30,7 @@ import { audit } from './db/audit'
 import { AuditLog } from './components/AuditLog'
 import { OperatorPanel, useOperators } from './components/OperatorPanel'
 import { initOperators, canViewAdmin } from './db/operators'
-import { useLang, regionLabel, nextLang } from './i18n'
+import { useLang, regionLabel, nextLang, registerLanguage, saveLanguagePack, templatePack } from './i18n'
 
 const TRIAGE_ORDER: TriageCategory[] = ['immediate', 'delayed', 'minor', 'deceased']
 // The EHR Test Lab is developer/QA furniture (offline, mock-only). It is gated
@@ -67,6 +67,7 @@ export function App() {
   const [showEhrLab, setShowEhrLab] = useState(false)
   const [showAudit, setShowAudit] = useState(false)
   const [showOperators, setShowOperators] = useState(false)
+  const [langMsg, setLangMsg] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [tourOffered, dismissTourOffer] = useDismissed('tour-offered')
   const [backupMsg, setBackupMsg] = useState('')
@@ -281,6 +282,29 @@ export function App() {
     URL.revokeObjectURL(url)
   }
   const exportFhir = () => { downloadJson(toFhirBundle(record), `${record.id}-fhir-bundle.json`); audit('record.export', { recordId: record.id }) }
+
+  // ---- runtime language packs (add a language with no code release) ----
+  function downloadTemplate() {
+    downloadJson(templatePack(), 'triage-link-language-template.json')
+    setMenuOpen(false)
+  }
+  function loadLanguagePack() {
+    setMenuOpen(false)
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'application/json,.json'
+    input.onchange = async () => {
+      const file = input.files?.[0]
+      if (!file) return
+      try {
+        const pack = JSON.parse(await file.text())
+        const code = registerLanguage(pack)   // validates shape
+        saveLanguagePack(pack)                 // persist across reloads
+        setLang(code)                          // switch to it immediately
+      } catch { setLangMsg(t('lang.packError')); window.setTimeout(() => setLangMsg(''), 5000) }
+    }
+    input.click()
+  }
   const shareHandover = () => { downloadJson(toHandoverBundle(record), `${record.id}-handover-fhir.json`); audit('record.export', { recordId: record.id, detail: 'handover' }) }
 
   const selected = record.injuries.find((i) => i.id === selectedInjury) ?? null
@@ -306,6 +330,8 @@ export function App() {
         <div className={`topbar-rest${menuOpen ? ' open' : ''}`} onClick={() => setMenuOpen(false)}>
           <button className="topbtn" data-tour="summary" onClick={() => setShowSummary(true)} title="One-page casualty card — print or save as PDF for handover">{t('hdr.summary')}</button>
           <button className="topbtn" onClick={() => setShowTour(true)} title="Replay the guided tour">{t('hdr.tour')}</button>
+          <button className="topbtn" onClick={loadLanguagePack} title="Load a custom language pack (JSON) — adds a language with no app update">{t('lang.pack')}</button>
+          <button className="topbtn" onClick={downloadTemplate} title="Download the English strings as a starter template to translate">{t('lang.template')}</button>
           <button className="topbtn" onClick={() => { setShowOperators(true); setMenuOpen(false) }} title="Assign records to the operator on duty (shared-device attribution)">{t('op.menu')}</button>
           {canViewAdmin() && (
             <button className="topbtn" onClick={() => { setShowAudit(true); setMenuOpen(false) }} title="Tamper-evident log of data access and security events">{t('audit.menu')}</button>
@@ -329,6 +355,7 @@ export function App() {
         </div>
         {menuOpen && <div className="topmenu-backdrop" onClick={() => setMenuOpen(false)} />}
         {ehrStatus && <span className="ehr-status">{ehrStatus}</span>}
+        {langMsg && <span className="ehr-status">{langMsg}</span>}
       </header>
 
       {/* Prominent, always-visible triage tag (acuity channel, distinct from

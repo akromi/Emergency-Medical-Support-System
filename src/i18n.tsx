@@ -7,19 +7,18 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 
 export type Lang = 'en' | 'fr' | 'ar' | 'fa'
 const STORAGE_KEY = 'tl.lang'
-/** Languages in toggle-cycle order. */
+const PACKS_KEY = 'tl.langpacks'
+/** The four BUILT-IN languages (the i18n parity test guards these). Runtime
+ *  language packs extend the active set without changing this list. */
 export const LANGS: Lang[] = ['en', 'fr', 'ar', 'fa']
-/** Right-to-left scripts (drive document dir + RTL CSS). */
+/** Right-to-left built-ins; runtime packs declare their own `rtl` flag. */
 const RTL_LANGS = new Set<Lang>(['ar', 'fa'])
-export const isRtl = (l: Lang): boolean => RTL_LANGS.has(l)
-const isLang = (v: string | null): v is Lang => v === 'en' || v === 'fr' || v === 'ar' || v === 'fa'
-/** The next language in the cycle — drives the header toggle. */
-export const nextLang = (l: Lang): Lang => LANGS[(LANGS.indexOf(l) + 1) % LANGS.length]
 
 type Dict = Record<string, string>
 
 const EN: Dict = {
   'lang.toggle': 'FR',
+  'lang.pack': '＋ Language pack', 'lang.template': '⬇ Language template', 'lang.packError': 'Invalid language pack file.',
   // header
   'app.sub': 'Field Casualty Record',
   'hdr.case': 'CASE',
@@ -44,7 +43,7 @@ const EN: Dict = {
   'tour.skip': 'Skip', 'tour.back': 'Back', 'tour.next': 'Next', 'tour.done': 'Done',
   'tour.mute': 'Mute voice-over', 'tour.unmute': 'Unmute voice-over', 'tour.toggle': 'Toggle voice-over',
   'tour.welcome.title': 'Welcome',
-  'tour.welcome.say': "Welcome to Triage-Link — your offline field casualty record. I'll walk you through documenting a patient, from first contact to hospital handover. It works with no signal, and everything saves on this device. Follow the highlights, or tap Next. Tip: the 🌐 button in the top bar changes language anytime.",
+  'tour.welcome.say': "Welcome to Triage-Link — your offline field casualty record. I'll walk you through documenting a patient, from first contact to hospital handover. It works with no signal, and everything saves on this device. Follow the highlights, or tap Next. Tip: the 🌐 button in the top bar changes language anytime — and you can load a custom language pack from the ⋯ menu.",
   'tour.patient.title': 'Who is the patient?',
   'tour.patient.say': 'Start with identity. In this panel, type the patient’s full name and date of birth — the age band fills in automatically and tunes the burn estimate. If you have a health-card number you can verify it against the registry. Enter what you know, then tap Next.',
   'tour.palette.title': 'Pick an injury type',
@@ -333,6 +332,7 @@ const EN: Dict = {
 
 const FR: Dict = {
   'lang.toggle': 'AR',
+  'lang.pack': '＋ Pack linguistique', 'lang.template': '⬇ Modèle de langue', 'lang.packError': 'Fichier de pack linguistique invalide.',
   'app.sub': 'Fiche de blessé sur le terrain',
   'hdr.case': 'CAS',
   'hdr.new': '+ Nouveau blessé',
@@ -353,7 +353,7 @@ const FR: Dict = {
   'tour.skip': 'Passer', 'tour.back': 'Retour', 'tour.next': 'Suivant', 'tour.done': 'Terminé',
   'tour.mute': 'Couper la narration', 'tour.unmute': 'Activer la narration', 'tour.toggle': 'Activer/couper la narration',
   'tour.welcome.title': 'Bienvenue',
-  'tour.welcome.say': 'Bienvenue dans Triage-Link — votre fiche de blessé hors ligne. Je vais vous guider pour documenter un patient, du premier contact à la transmission à l’hôpital. Tout fonctionne sans réseau et s’enregistre sur cet appareil. Suivez les éléments en surbrillance ou touchez Suivant. Astuce : le bouton 🌐 en haut change de langue à tout moment.',
+  'tour.welcome.say': 'Bienvenue dans Triage-Link — votre fiche de blessé hors ligne. Je vais vous guider pour documenter un patient, du premier contact à la transmission à l’hôpital. Tout fonctionne sans réseau et s’enregistre sur cet appareil. Suivez les éléments en surbrillance ou touchez Suivant. Astuce : le bouton 🌐 en haut change de langue à tout moment — et vous pouvez charger un pack linguistique depuis le menu ⋯.',
   'tour.patient.title': 'Qui est le patient ?',
   'tour.patient.say': 'Commencez par l’identité. Dans ce panneau, saisissez le nom complet et la date de naissance — la tranche d’âge se remplit automatiquement et ajuste l’estimation des brûlures. Si vous avez un numéro de carte santé, vous pouvez le vérifier auprès du registre. Saisissez ce que vous savez, puis touchez Suivant.',
   'tour.palette.title': 'Choisir un type de blessure',
@@ -626,6 +626,7 @@ const FR: Dict = {
 
 const AR: Dict = {
   'lang.toggle': 'FA',
+  'lang.pack': '＋ حزمة لغة', 'lang.template': '⬇ قالب اللغة', 'lang.packError': 'ملف حزمة اللغة غير صالح.',
   'app.sub': 'سجل المصابين الميداني',
   'hdr.case': 'حالة',
   'hdr.new': '+ مصاب جديد',
@@ -646,7 +647,7 @@ const AR: Dict = {
   'tour.skip': 'تخطٍّ', 'tour.back': 'رجوع', 'tour.next': 'التالي', 'tour.done': 'تم',
   'tour.mute': 'كتم التعليق الصوتي', 'tour.unmute': 'تشغيل التعليق الصوتي', 'tour.toggle': 'تبديل التعليق الصوتي',
   'tour.welcome.title': 'مرحبًا',
-  'tour.welcome.say': 'مرحبًا بك في Triage-Link — سجل المصاب الميداني دون اتصال. سأرشدك خلال توثيق مريض، من أول تماس حتى التسليم للمستشفى. يعمل دون شبكة، وكل شيء يُحفظ على هذا الجهاز. تابع العناصر المميَّزة أو اضغط التالي. تلميح: زر 🌐 في الشريط العلوي يغيّر اللغة في أي وقت.',
+  'tour.welcome.say': 'مرحبًا بك في Triage-Link — سجل المصاب الميداني دون اتصال. سأرشدك خلال توثيق مريض، من أول تماس حتى التسليم للمستشفى. يعمل دون شبكة، وكل شيء يُحفظ على هذا الجهاز. تابع العناصر المميَّزة أو اضغط التالي. تلميح: زر 🌐 في الشريط العلوي يغيّر اللغة في أي وقت — ويمكنك تحميل حزمة لغة مخصّصة من قائمة ⋯.',
   'tour.patient.title': 'من هو المريض؟',
   'tour.patient.say': 'ابدأ بالهوية. في هذه اللوحة، اكتب الاسم الكامل وتاريخ الميلاد — تُملأ الفئة العمرية تلقائيًا وتضبط تقدير الحروق. إن توفّر رقم بطاقة صحية يمكنك التحقق منه عبر السجل. أدخل ما تعرفه، ثم اضغط التالي.',
   'tour.palette.title': 'اختر نوع الإصابة',
@@ -919,6 +920,7 @@ const AR: Dict = {
 
 const FA: Dict = {
   'lang.toggle': 'EN',
+  'lang.pack': '＋ بستهٔ زبان', 'lang.template': '⬇ قالب زبان', 'lang.packError': 'فایل بستهٔ زبان نامعتبر است.',
   'app.sub': 'پرونده مصدوم میدانی',
   'hdr.case': 'مورد',
   'hdr.new': '+ مصدوم جدید',
@@ -939,7 +941,7 @@ const FA: Dict = {
   'tour.skip': 'رد کردن', 'tour.back': 'بازگشت', 'tour.next': 'بعدی', 'tour.done': 'پایان',
   'tour.mute': 'بی‌صدا کردن روایت', 'tour.unmute': 'پخش روایت', 'tour.toggle': 'تغییر روایت صوتی',
   'tour.welcome.title': 'خوش آمدید',
-  'tour.welcome.say': 'به Triage-Link خوش آمدید — پرونده مصدوم میدانی شما به‌صورت آفلاین. شما را در ثبت یک بیمار، از نخستین تماس تا تحویل به بیمارستان، راهنمایی می‌کنم. بدون شبکه کار می‌کند و همه‌چیز روی این دستگاه ذخیره می‌شود. موارد برجسته را دنبال کنید یا «بعدی» را بزنید. نکته: دکمه 🌐 در نوار بالا هر زمان زبان را تغییر می‌دهد.',
+  'tour.welcome.say': 'به Triage-Link خوش آمدید — پرونده مصدوم میدانی شما به‌صورت آفلاین. شما را در ثبت یک بیمار، از نخستین تماس تا تحویل به بیمارستان، راهنمایی می‌کنم. بدون شبکه کار می‌کند و همه‌چیز روی این دستگاه ذخیره می‌شود. موارد برجسته را دنبال کنید یا «بعدی» را بزنید. نکته: دکمه 🌐 در نوار بالا هر زمان زبان را تغییر می‌دهد — و می‌توانید یک بستهٔ زبان سفارشی را از منوی ⋯ بارگذاری کنید.',
   'tour.patient.title': 'بیمار کیست؟',
   'tour.patient.say': 'با هویت شروع کنید. در این بخش، نام کامل و تاریخ تولد را وارد کنید — رده سنی به‌طور خودکار پر می‌شود و برآورد سوختگی را تنظیم می‌کند. اگر شماره کارت سلامت دارید می‌توانید آن را با سامانه تأیید کنید. آنچه می‌دانید را وارد و سپس «بعدی» را بزنید.',
   'tour.palette.title': 'نوع آسیب را انتخاب کنید',
@@ -1213,6 +1215,77 @@ const FA: Dict = {
 // Exported for the i18n parity test (every language must define every key).
 export const DICTS: Record<Lang, Dict> = { en: EN, fr: FR, ar: AR, fa: FA }
 
+// ---- runtime language registry (built-ins + loadable packs) --------------
+// The active language can be any registered code — the four built-ins plus any
+// JSON "language pack" loaded at runtime (and persisted to localStorage so it
+// survives reload). t() always falls back to English per key, so a partial pack
+// never blanks the UI. This lets a deployment add a language with no code change.
+
+/** A loadable language pack: a BCP-47-ish code, a display name, an RTL flag, and
+ *  the flat string dictionary (same keys as English — missing keys fall back). */
+export interface LangPack { code: string; name: string; rtl?: boolean; strings: Dict }
+interface LangEntry { code: string; name: string; dict: Dict; rtl: boolean }
+
+const registry = new Map<string, LangEntry>()
+const langOrder: string[] = []
+const BUILTIN_NAMES: Record<Lang, string> = { en: 'English', fr: 'Français', ar: 'العربية', fa: 'فارسی' }
+
+for (const code of LANGS) {
+  registry.set(code, { code, name: BUILTIN_NAMES[code], dict: DICTS[code], rtl: RTL_LANGS.has(code) })
+  langOrder.push(code)
+}
+
+/** Right-to-left? (built-in or pack-declared). Unknown code → false. */
+export function isRtl(code: string): boolean {
+  return registry.get(code)?.rtl ?? false
+}
+
+/** Next language in the cycle (built-ins + registered packs) — header toggle. */
+export const nextLang = (code: string): string => {
+  const i = langOrder.indexOf(code)
+  return langOrder[(i + 1) % langOrder.length] ?? langOrder[0]
+}
+
+/** All selectable languages (code + display name), in cycle order. */
+export function availableLanguages(): { code: string; name: string }[] {
+  return langOrder.map((c) => { const e = registry.get(c)!; return { code: e.code, name: e.name } })
+}
+
+const isKnown = (code: string | null): code is string => !!code && registry.has(code)
+
+/** Register (or replace) a language at runtime. Returns the registered code. */
+export function registerLanguage(pack: LangPack): string {
+  if (!pack || typeof pack.code !== 'string' || !pack.code.trim() || typeof pack.strings !== 'object' || !pack.strings) {
+    throw new Error('Invalid language pack.')
+  }
+  const code = pack.code.trim()
+  if (!registry.has(code)) langOrder.push(code)
+  registry.set(code, { code, name: (pack.name || code).trim(), dict: pack.strings, rtl: !!pack.rtl })
+  return code
+}
+
+function readPersistedPacks(): Record<string, LangPack> {
+  try { return JSON.parse(localStorage.getItem(PACKS_KEY) || '{}') as Record<string, LangPack> } catch { return {} }
+}
+
+/** Persist a pack so it survives reload. */
+export function saveLanguagePack(pack: LangPack): void {
+  try {
+    const all = readPersistedPacks()
+    all[pack.code] = pack
+    localStorage.setItem(PACKS_KEY, JSON.stringify(all))
+  } catch { /* storage unavailable — pack stays for this session only */ }
+}
+
+for (const pack of Object.values(readPersistedPacks())) {
+  try { registerLanguage(pack) } catch { /* skip a corrupt persisted pack */ }
+}
+
+/** A starter pack (the English strings) translators can fill in and load back. */
+export function templatePack(): LangPack {
+  return { code: 'xx', name: 'My language', rtl: false, strings: { ...EN } }
+}
+
 // Anatomical region names are generated by the core body-model (≈150 of them)
 // and stored on the record in English (data stays language-neutral). They're
 // translated only at render via regionLabel(). Keys are the base region name
@@ -1314,12 +1387,12 @@ const SIDE_ABBR: Partial<Record<Lang, { L: string; R: string }>> = {
  * abbreviation; the remainder is looked up in the language's region map,
  * falling back to the original name so an unmapped region never blanks.
  */
-export function regionLabel(region: string, lang: Lang): string {
-  const map = REGION_MAPS[lang]
-  if (!map) return region
+export function regionLabel(region: string, lang: string): string {
+  const map = REGION_MAPS[lang as Lang]
+  if (!map) return region // built-in maps only; packs fall back to English region names
   const m = /^([LR]) (.+)$/.exec(region)
   if (m) {
-    const side = SIDE_ABBR[lang]!
+    const side = SIDE_ABBR[lang as Lang]!
     return `${m[1] === 'L' ? side.L : side.R} ${map[m[2]] ?? m[2]}`
   }
   return map[region] ?? region
@@ -1327,7 +1400,7 @@ export function regionLabel(region: string, lang: Lang): string {
 
 export type TFn = (key: string, params?: Record<string, string | number>) => string
 
-interface LangCtx { lang: Lang; setLang: (l: Lang) => void; t: TFn }
+interface LangCtx { lang: string; setLang: (l: string) => void; t: TFn }
 
 const defaultT: TFn = (key, params) => {
   let s = EN[key] ?? key
@@ -1339,32 +1412,33 @@ const defaultT: TFn = (key, params) => {
 const Ctx = createContext<LangCtx>({ lang: 'en', setLang: () => {}, t: defaultT })
 
 // Initial language: a ?lang=xx URL switch wins (and is persisted, so it sticks
-// after the param is gone), then the stored choice, then English.
-function readInitial(): Lang {
+// after the param is gone), then the stored choice, then English. Any REGISTERED
+// code is valid here — including a persisted language pack (loaded at module init).
+function readInitial(): string {
   try {
     const url = new URLSearchParams(window.location.search).get('lang')
-    if (isLang(url)) { try { localStorage.setItem(STORAGE_KEY, url) } catch { /* ignore */ } ; return url }
+    if (isKnown(url)) { try { localStorage.setItem(STORAGE_KEY, url) } catch { /* ignore */ } ; return url }
   } catch { /* ignore */ }
-  try { const s = localStorage.getItem(STORAGE_KEY); if (isLang(s)) return s } catch { /* ignore */ }
+  try { const s = localStorage.getItem(STORAGE_KEY); if (isKnown(s)) return s } catch { /* ignore */ }
   return 'en'
 }
 
 export function LangProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(readInitial)
+  const [lang, setLangState] = useState<string>(readInitial)
 
-  const setLang = useCallback((l: Lang) => {
+  const setLang = useCallback((l: string) => {
     setLangState(l)
     try { localStorage.setItem(STORAGE_KEY, l) } catch { /* ignore */ }
   }, [])
 
-  // Keep the document's language + writing direction in sync (RTL for Arabic).
+  // Keep the document's language + writing direction in sync (RTL-aware).
   useEffect(() => {
     document.documentElement.lang = lang
     document.documentElement.dir = isRtl(lang) ? 'rtl' : 'ltr'
   }, [lang])
 
   const t = useCallback<TFn>((key, params) => {
-    let s = DICTS[lang][key] ?? EN[key] ?? key
+    let s = registry.get(lang)?.dict[key] ?? EN[key] ?? key
     if (params) for (const [k, v] of Object.entries(params)) s = s.replace(`{${k}}`, String(v))
     return s
   }, [lang])
