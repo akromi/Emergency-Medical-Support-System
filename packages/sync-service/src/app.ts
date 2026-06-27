@@ -1,7 +1,7 @@
 // Fastify sync endpoint. The merge/resolution authority is @triage-link/core's
 // deterministic resolver — the server stores ops and folds them; it does not
 // implement its own (divergent) merge logic.
-import Fastify, { type FastifyInstance } from 'fastify'
+import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify'
 import helmet from '@fastify/helmet'
 import cors from '@fastify/cors'
 import rateLimit from '@fastify/rate-limit'
@@ -48,6 +48,8 @@ export interface SecurityOptions {
   /** When set (with a `tenantStore`), mounts the tenant-admin API under
    *  `/admin/*`, gated by `Authorization: Bearer <adminToken>`. */
   adminToken?: string
+  /** Per-tenant `/sync` request budget per minute (default 1000). */
+  syncRateLimitMax?: number
   /** Allowed browser origins for CORS. Empty/undefined → cross-origin disabled. */
   corsOrigins?: string[]
   /** Max requests per IP per minute (default 300). */
@@ -92,15 +94,6 @@ const SYNC_BODY_SCHEMA = {
     ops: { type: 'array', maxItems: 10000, items: OP_SCHEMA },
     since: { type: 'integer', minimum: 0 },
   },
-}
-
-// Per-tenant budget for /sync (vs. the global per-IP limit): a busy tenant with
-// many devices can't be throttled by another tenant's traffic, and one tenant
-// can't exhaust the shared per-IP bucket behind a NAT. Generous — sync is chatty.
-const SYNC_RATE_LIMIT = {
-  max: 1000,
-  timeWindow: '1 minute',
-  keyGenerator: (req: { tenantId?: string; ip: string }) => req.tenantId || req.ip,
 }
 
 export function buildApp(
@@ -161,6 +154,18 @@ export function buildApp(
     ...(security.authToken ? [{ id: DEFAULT_TENANT, token: security.authToken }] : []),
   ]
   const adminToken = security.adminToken
+
+  // Resolve a bearer credential to a tenant id: static tokens first
+  // (constant-time; first match wins, count isn't secret), then the runtime
+  // store's hashed keys. Null when no credential matches.
+  const resolveTenant = async (authHeader: string | undefined): Promise<string | null> => {
+    const staticId = tenantTokens.find((t) => bearerOk(authHeader, t.token))?.id
+    if (staticId) return staticId
+    const token = bearerToken(authHeader)
+    if (token && tenantStore) return tenantStore.resolveToken(token)
+    return null
+  }
+
   // Data routes are authenticated when any static token is configured OR the
   // admin API is enabled (which implies runtime-managed DB credentials). With
   // none of these, the service stays open under the single default tenant.
@@ -180,18 +185,26 @@ export function buildApp(
       const protectedRoute = path === '/sync' || path.startsWith('/sync/') || path.startsWith('/ehr')
       if (!protectedRoute || !dataAuthEnabled) return
 
-      // Static tokens first (constant-time; first match wins, count isn't secret),
-      // then the runtime store's hashed keys. Either selects the request's tenant.
-      let tenantId = tenantTokens.find((t) => bearerOk(req.headers.authorization, t.token))?.id ?? null
-      if (!tenantId && tenantStore) {
-        const token = bearerToken(req.headers.authorization)
-        if (token) tenantId = await tenantStore.resolveToken(token)
-      }
+      const tenantId = await resolveTenant(req.headers.authorization)
       if (!tenantId) {
         return reply.code(401).send({ error: 'unauthorized', message: 'Missing or invalid bearer token' })
       }
       req.tenantId = tenantId
     })
+  }
+
+  // Per-tenant budget for /sync. The limiter's onRequest hook may fire before the
+  // auth hook that sets req.tenantId, so resolve the tenant from the credential
+  // directly here (static map, or the same hashed-key lookup) — keeping the
+  // bucket per-tenant regardless of hook order. Unauthenticated / invalid
+  // attempts fall back to per-IP and never share a tenant's bucket.
+  const syncRateLimit = {
+    max: security.syncRateLimitMax ?? 1000,
+    timeWindow: '1 minute',
+    keyGenerator: async (req: FastifyRequest): Promise<string> => {
+      if (req.tenantId && req.tenantId !== DEFAULT_TENANT) return req.tenantId
+      return (await resolveTenant(req.headers.authorization)) ?? req.ip
+    },
   }
 
   // OpenAPI doc + interactive Swagger UI. Registered before routes so the
@@ -234,7 +247,7 @@ export function buildApp(
 
   // Push a batch of ops and pull back the resolved state + full op set.
   app.post('/sync', {
-    config: { rateLimit: SYNC_RATE_LIMIT },
+    config: { rateLimit: syncRateLimit },
     schema: { tags: ['sync'], summary: 'Push ops, pull resolved state', body: SYNC_BODY_SCHEMA },
   }, async (req, reply) => {
     const body = (req.body ?? {}) as SyncBody
