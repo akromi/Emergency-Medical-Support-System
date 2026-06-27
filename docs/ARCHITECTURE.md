@@ -42,6 +42,7 @@ as an HL7 FHIR R4 bundle.
 2. **Runs anywhere, installs like an app.** Responders carry heterogeneous devices; a single codebase must run on all of them.
 3. **Interoperates with hospital systems.** Handover output must be in a format hospital EHRs already understand.
 4. **Fast, low-friction capture.** Tap-to-mark injuries; auto-save; no modal "save" step.
+5. **Usable in the responder's language.** The interface is multilingual (English / French / Arabic, including right-to-left) and selectable offline via a toggle or a `?lang=` URL switch.
 
 ## 2. Architectural goals & principles
 
@@ -59,13 +60,14 @@ as an HL7 FHIR R4 bundle.
 | Concern | Choice | Rationale |
 |---|---|---|
 | Client framework | **React 18 + TypeScript** | Component model for the capture UI; static typing across the domain |
-| Build / dev server | **Vite 5** | Fast dev server, simple static production build |
+| Build / dev server | **Vite 8** | Fast dev server, simple static production build |
 | Offline storage | **IndexedDB** via **Dexie 4** | Durable, async, on-device store with a typed table API; no backend needed |
 | Offline shell | **vite-plugin-pwa** (Workbox) | Service worker precaches the app so it loads with no network |
+| Localization | In-house **React-context i18n** (EN/FR/AR, RTL) | No dependency; offline-first; flat dictionaries with English fallback; `?lang=` URL switch |
 | Interop | **HL7 FHIR R4** | The de-facto hospital EHR exchange standard |
 
-There are intentionally **no runtime dependencies** beyond React and Dexie — the domain
-and mapping logic are hand-written TypeScript.
+There are intentionally **no runtime dependencies** beyond React and Dexie — the domain,
+mapping, and localization logic are hand-written TypeScript.
 
 ## 4. System structure
 
@@ -264,11 +266,15 @@ Export is a pure, client-side transform; nothing is transmitted.
 | Domain concept | FHIR resource | Notes |
 |---|---|---|
 | Tombstone (identity) | `Patient` | name, gender, birthDate, address, next-of-kin contact; identifier system `urn:triage-link:case` |
-| Incident / transport episode | `Encounter` | `class = EMER`; status `in-progress` until handover, then `finished`; mechanism → `reasonCode` |
+| Incident / transport episode | `Encounter` | `class = EMER`; status `in-progress` until handover, then `finished`; mechanism → `reasonCode`. A signed handover also sets `period.end`, an ATND attender participant, and the receiving `serviceProvider` |
+| Handover (sign-off) | `Provenance` | emitted only once handed over — `recorded` time, a `TRANSFER` activity, a custodian agent (clinician `onBehalfOf` facility) targeting the Encounter |
 | Each injury | `Condition` | category `injury`; `bodySite` = region + view; `severity`; notes |
 | Each vital sign | `Observation` | category `vital-signs`; **LOINC-coded** (HR `8867-4`, SpO₂ `59408-5`, BP `85354-9`, …); value + unit |
 | Treatment (non-drug) | `Procedure` | status `completed`; performer = provider; detail + place in note |
 | Treatment (medication) | `MedicationAdministration` | chosen when the intervention type matches `/medication/i` |
+
+`toFhirBundle` emits the full record; **`toHandoverBundle`** returns a focused slice — Patient +
+Encounter + Provenance — behind the **⤳ Share handover** action for a lightweight transfer note.
 
 Expanded, the resources form a small graph. **Patient** is the identity anchor and
 **Encounter** is the transport episode that binds everything together; every clinical

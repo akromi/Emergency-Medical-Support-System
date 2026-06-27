@@ -1,8 +1,10 @@
 # TRIAGE-LINK
 
 > Offline-first Progressive Web App for casualty care & transport documentation.
-> Field responders capture patient identity, injuries on a 2-D body chart, vitals,
-> and treatments — then export a FHIR bundle for hospital handover.
+> Field responders capture patient identity, injuries on an anatomical 2-D body
+> chart, vitals, and treatments — then sign off and hand over to a hospital as an
+> HL7 FHIR bundle. Fully usable with zero connectivity, and trilingual
+> (English / French / Arabic, including right-to-left).
 
 > ⚠️ **Prototype — not a medical device and not for clinical use.** See _Regulatory_ below.
 
@@ -17,12 +19,13 @@ files to any host or CDN — one codebase, no per-platform builds.
 | Client | **PWA** (React + TypeScript + Vite) | Runs anywhere; installable; offline-capable |
 | Offline storage | **IndexedDB** via **Dexie** | Durable on-device store, no backend required |
 | Offline shell | **vite-plugin-pwa** (Workbox) | Service worker caches the app for offline use |
-| Domain logic | Framework-free **TypeScript** core | Reusable; single source of truth |
-| Interop | **HL7 FHIR** mapping | Hospital EHR exchange standard |
+| Domain logic | Framework-free **TypeScript** core (`@triage-link/core`) | Reusable; single source of truth |
+| Interop | **HL7 FHIR R4** mapping | Hospital EHR exchange standard |
+| Localization | In-house React-context i18n (EN/FR/AR, RTL) | No dependency; offline-first; English fallback |
 
-The domain model (`src/domain`) and FHIR mapping (`src/fhir`) are deliberately
-framework-free so they can be reused by a future React Native client or a backend
-sync service without change.
+The domain model and FHIR mapping live in a framework-free package
+(`packages/core`) so they can be reused by a future React Native client or the
+backend sync service without change.
 
 ## Getting started
 
@@ -41,29 +44,52 @@ S3, nginx). The service worker makes it work offline after the first load.
 
 ## Project structure
 
+A small npm-workspaces monorepo. Dependencies point inward — the UI and the
+backend both depend on the framework-free core; nothing depends on the UI.
+
 ```
-src/
-  domain/      Framework-free model: types, injury catalog, body regions, IDs
-  fhir/        FHIR R4 mapping (CasualtyRecord -> Bundle) + minimal FHIR types
-  db/          IndexedDB persistence (Dexie schema + repository)
-  components/  BodyChart — interactive anterior/posterior injury marking
-  App.tsx      Capture UI wiring everything together
+src/                       Field client (PWA)
+  App.tsx                  Capture UI wiring everything together
+  i18n.tsx                 In-house i18n (EN/FR/AR + RTL, ?lang= switch)
+  useNow.ts                Shared ticking clock for live elapsed time
+  db/                      IndexedDB persistence (Dexie schema + repository)
+  ehr/                     Browser-side EHR client (talks to the backend)
+  components/              BodyChart, TriageBoard, CasualtySummary, Elapsed,
+                           PcrVerify, EhrTestConsole, Tutorial, hints, …
+packages/
+  core/                    Framework-free: domain model, FHIR R4 mapping,
+                           op-log sync, EHR port + Ontario mappings
+  ehr-gateway/             Server-side EHR adapters (ONE ID, Ontario, Mock)
+  sync-service/            Fastify + PostgreSQL: /sync + /ehr/* + audit
 ```
 
 ## What works today
 
-- Tombstone (identity), incident & START triage
-- Interactive anterior/posterior body chart with auto-detected body region
-- Severity + notes per injury; vitals (timestamped); treatment log
-- Offline persistence to IndexedDB; multiple casualties; auto-save
-- **Export FHIR ↓** — downloads a FHIR R4 Bundle for the current casualty
+- **Capture** — tombstone (identity), incident & START triage, age band
+- **Anatomical body chart** — ~150 named anterior/posterior regions with tap-to-zoom;
+  age-adjusted burn TBSA (Lund–Browder) computed live
+- Per-injury severity, notes, and 📷 wound photos; timestamped vitals (with a GCS
+  calculator); treatment log
+- **Time-since-injury clock** (T+ elapsed) on the acuity glance, triage board, and card
+- **Triage board** for multi-casualty scenes — grouped by triage, searchable, and
+  filterable by on-scene / handed-over
+- **Handover sign-off** — receiving clinician + facility, auto-timestamped; flows to the
+  saved list, board, and casualty card
+- Printable one-page **AT-MIST casualty card**; guided voiced onboarding tour
+- **Identity & context** (via backend) — PCR `Patient/$match`, clinical-context pull,
+  contribute-to-EHR, with an offline EHR Test Lab for QA
+- **FHIR R4 export** — full bundle, plus a focused **handover slice** (Patient +
+  Encounter + Provenance); a signed handover closes the Encounter and emits a Provenance
+- **Trilingual UI** — English / French / Arabic with right-to-left layout; switch via the
+  header 🌐 toggle or a `?lang=ar` URL parameter (the choice persists)
+- Offline persistence to IndexedDB; multiple casualties; auto-save; backup/restore
 
 ## Roadmap
 
-- Conflict-aware sync (op-log) to a central service — see the architecture doc
-- Anatomical body chart (burn TBSA, named bones) replacing rectangular regions
+- Conflict-aware sync (op-log) wired from the client to the central service — see the architecture doc
 - NFC/QR handover scan + master patient index reconciliation
 - Auth (OAuth2/OIDC, SMART-on-FHIR), audit logging, encryption at rest
+- Vitals trend mini-charts; scene-wide summary export for incident command
 
 ## Regulatory & security
 

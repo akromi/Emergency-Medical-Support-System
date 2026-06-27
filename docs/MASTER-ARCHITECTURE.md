@@ -52,7 +52,8 @@ The system has three cooperating tiers:
 The defining constraint is **offline-first**: the scene may have no signal, so the device is
 authoritative locally and reconciles later. The defining interoperability choice is **HL7
 FHIR R4**, so hospital EHRs and the provincial registry understand the record without a
-bespoke format.
+bespoke format. The interface is **trilingual** (English / French / Arabic, including
+right-to-left), so a responder captures and hands over in their own language.
 
 ### Primary actors
 
@@ -86,6 +87,11 @@ bespoke format.
 | **F-13** | Pull clinical context (meds/allergies/labs) for a resolved patient | ✅ |
 | **F-14** | Contribute a casualty handover to the EHR (write) where entitled | ✅ |
 | **F-15** | Durable, queryable audit trail of every EHR access (ATNA AuditEvent) | ✅ |
+| **F-16** | Multilingual UI (English / French / Arabic) with persistent choice and right-to-left layout; selectable via in-app toggle or a `?lang=` URL switch | ✅ |
+| **F-17** | Live time-since-injury clock (`T+` elapsed) on the acuity glance, triage board, and casualty card | ✅ |
+| **F-18** | Handover sign-off (receiving clinician + facility, auto-timestamped) reflected on the saved list, triage board, and casualty card | ✅ |
+| **F-19** | Triage board search (name / ID / mechanism / location) and on-scene vs handed-over filtering | ✅ |
+| **F-20** | Guided, voiced onboarding tour; offline EHR Test Lab (dev/QA) exercising the real gateway in-browser | ✅ |
 
 ### 2.2 Non-functional requirements
 
@@ -159,6 +165,18 @@ bespoke format.
 2. The service returns persisted ATNA AuditEvents (action/outcome/agent/patient/query + full FHIR resource), newest first.
 **Outcome:** Accountable, durable record of every provincial-EHR access.
 
+### UC-8 — Document in the responder's language (multilingual / RTL)
+**Actor:** Field responder. **Precondition:** None (works fully offline).
+1. The interface loads in the responder's language — chosen from the header 🌐 toggle (cycles English → French → Arabic) or forced by a `?lang=ar` URL switch (handy for kiosks/QR links). The choice persists to `localStorage`, so it sticks until switched.
+2. For Arabic, the document direction flips to right-to-left; the whole clinical UI, the guided tour voice-over, the anatomical region names, and the printable casualty card render in-language. Patient data (names, IDs, treatment/injury *keys*) stays language-neutral so the record and its FHIR export are unaffected.
+**Outcome:** A field responder captures and hands over entirely in their own language without changing the underlying record.
+
+### UC-9 — Sign off and share a handover
+**Actor:** Field responder → receiving facility.
+1. At the receiving end, the responder enters the receiving clinician and facility and taps **✓ Mark handed over**; the time is stamped automatically. The casualty is now flagged "handed over" on the saved list, on the triage board (filterable, with who/where/when on the card), and on the casualty card.
+2. Signing closes the FHIR **Encounter** (`period.end`, an attender participant, the receiving `serviceProvider`) and emits a **Provenance** documenting the transfer. The responder can **⤳ Share handover** to download a focused FHIR slice — Patient + Encounter + Provenance only.
+**Outcome:** An auditable, standards-based record of *who took over care, when, and where* — exportable on its own or as part of the full bundle.
+
 ---
 
 ## 4. Technology used
@@ -171,6 +189,7 @@ bespoke format.
 | Build / dev | **Vite** | 8.1 | Fast dev server; simple static production build |
 | Offline storage | **IndexedDB** via **Dexie** | 4.0 | Durable, async, typed on-device store; no backend needed |
 | Offline shell | **vite-plugin-pwa** (Workbox) | 1.3 | Service worker precaches the app for offline use |
+| Localization | In-house **React-context i18n** (EN/FR/AR, RTL) | — | No dependency; offline-first; flat dictionaries with English fallback; `?lang=` URL switch |
 | Interop | **HL7 FHIR R4** | — | De-facto hospital/registry exchange standard |
 
 ### 4.2 Backend (sync service + EHR gateway)
@@ -298,11 +317,15 @@ as `ConflictReport`s.
 | Domain concept | FHIR resource | Notes |
 |---|---|---|
 | Tombstone | `Patient` | name, gender, birthDate, NOK contact; identifier `urn:triage-link:case` |
-| Incident/episode | `Encounter` | `class=EMER`; status `in-progress`→`finished`; mechanism → `reasonCode` |
+| Incident/episode | `Encounter` | `class=EMER`; status `in-progress`→`finished`; mechanism → `reasonCode`. A signed handover adds `period.end`, an ATND attender participant, and the receiving `serviceProvider` |
+| Handover | `Provenance` | emitted only once signed — `recorded` time, a `TRANSFER` activity, a custodian agent (clinician `onBehalfOf` facility) targeting the Encounter |
 | Injury | `Condition` | category `injury`; `bodySite` = region+view; severity; notes |
 | Vital | `Observation` | category `vital-signs`; **LOINC-coded**; value + unit |
 | Treatment (non-drug) | `Procedure` | status `completed`; performer; detail + place |
 | Treatment (drug) | `MedicationAdministration` | when the intervention matches `/medication/i` |
+
+`toFhirBundle` emits the full `collection`; **`toHandoverBundle`** returns the focused slice
+(Patient + Encounter + Provenance) behind the **⤳ Share handover** action.
 
 ### 6.4 Ontario-profiled FHIR (registry)
 
@@ -331,12 +354,18 @@ as `ConflictReport`s.
 
 ### 7.1 Field client (`src/`)
 
-- **`App.tsx`** — capture UI; immutable state mutators; 400 ms debounced auto-save via `recordRepo`.
+- **`App.tsx`** — capture UI; immutable state mutators; 400 ms debounced auto-save via `recordRepo`;
+  the handover sign-off panel and the FHIR export / share-slice downloads.
+- **`i18n.tsx`** — in-house React-context i18n: flat EN/FR/AR dictionaries with English fallback,
+  `t(key, params)`, `regionLabel()` for localised anatomy, a `?lang=` URL switch that wins over the
+  persisted choice, and `document.dir = rtl` for Arabic. `useNow.ts` drives the live elapsed clock.
 - **`components/BodyChart.tsx`** — anterior/posterior injury-marking SVG; the same polygons are
   drawn and hit-tested, so the figure and tappable regions never drift.
 - **`components/PcrVerify.tsx`** — PCR identity verification UI in the Tombstone panel: builds the
   query from the tombstone, lists graded matches, applies a chosen identity, loads context.
-- **`components/TriageBoard.tsx`, `CasualtySummary.tsx`** — multi-casualty board; printable summary.
+- **`components/TriageBoard.tsx`, `CasualtySummary.tsx`, `Elapsed.tsx`** — multi-casualty board
+  (searchable, on-scene / handed-over filter, handover detail per card); printable AT-MIST card; the
+  live time-since-injury clock.
 - **`db/` (Dexie)** — `records` + append-only `ops` + `meta` (clientId + Lamport); `repository.ts`
   journals ops in the same transaction as the record write.
 - **`ehr/client.ts`** — browser client for the backend EHR routes (`VITE_EHR_BASE_URL`), with an
@@ -391,17 +420,28 @@ Framework-free, built to `dist/` (ESM + `.d.ts`) and consumed by both the PWA an
 ## 8. Test cases
 
 All suites run under **Vitest**; the backend uses **pg-mem** (in-memory PostgreSQL) so DB tests
-run with identical SQL and no external service. **~90 tests pass** across the workspaces.
+run with identical SQL and no external service. **146 tests pass** across the workspaces
+(core 68, field client 32, sync 27, EHR gateway 19).
 
-### 8.1 Core (`packages/core/test/`, ~50 tests)
+### 8.1 Core (`packages/core/test/`, 68 tests)
 
 | Suite | Covers |
 |---|---|
-| `fhir-mapping.test.ts` | Record → FHIR bundle: Patient/Encounter/Condition/Observation (LOINC)/Procedure/MedicationAdministration |
+| `fhir-mapping.test.ts` | Record → FHIR bundle: Patient/Encounter/Condition/Observation (LOINC)/Procedure/MedicationAdministration; **handover closes the Encounter (`period.end`, attender, serviceProvider) and emits a Provenance**; `toHandoverBundle` slice |
+| `elapsed.test.ts` | Time-since-injury maths — elapsed parsing (null on empty/future) and compact `T+` formatting with localisable units |
 | `sync.test.ts` | `diffToOps` / `mergeOps` / `resolve` — deterministic ordering, conflict retention, convergence |
 | `regions.test.ts` | Body-region hit-testing + anatomical sidedness |
 | `injuries.test.ts`, `types.test.ts`, `id.test.ts` | Catalog, factories, id generation |
 | `ehr.test.ts` | `identityFromTombstone`; `$match` Parameters; **match-grade extension is authoritative**; `certainly-not` with a high score does not resolve; AuditEvent builder |
+
+### 8.1b Field client (`test/`, 32 tests, jsdom)
+
+| Suite | Covers |
+|---|---|
+| `app.test.tsx` | Core capture flows; vitals + GCS; AT-MIST card; DOB → age; calendar popup; triage from the header; **language toggle persists**; **`?lang=ar` URL switch flips to Arabic + RTL**; **handover sign-off → confirmation → undo** |
+| `board.test.tsx` | Triage-board search (`matchesQuery`) and the on-scene / handed-over filter; handover detail on cards |
+| `i18n.test.ts` | **EN/FR/AR dictionary parity** (no missing keys / English leaks); language cycle; RTL flag; region-name localisation incl. Arabic |
+| `ehr-console.test.tsx`, `db.integration.test.ts` | EHR Test Lab console; IndexedDB repository round-trips |
 
 ### 8.2 EHR gateway (`packages/ehr-gateway/test/`, ~19 tests)
 
@@ -412,7 +452,7 @@ run with identical SQL and no external service. **~90 tests pass** across the wo
 | `ontario-health-gateway.test.ts` | Authenticated `$match` + parse; underspecified query rejected pre-flight; **401 → refresh + retry once**; context merge skipping 403; **contribution is a transaction bundle, not retried**; failure audited |
 | `mock-gateway.test.ts` | Certain/probable/no-match; seeded context; contribution recorded |
 
-### 8.3 Sync service (`packages/sync-service/test/`, ~21 tests)
+### 8.3 Sync service (`packages/sync-service/test/`, 27 tests)
 
 | Suite | Covers |
 |---|---|
