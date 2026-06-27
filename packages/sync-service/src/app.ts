@@ -14,6 +14,7 @@ import { registerEhrRoutes, registerEhrAuditRoute } from './ehr-routes.js'
 import type { EhrAuditStore } from './ehr-audit-store.js'
 import { type TenantStore, bearerToken } from './tenant-store.js'
 import { registerAdminRoutes } from './admin-routes.js'
+import type { Metrics, AccessLogEntry } from './metrics.js'
 
 // The authenticated tenant for the current request (DEFAULT_TENANT when auth is
 // off or the single-tenant authToken is used).
@@ -97,7 +98,7 @@ const SYNC_BODY_SCHEMA = {
 }
 
 export function buildApp(
-  { store, ehr, ehrAudit, tenantStore, docs = true, security = {} }: {
+  { store, ehr, ehrAudit, tenantStore, metrics, onAccessLog, docs = true, security = {} }: {
     store: OpStore
     ehr?: EhrGateway
     ehrAudit?: EhrAuditStore
@@ -105,6 +106,12 @@ export function buildApp(
      *  against its stored (hashed) API keys; with `security.adminToken` it also
      *  mounts the tenant-admin API at `/admin/*`. */
     tenantStore?: TenantStore
+    /** Per-tenant operational counters. When provided, requests are counted and
+     *  (with the admin API) exposed at `/admin/metrics`. */
+    metrics?: Metrics
+    /** Structured access-log sink (method, path, tenant, status, latency).
+     *  Called once per response when provided; off by default so dev/tests stay quiet. */
+    onAccessLog?: (entry: AccessLogEntry) => void
     /** Serve OpenAPI + Swagger UI at /docs (default true). */
     docs?: boolean
     /** Transport/access hardening (see SecurityOptions). */
@@ -207,6 +214,21 @@ export function buildApp(
     },
   }
 
+  // Per-tenant observability: count each response and emit a structured access
+  // log. onResponse runs after the auth hook, so req.tenantId is resolved.
+  if (metrics || onAccessLog) {
+    app.addHook('onResponse', async (req, reply) => {
+      metrics?.recordResponse(req.tenantId, reply.statusCode)
+      onAccessLog?.({
+        method: req.method,
+        path: req.url.split('?')[0],
+        tenant: req.tenantId,
+        status: reply.statusCode,
+        ms: Math.round(reply.elapsedTime),
+      })
+    })
+  }
+
   // OpenAPI doc + interactive Swagger UI. Registered before routes so the
   // onRoute hook captures every endpoint and its schema. Run the service with
   // EHR_ALLOW_MOCK=true and open /docs to exercise the (stubbed) EHR API by
@@ -243,7 +265,7 @@ export function buildApp(
   if (ehrAudit) registerEhrAuditRoute(app, ehrAudit)
 
   // Tenant-admin API — only when a tenant store AND an admin token are both set.
-  if (tenantStore && adminToken) registerAdminRoutes(app, tenantStore)
+  if (tenantStore && adminToken) registerAdminRoutes(app, tenantStore, metrics)
 
   // Push a batch of ops and pull back the resolved state + full op set.
   app.post('/sync', {
@@ -256,6 +278,8 @@ export function buildApp(
 
     // Idempotent ingest: only ids not already present are inserted.
     const inserted = new Set(await store.insertOps(ops, tenantId))
+    metrics?.incSyncRequest(tenantId)
+    metrics?.addOpsIngested(tenantId, inserted.size)
     for (const op of ops) {
       if (inserted.has(op.id)) {
         await store.appendAudit({
@@ -270,6 +294,7 @@ export function buildApp(
     // Only re-resolve records that actually gained ops (keeps no-op syncs cheap
     // and the audit trail free of duplicate resolution events).
     const changed = [...new Set(ops.filter((o) => inserted.has(o.id)).map((o) => o.recordId))]
+    let newConflicts = 0
     for (const recordId of changed) {
       const all = await store.getOps(recordId, tenantId)
       const { record, conflicts } = resolve(recordId, all)
@@ -280,9 +305,11 @@ export function buildApp(
         const involvesNewOp = inserted.has(c.winningOpId) || c.supersededOpIds.some((id) => inserted.has(id))
         if (involvesNewOp) {
           await store.appendAudit({ recordId, opId: c.winningOpId, eventType: 'conflict-resolved', detail: c }, tenantId)
+          newConflicts += 1
         }
       }
     }
+    metrics?.addConflicts(tenantId, newConflicts)
 
     // The tenant's current high-water cursor — clients checkpoint it and send it
     // back as `since` to pull only the delta next time.

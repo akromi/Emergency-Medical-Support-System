@@ -46,6 +46,22 @@ token>`). Tenants and their keys then live in the database (`tenants`,
 Disabling a tenant immediately stops all its keys. The admin API is intentionally
 hidden from the public OpenAPI doc. Covered by `test/admin-api.integration.test.ts`.
 
+### Per-tenant observability
+
+The service collects in-memory, **per-tenant** counters — `syncRequests`,
+`opsIngested`, `conflicts`, and responses bucketed `2xx`/`4xx`/`5xx` — exposed at
+**`GET /admin/metrics`** (admin-gated, hidden from the OpenAPI doc):
+
+```json
+{ "tenants": { "org-a": { "syncRequests": 12, "opsIngested": 47, "conflicts": 1,
+                          "responses": { "2xx": 12, "4xx": 0, "5xx": 0 } } } }
+```
+
+Counters are per-instance and reset on restart (a scaled deployment scrapes and
+sums each instance). Set **`LOG_REQUESTS=true`** to also emit a structured JSON
+access-log line per response (method, path, tenant, status, latency-ms). Covered
+by `test/metrics.integration.test.ts`.
+
 ## Incremental sync (`since` cursor)
 
 `POST /sync` returns a `cursor` (the tenant's high-water op sequence) alongside

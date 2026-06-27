@@ -7,6 +7,7 @@ import { buildApp, type SecurityOptions } from './app.js'
 import { OpStore, migrate } from './ops-store.js'
 import { EhrAuditStore, migrateEhrAudit } from './ehr-audit-store.js'
 import { TenantStore, migrateTenants } from './tenant-store.js'
+import { Metrics } from './metrics.js'
 
 // Select the provincial EHR adapter from the environment.
 //
@@ -125,11 +126,17 @@ async function main(): Promise<void> {
   if (!security.adminToken) {
     console.warn('SYNC_ADMIN_TOKEN is not set — the tenant-admin API (/admin/*) is disabled.')
   }
+  // Structured access logging is opt-in (LOG_REQUESTS=true) so it doesn't spam
+  // dev consoles; per-tenant counters are always collected and exposed at
+  // /admin/metrics (when the admin API is enabled).
+  const logRequests = process.env.LOG_REQUESTS === 'true'
   const app = buildApp({
     store: new OpStore(pool),
     ehr: buildEhrGateway(ehrAudit),
     ehrAudit,
     tenantStore: new TenantStore(pool),
+    metrics: new Metrics(),
+    onAccessLog: logRequests ? (e) => console.log(JSON.stringify({ t: 'access', ...e })) : undefined,
     security,
     // Swagger UI is dev/QA furniture — off unless explicitly enabled.
     docs: process.env.ENABLE_DOCS === 'true',
