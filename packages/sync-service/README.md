@@ -65,9 +65,14 @@ optionally `OIDC_JWKS_URI` to skip discovery) and `/admin/*` accepts
 `Authorization: Bearer <jwt>` when the token's signature (RS256/384/512 against
 the issuer's JWKS), issuer, audience, and a numeric future expiry all check out. `none`, HS\* (the alg-confusion
 vector), and EC algorithms are rejected; JWKS is cached and refetched on key
-rotation. Covered by `test/oidc.integration.test.ts`. *(Role/claim → admin
-mapping and recording the JWT subject as the admin-audit actor are the next
-step.)*
+rotation.
+
+**Role mapping (optional).** Set **`OIDC_ADMIN_ROLES`** (comma-separated) to
+require one of those values in the **`OIDC_ADMIN_CLAIM`** claim (default `roles`)
+— so only tokens carrying an admin role authenticate, not every valid token.
+**Actor.** Each admin mutation's `admin_audit` row records the authenticated
+**`sub`** as its `actor` (null for the shared static token, which falls back to
+IP). Covered by `test/oidc.integration.test.ts`.
 
 ### Per-tenant observability
 

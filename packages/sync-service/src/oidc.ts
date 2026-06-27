@@ -18,6 +18,10 @@ export interface OidcConfig {
   audience: string
   /** JWKS endpoint. Defaults to the issuer's discovery `jwks_uri`. */
   jwksUri?: string
+  /** Optional admin authorization: require a claim (string or array) to include
+   *  one of these values — e.g. `{ name: 'roles', values: ['triage-admin'] }`.
+   *  When unset, any validly-signed token for this issuer/audience is admin. */
+  requiredClaim?: { name: string; values: string[] }
 }
 
 export interface OidcVerifier {
@@ -90,6 +94,15 @@ export function createOidcVerifier(config: OidcConfig, opts: { fetch?: JwksFetch
       if (typeof claims.exp !== 'number') throw new OidcError('Token has no numeric exp')
       if (now >= claims.exp) throw new OidcError('Token expired')
       if (typeof claims.nbf === 'number' && now < claims.nbf) throw new OidcError('Token not yet valid')
+      // Optional admin authorization: the configured claim must include a
+      // required value (e.g. a roles/groups claim listing an admin role).
+      if (config.requiredClaim) {
+        const raw = claims[config.requiredClaim.name]
+        const have = Array.isArray(raw) ? raw.map(String) : raw != null ? [String(raw)] : []
+        if (!config.requiredClaim.values.some((v) => have.includes(v))) {
+          throw new OidcError(`Missing required claim ${config.requiredClaim.name}`)
+        }
+      }
       return claims
     },
   }
