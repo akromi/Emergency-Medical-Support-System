@@ -244,8 +244,7 @@ export function App() {
       flashBackup(t('backup.encDone'))
     } catch { flashBackup('Backup failed.') }
   }
-  async function pickBackupFile() {
-    if (!(await guard('backup.restore'))) return
+  function pickBackupFile() {
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = 'application/json,.json'
@@ -281,8 +280,7 @@ export function App() {
       flashBackup(`Exported ${records.length} record${records.length === 1 ? '' : 's'} to CSV.`)
     }).catch(() => flashBackup('CSV export failed.'))
   }
-  async function pickCsvFile() {
-    if (!(await guard('csv.import'))) return
+  function pickCsvFile() {
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = 'text/csv,.csv'
@@ -300,6 +298,9 @@ export function App() {
   }
   async function runImport(mode: ImportMode) {
     if (!pendingImport) return
+    // Gate at EXECUTION time (not file-pick): this is the destructive step, and
+    // the Merge/Replace buttons can be reached later by a different user.
+    if (!(await guard('data.restore'))) return
     try {
       const n = await importBackup(pendingImport.backup, mode)
       setSaved(await recordRepo.list())

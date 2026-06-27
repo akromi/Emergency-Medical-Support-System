@@ -3,7 +3,7 @@ import {
   subscribeOperators, getOperatorSnapshot, listOperators, addOperator, removeOperator,
   setActiveOperator, setOperatorPin, verifyPin, canManageOperators, type Operator, type Role,
 } from '../db/operators'
-import { requireStepUp } from '../db/stepup'
+import { requireManageStepUp } from '../db/stepup'
 import { useLang } from '../i18n'
 
 /** Live operator state (active operator + whether the roster is empty). */
@@ -40,7 +40,7 @@ export function OperatorPanel({ onClose }: { onClose: () => void }) {
   async function add(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) return
-    if (!(await requireStepUp(t, 'op.add'))) { setMsg(t('auth.denied')); return }
+    if (!(await requireManageStepUp(t))) { setMsg(t('auth.denied')); return }
     await addOperator(name, role, pin || undefined)
     setName(''); setPin(''); setRole('field')
     await reload()
@@ -48,7 +48,7 @@ export function OperatorPanel({ onClose }: { onClose: () => void }) {
 
   async function remove(op: Operator) {
     if (!window.confirm(t('op.removeConfirm', { name: op.name }))) return
-    if (!(await requireStepUp(t, 'op.remove'))) { setMsg(t('auth.denied')); return }
+    if (!(await requireManageStepUp(t))) { setMsg(t('auth.denied')); return }
     await removeOperator(op.id)
     await reload()
   }
@@ -57,7 +57,7 @@ export function OperatorPanel({ onClose }: { onClose: () => void }) {
   // actions. Re-auth first (no-op until someone has a PIN), then prompt for the
   // new PIN; an empty value clears it.
   async function changePin(op: Operator) {
-    if (!(await requireStepUp(t, 'op.pin'))) { setMsg(t('auth.denied')); return }
+    if (!(await requireManageStepUp(t))) { setMsg(t('auth.denied')); return }
     const next = window.prompt(t('op.newPinPrompt', { name: op.name }))
     if (next == null) return
     await setOperatorPin(op.id, next.trim())

@@ -1,4 +1,4 @@
-import { getActiveOperator, verifyPin } from './operators'
+import { getActiveOperator, listOperators, verifyPin } from './operators'
 import { audit } from './audit'
 
 // Step-up re-authentication ("login password") for sensitive actions. When an
@@ -35,5 +35,28 @@ export async function requireStepUp(t: Translate, action: string): Promise<boole
   if (pin == null) return false // cancelled — silent, no audit
   const ok = await verifyPin(op.id, pin)
   await audit('auth.stepup', { detail: `${action}:${ok ? 'ok' : 'fail'}` })
+  return ok
+}
+
+/**
+ * Step-up for operator-roster management (add / remove / change PIN). This is
+ * privilege-sensitive — unlike the data actions above it can DISABLE the gate
+ * itself (e.g. clearing the admin PIN) — so it cannot fall open just because
+ * nobody is signed in. Rule: once ANY operator has a PIN, managing the roster
+ * requires a valid PIN (the active operator's own when signed in, otherwise any
+ * registered operator PIN). It stays open only while no operator has a PIN at
+ * all (the community / bootstrap default).
+ */
+export async function requireManageStepUp(t: Translate): Promise<boolean> {
+  const active = getActiveOperator()
+  if (active?.pinHash) return requireStepUp(t, 'op.manage') // re-auth against own PIN
+
+  const protectedOps = (await listOperators()).filter((o) => o.pinHash)
+  if (protectedOps.length === 0) return true // no PIN anywhere → bootstrap-open
+  const pin = window.prompt(t('auth.managePrompt'))
+  if (pin == null) return false // cancelled — silent
+  let ok = false
+  for (const op of protectedOps) if (await verifyPin(op.id, pin)) { ok = true; break }
+  await audit('auth.stepup', { detail: `op.manage:${ok ? 'ok' : 'fail'}` })
   return ok
 }

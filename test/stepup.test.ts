@@ -5,7 +5,7 @@ import {
   addOperator, setActiveOperator, setOperatorPin, getActiveOperator,
   initOperators, _resetOperatorsForTests,
 } from '../src/db/operators'
-import { requireStepUp, stepUpActive } from '../src/db/stepup'
+import { requireStepUp, requireManageStepUp, stepUpActive } from '../src/db/stepup'
 import { _resetForTests as resetVault } from '../src/db/vault'
 
 // A passthrough translator (the gate only needs the key string back).
@@ -69,6 +69,26 @@ describe('step-up re-auth gate (login password for sensitive actions)', () => {
     vi.spyOn(window, 'prompt').mockReturnValue(null)
     expect(await requireStepUp(t, 'audit.view')).toBe(false)
     expect(await listAudit()).toHaveLength(0)
+  })
+
+  it('still requires a PIN to manage the roster when signed OUT (no escalation)', async () => {
+    await addOperator('Admin', 'admin', '1234') // a PIN-protected admin exists
+    await setActiveOperator(null) // …but nobody is on duty
+    const prompt = vi.spyOn(window, 'prompt')
+
+    prompt.mockReturnValue('0000') // wrong → blocked
+    expect(await requireManageStepUp(t)).toBe(false)
+
+    prompt.mockReturnValue('1234') // any registered operator PIN → allowed
+    expect(await requireManageStepUp(t)).toBe(true)
+  })
+
+  it('leaves roster management open while no operator has a PIN (bootstrap)', async () => {
+    await addOperator('Medic', 'admin') // no PIN
+    await setActiveOperator(null)
+    const prompt = vi.spyOn(window, 'prompt')
+    expect(await requireManageStepUp(t)).toBe(true)
+    expect(prompt).not.toHaveBeenCalled()
   })
 
   it('setOperatorPin adds, then clears, the gate', async () => {
