@@ -54,13 +54,19 @@ export async function allOps(): Promise<Op[]> {
 export async function syncWithServer(baseUrl: string): Promise<void> {
   const clientId = await getClientId()
   const localOps = await allOps()
+  // Incremental pull: send the cursor from our last sync so the server returns
+  // only ops appended since it. Absent on the first sync (or after a wipe) → the
+  // server replies with full state and we adopt its cursor below.
+  const cursor = await getMeta('sync.cursor')
+  const body: { clientId: string; ops: Op[]; since?: number } = { clientId, ops: localOps }
+  if (cursor != null) body.since = Number(cursor)
   const res = await fetch(`${baseUrl}/sync`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ clientId, ops: localOps }),
+    body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`sync failed: ${res.status}`)
-  const data = (await res.json()) as { records: Record<string, CasualtyRecord | null>; ops: Op[] }
+  const data = (await res.json()) as { records: Record<string, CasualtyRecord | null>; ops: Op[]; cursor?: number }
 
   const key = getKey()
   await db.transaction('rw', db.records, db.ops, db.meta, async () => {
@@ -75,6 +81,13 @@ export async function syncWithServer(baseUrl: string): Promise<void> {
     const allOpsNow = incoming.length ? current.concat(incoming) : current
     const maxLamport = allOpsNow.reduce((m, o) => Math.max(m, o.lamport), await getLamport())
     await db.meta.put({ key: 'lamport', value: String(maxLamport) })
+
+    // Checkpoint the server's high-water cursor so the next sync pulls only the
+    // delta. Stored in the same transaction that adopts these ops, so the cursor
+    // never advances past ops we failed to persist.
+    if (typeof data.cursor === 'number') {
+      await db.meta.put({ key: 'sync.cursor', value: String(data.cursor) })
+    }
 
     // Re-fold each record from the CURRENT local op-log (server ops + any ops
     // appended while the request was in flight) rather than trusting the server

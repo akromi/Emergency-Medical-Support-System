@@ -131,10 +131,13 @@ export const recordRepo = {
   },
   /** Wipe every record, op, and photo blob (used by backup "replace"). */
   async clear(): Promise<void> {
-    await db.transaction('rw', db.records, db.ops, db.photos, async () => {
+    await db.transaction('rw', db.records, db.ops, db.photos, db.meta, async () => {
       await db.records.clear()
       await db.ops.clear()
       await db.photos.clear()
+      // Drop the sync cursor: the op-log is gone, so the next sync must re-pull
+      // full state rather than only the delta past a now-meaningless checkpoint.
+      await db.meta.delete('sync.cursor')
     })
   },
 }
