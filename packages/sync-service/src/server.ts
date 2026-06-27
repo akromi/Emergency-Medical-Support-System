@@ -3,7 +3,7 @@
 import { Pool } from 'pg'
 import type { EhrGateway } from '@triage-link/core'
 import { MockGateway, OneIdClient, OntarioHealthGateway } from '@triage-link/ehr-gateway'
-import { buildApp } from './app.js'
+import { buildApp, type SecurityOptions } from './app.js'
 import { OpStore, migrate } from './ops-store.js'
 import { EhrAuditStore, migrateEhrAudit } from './ehr-audit-store.js'
 
@@ -75,12 +75,37 @@ function buildEhrGateway(audit: EhrAuditStore): EhrGateway | undefined {
   return undefined
 }
 
+// Transport/access hardening from the environment. A production deploy should
+// set SYNC_API_TOKEN (bearer auth) and CORS_ORIGINS (the PWA's origin).
+function buildSecurity(): SecurityOptions {
+  const corsOrigins = process.env.CORS_ORIGINS?.split(',').map((s) => s.trim()).filter(Boolean)
+  if (!process.env.SYNC_API_TOKEN) {
+    console.warn('SYNC_API_TOKEN is not set — /sync and /ehr/* are UNAUTHENTICATED. Set it in production.')
+  }
+  if (!corsOrigins?.length) {
+    console.warn('CORS_ORIGINS is not set — cross-origin browser requests are blocked (same-origin only).')
+  }
+  return {
+    authToken: process.env.SYNC_API_TOKEN,
+    corsOrigins,
+    rateLimitMax: process.env.RATE_LIMIT_MAX ? Number(process.env.RATE_LIMIT_MAX) : undefined,
+    trustProxy: process.env.TRUST_PROXY === 'true',
+  }
+}
+
 async function main(): Promise<void> {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL })
   await migrate(pool)
   await migrateEhrAudit(pool)
   const ehrAudit = new EhrAuditStore(pool)
-  const app = buildApp({ store: new OpStore(pool), ehr: buildEhrGateway(ehrAudit), ehrAudit })
+  const app = buildApp({
+    store: new OpStore(pool),
+    ehr: buildEhrGateway(ehrAudit),
+    ehrAudit,
+    security: buildSecurity(),
+    // Swagger UI is dev/QA furniture — off unless explicitly enabled.
+    docs: process.env.ENABLE_DOCS === 'true',
+  })
   const port = Number(process.env.PORT ?? 8080)
   await app.listen({ port, host: '0.0.0.0' })
   // eslint-disable-next-line no-console

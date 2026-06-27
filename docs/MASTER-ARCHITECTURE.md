@@ -420,8 +420,8 @@ Framework-free, built to `dist/` (ESM + `.d.ts`) and consumed by both the PWA an
 ## 8. Test cases
 
 All suites run under **Vitest**; the backend uses **pg-mem** (in-memory PostgreSQL) so DB tests
-run with identical SQL and no external service. **149 tests pass** across the workspaces
-(core 68, field client 35, sync 27, EHR gateway 19).
+run with identical SQL and no external service. **155 tests pass** across the workspaces
+(core 68, field client 35, sync 33, EHR gateway 19).
 
 ### 8.1 Core (`packages/core/test/`, 68 tests)
 
@@ -452,7 +452,7 @@ run with identical SQL and no external service. **149 tests pass** across the wo
 | `ontario-health-gateway.test.ts` | Authenticated `$match` + parse; underspecified query rejected pre-flight; **401 → refresh + retry once**; context merge skipping 403; **contribution is a transaction bundle, not retried**; failure audited |
 | `mock-gateway.test.ts` | Certain/probable/no-match; seeded context; contribution recorded |
 
-### 8.3 Sync service (`packages/sync-service/test/`, 27 tests)
+### 8.3 Sync service (`packages/sync-service/test/`, 33 tests)
 
 | Suite | Covers |
 |---|---|
@@ -486,6 +486,21 @@ worker makes it work offline after first load. Deploy to any static host/CDN:
 - **`DATABASE_URL`** — PostgreSQL connection string; `migrate()` + `migrateEhrAudit()` create tables on boot.
 - **`PORT`** — listen port (default 8080).
 - Stateless and horizontally scalable; PostgreSQL is the managed stateful tier.
+
+**Transport/access hardening** (all optional; the API ships open for dev/tests, so a
+production deploy MUST set the first two):
+
+| Variable | Effect |
+|---|---|
+| `SYNC_API_TOKEN` | When set, `/sync` and `/ehr/*` require `Authorization: Bearer <token>` (constant-time check). `/health` stays open. |
+| `CORS_ORIGINS` | Comma-separated browser-origin allowlist (the PWA's origin). Unset → cross-origin requests are blocked. |
+| `RATE_LIMIT_MAX` | Per-IP requests/minute (default 300). |
+| `TRUST_PROXY` | `true` behind a reverse proxy / load balancer (honours `X-Forwarded-*`). |
+| `ENABLE_DOCS` | `true` to serve Swagger UI at `/docs` (off by default in production). |
+
+Always-on: hardened response headers (`@fastify/helmet` — nosniff, `X-Frame-Options: DENY`,
+HSTS, no-referrer), a 10 MB request-body cap, and JSON-schema validation of the `/sync`
+op batch (bounded size; unknown fields stripped).
 
 ### 9.3 EHR provider configuration (fail-closed)
 
