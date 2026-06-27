@@ -12,6 +12,7 @@ import {
 } from '@triage-link/core'
 import { recordRepo } from './db/repository'
 import { exportAll, exportEncrypted, readBackupFile, decryptBackup, importBackup, type Backup, type ImportMode } from './db/backup'
+import { recordsToCsv, csvToRecords } from './db/csv'
 import { BodyChart, type NewInjuryPlacement } from './components/BodyChart'
 import { CasualtySummary } from './components/CasualtySummary'
 import { TriageBoard } from './components/TriageBoard'
@@ -247,6 +248,36 @@ export function App() {
           setPendingImport({ backup: res.backup, count: res.backup.records.length })
         }
       } catch (e) { flashBackup((e as Error).message) }
+    }
+    input.click()
+  }
+  // ---- CSV roster export / import (scalar identity + incident layer) ----
+  function exportRecordsCsv() {
+    recordRepo.list().then((records) => {
+      const blob = new Blob([recordsToCsv(records)], { type: 'text/csv;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `triage-link-roster-${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+      audit('record.export', { detail: 'csv' })
+      flashBackup(`Exported ${records.length} record${records.length === 1 ? '' : 's'} to CSV.`)
+    }).catch(() => flashBackup('CSV export failed.'))
+  }
+  function pickCsvFile() {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'text/csv,.csv'
+    input.onchange = async () => {
+      const file = input.files?.[0]
+      if (!file) return
+      try {
+        const records = csvToRecords(await file.text())
+        if (records.length === 0) { flashBackup('No casualties found in that CSV.'); return }
+        // Reuse the merge/replace confirm + import machinery via a Backup envelope.
+        setPendingImport({ backup: { app: 'triage-link', format: 1, exportedAt: Date.now(), records }, count: records.length })
+      } catch { flashBackup('Could not read that CSV.') }
     }
     input.click()
   }
@@ -551,6 +582,8 @@ export function App() {
               <button type="button" className="minibtn" onClick={exportAllRecords} title="Download a backup file of every saved record">{t('saved.backup')}</button>
               <button type="button" className="minibtn" onClick={exportEncryptedRecords} title="Download a passphrase-encrypted backup (PHI is unreadable without the passphrase)">{t('saved.backupEnc')}</button>
               <button type="button" className="minibtn" onClick={pickBackupFile} title="Restore records from a backup file (encrypted or plain)">{t('saved.restore')}</button>
+              <button type="button" className="minibtn" onClick={exportRecordsCsv} title="Export a roster CSV (identity + incident fields) for analytics or QA">{t('saved.csv')}</button>
+              <button type="button" className="minibtn" onClick={pickCsvFile} title="Import a roster CSV to create casualty records (onboard a patient list)">{t('saved.csvin')}</button>
               <span className="count">{saved.length}</span>
             </div>
             <div className="panel-b">
