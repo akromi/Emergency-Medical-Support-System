@@ -2,8 +2,11 @@
 // Every local edit is journaled as immutable ops (see recordRepo.save), which a
 // future/optional sync pushes to the conflict-aware sync service and reconciles
 // using the SAME deterministic resolver the server uses (@triage-link/core).
+import Dexie from 'dexie'
 import { db } from './database'
 import { resolve, type CasualtyRecord, type Op } from '@triage-link/core'
+import { getKey } from './vault'
+import { openOp, sealOp, openRecord, sealRecord } from './record-crypto'
 
 async function getMeta(key: string): Promise<string | undefined> {
   return (await db.meta.get(key))?.value
@@ -31,12 +34,15 @@ export async function getLamport(): Promise<number> {
   return Number((await getMeta('lamport')) ?? '0')
 }
 
-export function listOps(recordId: string): Promise<Op[]> {
-  return db.ops.where('recordId').equals(recordId).toArray()
+export async function listOps(recordId: string): Promise<Op[]> {
+  const key = getKey()
+  const rows = await db.ops.where('recordId').equals(recordId).toArray()
+  return Promise.all(rows.map((o) => openOp(key, o)))
 }
 
-export function allOps(): Promise<Op[]> {
-  return db.ops.toArray()
+export async function allOps(): Promise<Op[]> {
+  const key = getKey()
+  return Promise.all((await db.ops.toArray()).map((o) => openOp(key, o)))
 }
 
 /**
@@ -56,13 +62,15 @@ export async function syncWithServer(baseUrl: string): Promise<void> {
   if (!res.ok) throw new Error(`sync failed: ${res.status}`)
   const data = (await res.json()) as { records: Record<string, CasualtyRecord | null>; ops: Op[] }
 
+  const key = getKey()
   await db.transaction('rw', db.records, db.ops, db.meta, async () => {
     // Re-read the local log inside the transaction; it may have grown since the
-    // request was sent (another tab or a debounced save).
-    const current = await db.ops.toArray()
+    // request was sent (another tab or a debounced save). Rows may be vault-
+    // sealed at rest — open them to fold, and seal incoming/resolved on write.
+    const current = await Dexie.waitFor(Promise.all((await db.ops.toArray()).map((o) => openOp(key, o))))
     const known = new Set(current.map((o) => o.id))
     const incoming = data.ops.filter((o) => !known.has(o.id))
-    if (incoming.length) await db.ops.bulkAdd(incoming)
+    if (incoming.length) await db.ops.bulkAdd(await Dexie.waitFor(Promise.all(incoming.map((o) => sealOp(key, o)))))
 
     const allOpsNow = incoming.length ? current.concat(incoming) : current
     const maxLamport = allOpsNow.reduce((m, o) => Math.max(m, o.lamport), await getLamport())
@@ -82,11 +90,12 @@ export async function syncWithServer(baseUrl: string): Promise<void> {
       // updatedAt isn't journaled, and resolve() derives it from op ts; keep the
       // local row's value if it's newer so a just-saved case doesn't sort older
       // in the list after a sync.
-      const existing = await db.records.get(recordId)
+      const existingStored = await db.records.get(recordId)
+      const existing = existingStored ? await Dexie.waitFor(openRecord(key, existingStored)) : undefined
       if (existing && existing.updatedAt > resolved.updatedAt) {
         resolved.updatedAt = existing.updatedAt
       }
-      await db.records.put(resolved)
+      await db.records.put(await Dexie.waitFor(sealRecord(key, resolved)))
     }
   })
 }

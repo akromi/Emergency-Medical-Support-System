@@ -69,9 +69,15 @@ export function App() {
   const vaultState = useVaultState()
 
   useEffect(() => {
-    recordRepo.list().then(setSaved)
     initVault()
   }, [])
+
+  // The saved list follows vault state: hidden while locked (records are sealed
+  // and unreadable), (re)loaded once the vault is unlocked or disabled.
+  useEffect(() => {
+    if (vaultState === 'locked') { setSaved([]); return }
+    recordRepo.list().then(setSaved)
+  }, [vaultState])
 
   // Auto-lock: any interaction resets the vault inactivity timer; when it
   // fires the key is dropped and the lock screen reappears. Cheap no-op while

@@ -16,10 +16,10 @@ test('enable the photo vault, lock, and unlock', async ({ page }) => {
 
   // Enabling pops a window.prompt for the passphrase — accept it with our value.
   page.once('dialog', (d) => d.accept(PASS))
-  await page.getByRole('button', { name: /Encrypt photos/ }).click()
+  await page.getByRole('button', { name: /Encrypt data/ }).click()
 
   // The menu flips to the unlocked-state actions.
-  const lockNow = page.getByRole('button', { name: /Lock photos now/ })
+  const lockNow = page.getByRole('button', { name: /Lock now/ })
   await expect(lockNow).toBeVisible()
 
   // Lock → the full-screen gate appears and blocks the app.
@@ -37,5 +37,5 @@ test('enable the photo vault, lock, and unlock', async ({ page }) => {
   await lock.locator('input[type="password"]').fill(PASS)
   await lock.getByRole('button', { name: /Unlock/ }).click()
   await expect(page.locator('.vault-lock')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: /Lock photos now/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Lock now/ })).toBeVisible()
 })

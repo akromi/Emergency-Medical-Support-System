@@ -86,15 +86,16 @@ packages/
 - Offline persistence to IndexedDB; multiple casualties; auto-save
 - **Backup / restore** — export every record to a single portable JSON file, or a
   **passphrase-encrypted** backup (AES-256-GCM); restore auto-detects which it is
-- **Photo vault (opt-in)** — encrypt wound photos **at rest** behind a passphrase, with a
-  full-screen lock and auto-lock; the key lives only in memory while unlocked
+- **Vault (opt-in)** — encrypt all casualty data **at rest** behind a passphrase: records,
+  the op-log, and wound photos (AES-256-GCM), with a full-screen lock and auto-lock; the key
+  lives only in memory while unlocked
 
 ## Roadmap
 
 - Conflict-aware sync (op-log) wired from the client to the central service — see the architecture doc
 - NFC/QR handover scan + master patient index reconciliation
-- Auth (OAuth2/OIDC, SMART-on-FHIR), audit logging; full-record encryption at rest
-  (today the photo vault encrypts wound photos; text fields are still in the clear)
+- Auth (OAuth2/OIDC, SMART-on-FHIR), audit logging, RBAC (the opt-in vault already
+  encrypts records, op-log, and photos at rest)
 - Vitals trend mini-charts; scene-wide summary export for incident command
 
 ## Regulatory & security
