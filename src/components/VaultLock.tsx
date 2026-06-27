@@ -1,19 +1,25 @@
 import { useState, useSyncExternalStore } from 'react'
-import { subscribe, getState, unlock, type VaultState } from '../db/vault'
+import { subscribe, getState, unlock, enableVault, type VaultState } from '../db/vault'
 import { useLang } from '../i18n'
 
-/** Live vault lock state for the UI (disabled / locked / unlocked). */
+/** Live vault state for the UI (disabled / setup / locked / unlocked). */
 export function useVaultState(): VaultState {
   return useSyncExternalStore(subscribe, getState, getState)
 }
 
 /**
- * Full-screen lock overlay. Shown while the vault is enabled but locked: it
- * blocks the whole app and decrypts nothing until the right passphrase unlocks
- * the in-memory key. There is no bypass — a wrong passphrase fails the GCM
- * auth check and the screen stays up.
+ * Full-screen vault gate. Two modes:
+ *  - 'locked'  → enter the passphrase to unlock the in-memory key. No bypass:
+ *    a wrong passphrase fails the GCM auth check and the screen stays up.
+ *  - 'setup'   → encryption is REQUIRED by policy but no passphrase is set yet;
+ *    the user must create one (with confirmation) before the app can store data.
  */
 export function LockScreen() {
+  const state = useVaultState()
+  return state === 'setup' ? <SetupScreen /> : <UnlockScreen />
+}
+
+function UnlockScreen() {
   const { t } = useLang()
   const [pass, setPass] = useState('')
   const [error, setError] = useState(false)
@@ -45,6 +51,57 @@ export function LockScreen() {
         />
         {error && <div className="vault-lock-err">{t('vault.wrong')}</div>}
         <button type="submit" className="btn primary" disabled={!pass || busy}>{t('vault.unlock')}</button>
+      </form>
+    </div>
+  )
+}
+
+function SetupScreen() {
+  const { t } = useLang()
+  const [pass, setPass] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (busy) return
+    if (pass.length < 8) { setError(t('backup.passShort')); return }
+    if (pass !== confirm) { setError(t('vault.passMismatch')); return }
+    setBusy(true)
+    try {
+      await enableVault(pass) // derives the key, encrypts existing data, unlocks
+    } catch {
+      setError(t('vault.setupFailed'))
+    }
+    setBusy(false)
+  }
+
+  return (
+    <div className="vault-lock" role="dialog" aria-modal="true" aria-label={t('vault.setupTitle')}>
+      <form className="vault-lock-card" onSubmit={submit}>
+        <div className="vault-lock-mark">🔐</div>
+        <h2>{t('vault.setupTitle')}</h2>
+        <p>{t('vault.setupSub')}</p>
+        <input
+          type="password"
+          autoFocus
+          autoComplete="new-password"
+          placeholder={t('vault.passPh')}
+          value={pass}
+          onChange={(e) => { setPass(e.target.value); setError('') }}
+          aria-invalid={!!error}
+        />
+        <input
+          type="password"
+          autoComplete="new-password"
+          placeholder={t('vault.passConfirm')}
+          value={confirm}
+          onChange={(e) => { setConfirm(e.target.value); setError('') }}
+          aria-invalid={!!error}
+        />
+        {error && <div className="vault-lock-err">{error}</div>}
+        <button type="submit" className="btn primary" disabled={!pass || !confirm || busy}>{t('vault.setBtn')}</button>
       </form>
     </div>
   )

@@ -3,7 +3,7 @@ import { db } from './database'
 import { diffToOps, type CasualtyRecord } from '@triage-link/core'
 import { getClientId, getLamport } from './oplog'
 import { isDataUrl, isPhotoRef, putPhoto, readPhoto } from './photos'
-import { getKey, isEnabled } from './vault'
+import { getKey, isEnabled, isRequired } from './vault'
 import { sealRecord, openRecord, sealOp, VaultLockedError } from './record-crypto'
 
 // Thin repository over IndexedDB, wrapped with an append-only op-log: every save
@@ -51,10 +51,10 @@ const collectRefs = (record: CasualtyRecord | undefined): Set<string> => {
 
 export const recordRepo = {
   async save(record: CasualtyRecord): Promise<void> {
-    // Never write plaintext PHI while the vault is enabled but locked (e.g. a
-    // debounced save firing just after auto-lock); the edit re-saves on the next
-    // change after unlock.
-    if (isEnabled() && !getKey()) return
+    // Never write plaintext PHI while the vault is enabled-but-locked (e.g. a
+    // debounced save firing just after auto-lock) OR required-but-not-yet-set-up;
+    // the edit re-saves on the next change once the vault is unlocked.
+    if ((isEnabled() || isRequired()) && !getKey()) return
     record.updatedAt = Date.now()
     await db.transaction('rw', db.records, db.ops, db.meta, db.photos, async () => {
       const key = getKey()

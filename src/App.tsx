@@ -25,7 +25,7 @@ import { EhrTestConsole } from './components/EhrTestConsole'
 import { PcrVerify } from './components/PcrVerify'
 import { contributeHandover, EhrUnavailableError } from './ehr/client'
 import { LockScreen, useVaultState } from './components/VaultLock'
-import { initVault, enableVault, disableVault, lock as lockVault, noteActivity } from './db/vault'
+import { initVault, enableVault, disableVault, lock as lockVault, noteActivity, isRequired } from './db/vault'
 import { useLang, regionLabel, nextLang } from './i18n'
 
 const TRIAGE_ORDER: TriageCategory[] = ['immediate', 'delayed', 'minor', 'deceased']
@@ -75,7 +75,7 @@ export function App() {
   // The saved list follows vault state: hidden while locked (records are sealed
   // and unreadable), (re)loaded once the vault is unlocked or disabled.
   useEffect(() => {
-    if (vaultState === 'locked') { setSaved([]); return }
+    if (vaultState === 'locked' || vaultState === 'setup') { setSaved([]); return }
     recordRepo.list().then(setSaved)
   }, [vaultState])
 
@@ -296,8 +296,10 @@ export function App() {
           )}
           {vaultState === 'unlocked' && (
             <>
-              <button className="topbtn" onClick={() => { lockVault(); setMenuOpen(false) }} title="Lock the photo vault now (photos become unreadable until you unlock)">{t('vault.lockNow')}</button>
-              <button className="topbtn" onClick={disablePhotoVault} title="Decrypt all photos and turn the vault off">{t('vault.disable')}</button>
+              <button className="topbtn" onClick={() => { lockVault(); setMenuOpen(false) }} title="Lock the vault now (data becomes unreadable until you unlock)">{t('vault.lockNow')}</button>
+              {!isRequired() && (
+                <button className="topbtn" onClick={disablePhotoVault} title="Decrypt all data and turn the vault off">{t('vault.disable')}</button>
+              )}
             </>
           )}
           {import.meta.env.DEV && (
@@ -550,7 +552,7 @@ export function App() {
       />
     )}
     {import.meta.env.DEV && showEhrLab && <EhrTestConsole record={record} onClose={() => setShowEhrLab(false)} />}
-    {vaultState === 'locked' && <LockScreen />}
+    {(vaultState === 'locked' || vaultState === 'setup') && <LockScreen />}
     </>
   )
 }
