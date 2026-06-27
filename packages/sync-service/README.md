@@ -24,6 +24,28 @@ Tenancy is selected by the API key:
 Isolation is enforced at the data layer (not just the edge) and covered by
 `test/tenancy.integration.test.ts`.
 
+### Tenant-admin API (runtime provisioning & key rotation)
+
+Static `SYNC_TENANTS` is fine for a fixed roster; for a hosted service that
+provisions tenants and rotates keys without a restart, set **`SYNC_ADMIN_TOKEN`**
+to mount the admin API at `/admin/*` (gated by `Authorization: Bearer <admin
+token>`). Tenants and their keys then live in the database (`tenants`,
+`tenant_keys`). API keys are stored only as a **SHA-256 hash** — the plaintext
+`tlk_…` token is returned **once**, at issue time, and can never be recovered.
+
+| Method & path | Purpose |
+| --- | --- |
+| `POST /admin/tenants` `{id,name}` | Create a tenant |
+| `GET /admin/tenants` | List tenants |
+| `PATCH /admin/tenants/:id` `{status}` | Enable / disable a tenant |
+| `POST /admin/tenants/:id/keys` `{label?}` | Issue a key (returns the token once) |
+| `GET /admin/tenants/:id/keys` | List keys (hints + metadata, never tokens) |
+| `DELETE /admin/tenants/:id/keys/:keyId` | Revoke a key |
+
+**Rotation** = issue a new key, switch the client, then revoke the old one.
+Disabling a tenant immediately stops all its keys. The admin API is intentionally
+hidden from the public OpenAPI doc. Covered by `test/admin-api.integration.test.ts`.
+
 ## Local testing with Swagger (no database, no credentials)
 
 The production entry point (`npm start`) needs PostgreSQL and Ontario Health /

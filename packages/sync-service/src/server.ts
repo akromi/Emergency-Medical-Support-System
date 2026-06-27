@@ -6,6 +6,7 @@ import { MockGateway, OneIdClient, OntarioHealthGateway } from '@triage-link/ehr
 import { buildApp, type SecurityOptions } from './app.js'
 import { OpStore, migrate } from './ops-store.js'
 import { EhrAuditStore, migrateEhrAudit } from './ehr-audit-store.js'
+import { TenantStore, migrateTenants } from './tenant-store.js'
 
 // Select the provincial EHR adapter from the environment.
 //
@@ -107,6 +108,7 @@ function buildSecurity(): SecurityOptions {
   return {
     authToken: process.env.SYNC_API_TOKEN,
     tenants,
+    adminToken: process.env.SYNC_ADMIN_TOKEN,
     corsOrigins,
     rateLimitMax: process.env.RATE_LIMIT_MAX ? Number(process.env.RATE_LIMIT_MAX) : undefined,
     trustProxy: process.env.TRUST_PROXY === 'true',
@@ -117,12 +119,18 @@ async function main(): Promise<void> {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL })
   await migrate(pool)
   await migrateEhrAudit(pool)
+  await migrateTenants(pool)
   const ehrAudit = new EhrAuditStore(pool)
+  const security = buildSecurity()
+  if (!security.adminToken) {
+    console.warn('SYNC_ADMIN_TOKEN is not set — the tenant-admin API (/admin/*) is disabled.')
+  }
   const app = buildApp({
     store: new OpStore(pool),
     ehr: buildEhrGateway(ehrAudit),
     ehrAudit,
-    security: buildSecurity(),
+    tenantStore: new TenantStore(pool),
+    security,
     // Swagger UI is dev/QA furniture — off unless explicitly enabled.
     docs: process.env.ENABLE_DOCS === 'true',
   })

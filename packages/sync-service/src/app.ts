@@ -12,6 +12,8 @@ import { resolve, type Op, type EhrGateway } from '@triage-link/core'
 import { OpStore, DEFAULT_TENANT } from './ops-store.js'
 import { registerEhrRoutes, registerEhrAuditRoute } from './ehr-routes.js'
 import type { EhrAuditStore } from './ehr-audit-store.js'
+import { type TenantStore, bearerToken } from './tenant-store.js'
+import { registerAdminRoutes } from './admin-routes.js'
 
 // The authenticated tenant for the current request (DEFAULT_TENANT when auth is
 // off or the single-tenant authToken is used).
@@ -37,8 +39,12 @@ export interface SecurityOptions {
   /** Per-tenant API keys for a multi-tenant deployment: each `{ id, token }`
    *  authenticates requests AND scopes their data to that tenant. Tenants are
    *  fully isolated — one can never read or resolve another's records. May be
-   *  combined with `authToken` (which remains the `default` tenant). */
+   *  combined with `authToken` (which remains the `default` tenant). For
+   *  runtime-managed tenants/keys, wire a `tenantStore` (see buildApp) instead. */
   tenants?: Array<{ id: string; token: string }>
+  /** When set (with a `tenantStore`), mounts the tenant-admin API under
+   *  `/admin/*`, gated by `Authorization: Bearer <adminToken>`. */
+  adminToken?: string
   /** Allowed browser origins for CORS. Empty/undefined → cross-origin disabled. */
   corsOrigins?: string[]
   /** Max requests per IP per minute (default 300). */
@@ -85,10 +91,14 @@ const SYNC_BODY_SCHEMA = {
 }
 
 export function buildApp(
-  { store, ehr, ehrAudit, docs = true, security = {} }: {
+  { store, ehr, ehrAudit, tenantStore, docs = true, security = {} }: {
     store: OpStore
     ehr?: EhrGateway
     ehrAudit?: EhrAuditStore
+    /** Runtime tenant registry. When provided, bearer tokens are also resolved
+     *  against its stored (hashed) API keys; with `security.adminToken` it also
+     *  mounts the tenant-admin API at `/admin/*`. */
+    tenantStore?: TenantStore
     /** Serve OpenAPI + Swagger UI at /docs (default true). */
     docs?: boolean
     /** Transport/access hardening (see SecurityOptions). */
@@ -137,18 +147,37 @@ export function buildApp(
     ...(security.tenants ?? []),
     ...(security.authToken ? [{ id: DEFAULT_TENANT, token: security.authToken }] : []),
   ]
-  if (tenantTokens.length) {
+  const adminToken = security.adminToken
+  // Data routes are authenticated when any static token is configured OR the
+  // admin API is enabled (which implies runtime-managed DB credentials). With
+  // none of these, the service stays open under the single default tenant.
+  const dataAuthEnabled = tenantTokens.length > 0 || !!adminToken
+  if (dataAuthEnabled || adminToken) {
     app.addHook('onRequest', async (req, reply) => {
       const path = req.url.split('?')[0]
+
+      // Admin API: its own gate (a single operator token), separate from tenants.
+      if (path.startsWith('/admin')) {
+        if (!adminToken || !bearerOk(req.headers.authorization, adminToken)) {
+          return reply.code(401).send({ error: 'unauthorized', message: 'Admin token required' })
+        }
+        return
+      }
+
       const protectedRoute = path === '/sync' || path.startsWith('/sync/') || path.startsWith('/ehr')
-      if (!protectedRoute) return
-      // Each comparison is constant-time; the first matching token wins and
-      // selects the tenant. (Token count is config-sized, not secret.)
-      const match = tenantTokens.find((t) => bearerOk(req.headers.authorization, t.token))
-      if (!match) {
+      if (!protectedRoute || !dataAuthEnabled) return
+
+      // Static tokens first (constant-time; first match wins, count isn't secret),
+      // then the runtime store's hashed keys. Either selects the request's tenant.
+      let tenantId = tenantTokens.find((t) => bearerOk(req.headers.authorization, t.token))?.id ?? null
+      if (!tenantId && tenantStore) {
+        const token = bearerToken(req.headers.authorization)
+        if (token) tenantId = await tenantStore.resolveToken(token)
+      }
+      if (!tenantId) {
         return reply.code(401).send({ error: 'unauthorized', message: 'Missing or invalid bearer token' })
       }
-      req.tenantId = match.id
+      req.tenantId = tenantId
     })
   }
 
@@ -186,6 +215,9 @@ export function buildApp(
   // Provincial EHR integration is optional: only mounted when a gateway is wired.
   if (ehr) registerEhrRoutes(app, ehr)
   if (ehrAudit) registerEhrAuditRoute(app, ehrAudit)
+
+  // Tenant-admin API — only when a tenant store AND an admin token are both set.
+  if (tenantStore && adminToken) registerAdminRoutes(app, tenantStore)
 
   // Push a batch of ops and pull back the resolved state + full op set.
   app.post('/sync', {
