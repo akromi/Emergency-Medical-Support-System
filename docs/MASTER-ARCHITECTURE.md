@@ -480,6 +480,17 @@ worker makes it work offline after first load. Deploy to any static host/CDN:
 - **Netlify / S3 / nginx** — drop the `dist/` folder; base path stays `/`.
 - **`VITE_EHR_BASE_URL`** (build-time) points the PWA at the backend EHR routes (empty = same origin).
 
+**Web security headers.** The production build injects a strict **Content-Security-Policy**
+as a `<meta>` tag (`default-src 'self'`, `object-src 'none'`, `script-src 'self'`,
+`img-src 'self' data: blob:`, `style-src 'self' 'unsafe-inline'` for React inline styles;
+`connect-src` gains `VITE_EHR_BASE_URL`'s origin when set) — so it applies even on GitHub
+Pages, which can't set response headers. The remaining headers a meta tag can't set
+(HSTS, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` locking the camera to
+`self`, COOP/CORP) ship in **`public/_headers`** for Netlify/Cloudflare Pages; nginx/Apache
+operators should mirror them. On GitHub Pages only the meta CSP applies (no custom headers,
+so no `X-Frame-Options` there). The dev-only **EHR Test Lab** is gated on `import.meta.env.DEV`
+and is **tree-shaken out of the production bundle** (no URL flag reaches it).
+
 ### 9.2 Sync service (container)
 
 - Run `node --experimental-strip-types src/server.ts` (or compile first).
