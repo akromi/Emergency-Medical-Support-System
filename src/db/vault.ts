@@ -25,10 +25,16 @@ interface VaultConfig {
   check: string // encryptString(key, VAULT_CHECK_PLAINTEXT)
 }
 
-export type VaultState = 'disabled' | 'locked' | 'unlocked'
+// 'setup' = encryption is REQUIRED by policy but no passphrase is set yet (the
+// user must create one before any record can be stored). 'disabled' is the
+// default opt-in state when no policy requires the vault.
+export type VaultState = 'disabled' | 'setup' | 'locked' | 'unlocked'
+
+const POLICY_KEY = 'vault.policy'
 
 let key: CryptoKey | null = null
 let enabled = false
+let required = false
 let autoLockTimer: number | undefined
 let autoLockMs = DEFAULT_AUTOLOCK_MS
 
@@ -40,9 +46,13 @@ export function subscribe(l: () => void): () => void {
   return () => listeners.delete(l)
 }
 export function getState(): VaultState {
-  if (!enabled) return 'disabled'
-  return key ? 'unlocked' : 'locked'
+  if (enabled) return key ? 'unlocked' : 'locked'
+  return required ? 'setup' : 'disabled'
 }
+
+/** Whether encryption is mandatory (a distribution/org policy), so it can't be
+ *  turned off and must be set up before first use. */
+export const isRequired = (): boolean => required
 
 /** The in-memory key for transparent photo crypto, or null when locked/disabled. */
 export const getKey = (): CryptoKey | null => key
@@ -57,8 +67,24 @@ async function readConfig(): Promise<VaultConfig | null> {
   }
 }
 
-/** Load persisted vault status at startup (enabled but locked until unlocked). */
+/** Read the encryption-required policy: a build-time flag (for distribution
+ *  builds) OR a persisted org setting. Default off → community build behaves
+ *  exactly as before. */
+async function readPolicy(): Promise<boolean> {
+  if (import.meta.env.VITE_VAULT_REQUIRED === 'true') return true
+  return (await db.meta.get(POLICY_KEY))?.value === 'required'
+}
+
+/** Set/clear the persisted "encryption required" org policy at runtime. */
+export async function setVaultPolicy(req: boolean): Promise<void> {
+  await db.meta.put({ key: POLICY_KEY, value: req ? 'required' : 'off' })
+  required = await readPolicy()
+  emit()
+}
+
+/** Load persisted vault status + policy at startup. */
 export async function initVault(): Promise<VaultState> {
+  required = await readPolicy()
   enabled = (await readConfig()) != null
   key = null
   emit()
@@ -164,6 +190,7 @@ export async function unlock(passphrase: string): Promise<boolean> {
  *  ops back to plaintext. The config row is removed LAST so a crash mid-decrypt
  *  leaves the vault enabled and the data readable on unlock. */
 export async function disableVault(passphrase: string): Promise<boolean> {
+  if (required) return false // encryption is mandatory by policy — cannot disable
   const config = await readConfig()
   if (!config) { enabled = false; emit(); return true }
   const k = await deriveKey(passphrase, config.salt, config.iter)
@@ -187,6 +214,7 @@ export async function disableVault(passphrase: string): Promise<boolean> {
 export function _resetForTests() {
   key = null
   enabled = false
+  required = false
   autoLockMs = DEFAULT_AUTOLOCK_MS
   clearAutoLock()
 }
