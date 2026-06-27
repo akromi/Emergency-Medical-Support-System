@@ -23,6 +23,8 @@ import { Elapsed } from './components/Elapsed'
 import { EhrTestConsole } from './components/EhrTestConsole'
 import { PcrVerify } from './components/PcrVerify'
 import { contributeHandover, EhrUnavailableError } from './ehr/client'
+import { LockScreen, useVaultState } from './components/VaultLock'
+import { initVault, enableVault, disableVault, lock as lockVault, noteActivity } from './db/vault'
 import { useLang, regionLabel, nextLang } from './i18n'
 
 const TRIAGE_ORDER: TriageCategory[] = ['immediate', 'delayed', 'minor', 'deceased']
@@ -63,10 +65,48 @@ export function App() {
   const [backupMsg, setBackupMsg] = useState('')
   const [pendingImport, setPendingImport] = useState<{ backup: Backup; count: number } | null>(null)
   const saveTimer = useRef<number | undefined>(undefined)
+  const vaultState = useVaultState()
 
   useEffect(() => {
     recordRepo.list().then(setSaved)
+    initVault()
   }, [])
+
+  // Auto-lock: any interaction resets the vault inactivity timer; when it
+  // fires the key is dropped and the lock screen reappears. Cheap no-op while
+  // the vault is locked/disabled (noteActivity only re-arms when unlocked).
+  useEffect(() => {
+    if (vaultState !== 'unlocked') return
+    const onActivity = () => noteActivity()
+    window.addEventListener('pointerdown', onActivity)
+    window.addEventListener('keydown', onActivity)
+    return () => {
+      window.removeEventListener('pointerdown', onActivity)
+      window.removeEventListener('keydown', onActivity)
+    }
+  }, [vaultState])
+
+  // ---- photo vault (encrypt wound photos at rest) ----
+  async function enablePhotoVault() {
+    const pass = window.prompt(t('vault.enablePrompt'))
+    if (pass == null) return
+    if (pass.length < 8) { flashBackup(t('backup.passShort')); return }
+    try {
+      await enableVault(pass)
+      setSaved(await recordRepo.list())
+      flashBackup(t('vault.enabled'))
+    } catch { flashBackup('Could not enable the vault.') }
+    setMenuOpen(false)
+  }
+  async function disablePhotoVault() {
+    const pass = window.prompt(t('vault.disablePrompt'))
+    if (pass == null) return
+    try {
+      const ok = await disableVault(pass)
+      flashBackup(ok ? t('vault.disabled') : t('vault.wrong'))
+    } catch { flashBackup('Could not disable the vault.') }
+    setMenuOpen(false)
+  }
 
   function persist(next: CasualtyRecord) {
     setRecord(next)
@@ -244,6 +284,15 @@ export function App() {
           <button className="topbtn" data-tour="summary" onClick={() => setShowSummary(true)} title="One-page casualty card — print or save as PDF for handover">{t('hdr.summary')}</button>
           <button className="topbtn" onClick={() => setShowTour(true)} title="Replay the guided tour">{t('hdr.tour')}</button>
           <button className="topbtn" onClick={sendToEhr} title="Contribute this handover to the provincial EHR">{t('hdr.ehr')}</button>
+          {vaultState === 'disabled' && (
+            <button className="topbtn" onClick={enablePhotoVault} title="Encrypt all wound photos at rest behind a passphrase">{t('vault.enable')}</button>
+          )}
+          {vaultState === 'unlocked' && (
+            <>
+              <button className="topbtn" onClick={() => { lockVault(); setMenuOpen(false) }} title="Lock the photo vault now (photos become unreadable until you unlock)">{t('vault.lockNow')}</button>
+              <button className="topbtn" onClick={disablePhotoVault} title="Decrypt all photos and turn the vault off">{t('vault.disable')}</button>
+            </>
+          )}
           {import.meta.env.DEV && (
             <button className="topbtn" onClick={() => setShowEhrLab(true)} title="Interactive lab to test the EHR integration against a stubbed gateway">{t('hdr.ehrlab')}</button>
           )}
@@ -494,6 +543,7 @@ export function App() {
       />
     )}
     {import.meta.env.DEV && showEhrLab && <EhrTestConsole record={record} onClose={() => setShowEhrLab(false)} />}
+    {vaultState === 'locked' && <LockScreen />}
     </>
   )
 }

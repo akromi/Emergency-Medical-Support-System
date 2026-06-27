@@ -528,3 +528,18 @@ input::placeholder { color:var(--txt-faint); }
 [dir="rtl"] .board-search-x { right:auto; left:8px; }
 [dir="rtl"] .dobf { direction:ltr; text-align:left; }
 [dir="rtl"] .mono { unicode-bidi:plaintext; text-align:start; }
+
+/* ---- Photo vault lock screen (covers the whole app while locked) ---- */
+.vault-lock { position:fixed; inset:0; z-index:300; background:rgba(8,11,15,.92);
+  backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; padding:20px; }
+.vault-lock-card { width:100%; max-width:360px; background:var(--panel); border:1px solid var(--line);
+  border-radius:14px; padding:26px 24px; box-shadow:0 18px 50px rgba(0,0,0,.6);
+  display:flex; flex-direction:column; gap:12px; text-align:center; }
+.vault-lock-mark { font-size:34px; line-height:1; }
+.vault-lock-card h2 { margin:0; font-size:16px; letter-spacing:.5px; color:var(--txt); }
+.vault-lock-card p { margin:0; font-size:13px; line-height:1.5; color:var(--txt-dim); }
+.vault-lock-card input { width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid var(--line);
+  border-radius:8px; background:var(--panel-2); color:var(--txt); font-size:14px; }
+.vault-lock-card input:focus { outline:none; border-color:var(--ekg); }
+.vault-lock-card input[aria-invalid="true"] { border-color:#e0564f; }
+.vault-lock-err { color:#e0564f; font-size:12.5px; font-weight:600; }
