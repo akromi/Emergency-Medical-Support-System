@@ -46,6 +46,21 @@ token>`). Tenants and their keys then live in the database (`tenants`,
 Disabling a tenant immediately stops all its keys. The admin API is intentionally
 hidden from the public OpenAPI doc. Covered by `test/admin-api.integration.test.ts`.
 
+## Incremental sync (`since` cursor)
+
+`POST /sync` returns a `cursor` (the tenant's high-water op sequence) alongside
+`records` and `ops`. A client checkpoints it and sends it back as `since` on the
+next sync to pull only the delta:
+
+- **Omit `since`** (or first sync) → full state: every record the tenant knows.
+- **Send `since: <cursor>`** → only the ops appended after it, and snapshots for
+  just the records those ops touched. Wall-cost scales with the delta, not the
+  whole caseload. `since: 0` is equivalent to a full pull.
+
+Each `/sync` call also has a **per-tenant** rate-limit budget (keyed by tenant,
+not IP), so one tenant's traffic — or many devices behind one NAT — can't starve
+another. Covered by `test/incremental-sync.integration.test.ts`.
+
 ## Local testing with Swagger (no database, no credentials)
 
 The production entry point (`npm start`) needs PostgreSQL and Ontario Health /

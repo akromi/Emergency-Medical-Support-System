@@ -49,11 +49,15 @@ export async function migrate(db: Queryable): Promise<void> {
       path text NOT NULL,
       item_id text,
       value text,
-      received_at timestamptz NOT NULL DEFAULT now()
+      received_at timestamptz NOT NULL DEFAULT now(),
+      seq bigserial
     )`)
   await db.query(`ALTER TABLE ops ADD COLUMN IF NOT EXISTS tenant_id text NOT NULL DEFAULT 'default'`)
+  // Server-assigned monotonic sequence — the cursor for incremental sync.
+  await db.query(`ALTER TABLE ops ADD COLUMN IF NOT EXISTS seq bigserial`)
   await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS ops_pk ON ops (tenant_id, id)`)
   await db.query(`CREATE INDEX IF NOT EXISTS ops_tenant_record_idx ON ops (tenant_id, record_id)`)
+  await db.query(`CREATE INDEX IF NOT EXISTS ops_tenant_seq_idx ON ops (tenant_id, seq)`)
   await db.query(`
     CREATE TABLE IF NOT EXISTS snapshots (
       tenant_id text NOT NULL DEFAULT 'default',
@@ -139,6 +143,23 @@ export class OpStore {
   async allRecordIds(tenantId: string = DEFAULT_TENANT): Promise<string[]> {
     const res = await this.db.query(`SELECT DISTINCT record_id FROM ops WHERE tenant_id = $1`, [tenantId])
     return res.rows.map((r) => r.record_id)
+  }
+
+  /** Ops appended after the client's cursor (`seq > since`), oldest first — the
+   *  delta for an incremental sync. */
+  async getOpsSince(recordCursor: number, tenantId: string = DEFAULT_TENANT): Promise<Op[]> {
+    const res = await this.db.query(
+      `SELECT id, record_id, client_id, lamport, ts, kind, path, item_id, value
+       FROM ops WHERE tenant_id = $1 AND seq > $2 ORDER BY seq ASC`,
+      [tenantId, recordCursor],
+    )
+    return res.rows.map(rowToOp)
+  }
+
+  /** The tenant's current high-water cursor (max op seq, 0 if none). */
+  async maxSeq(tenantId: string = DEFAULT_TENANT): Promise<number> {
+    const res = await this.db.query(`SELECT COALESCE(MAX(seq), 0)::bigint AS c FROM ops WHERE tenant_id = $1`, [tenantId])
+    return Number(res.rows[0].c)
   }
 
   async upsertSnapshot(recordId: string, record: unknown, tenantId: string = DEFAULT_TENANT): Promise<void> {

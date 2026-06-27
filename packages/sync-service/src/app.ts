@@ -1,7 +1,7 @@
 // Fastify sync endpoint. The merge/resolution authority is @triage-link/core's
 // deterministic resolver — the server stores ops and folds them; it does not
 // implement its own (divergent) merge logic.
-import Fastify, { type FastifyInstance } from 'fastify'
+import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify'
 import helmet from '@fastify/helmet'
 import cors from '@fastify/cors'
 import rateLimit from '@fastify/rate-limit'
@@ -26,6 +26,9 @@ declare module 'fastify' {
 interface SyncBody {
   clientId?: string
   ops?: Op[]
+  /** Cursor from the client's last sync. When present, the response returns only
+   *  ops/records changed since it (incremental); absent → full state. */
+  since?: number
 }
 
 /** Hardening knobs for a deployed instance (all optional; off by default so
@@ -45,6 +48,8 @@ export interface SecurityOptions {
   /** When set (with a `tenantStore`), mounts the tenant-admin API under
    *  `/admin/*`, gated by `Authorization: Bearer <adminToken>`. */
   adminToken?: string
+  /** Per-tenant `/sync` request budget per minute (default 1000). */
+  syncRateLimitMax?: number
   /** Allowed browser origins for CORS. Empty/undefined → cross-origin disabled. */
   corsOrigins?: string[]
   /** Max requests per IP per minute (default 300). */
@@ -87,6 +92,7 @@ const SYNC_BODY_SCHEMA = {
   properties: {
     clientId: { type: 'string', maxLength: 256 },
     ops: { type: 'array', maxItems: 10000, items: OP_SCHEMA },
+    since: { type: 'integer', minimum: 0 },
   },
 }
 
@@ -148,6 +154,18 @@ export function buildApp(
     ...(security.authToken ? [{ id: DEFAULT_TENANT, token: security.authToken }] : []),
   ]
   const adminToken = security.adminToken
+
+  // Resolve a bearer credential to a tenant id: static tokens first
+  // (constant-time; first match wins, count isn't secret), then the runtime
+  // store's hashed keys. Null when no credential matches.
+  const resolveTenant = async (authHeader: string | undefined): Promise<string | null> => {
+    const staticId = tenantTokens.find((t) => bearerOk(authHeader, t.token))?.id
+    if (staticId) return staticId
+    const token = bearerToken(authHeader)
+    if (token && tenantStore) return tenantStore.resolveToken(token)
+    return null
+  }
+
   // Data routes are authenticated when any static token is configured OR the
   // admin API is enabled (which implies runtime-managed DB credentials). With
   // none of these, the service stays open under the single default tenant.
@@ -167,18 +185,26 @@ export function buildApp(
       const protectedRoute = path === '/sync' || path.startsWith('/sync/') || path.startsWith('/ehr')
       if (!protectedRoute || !dataAuthEnabled) return
 
-      // Static tokens first (constant-time; first match wins, count isn't secret),
-      // then the runtime store's hashed keys. Either selects the request's tenant.
-      let tenantId = tenantTokens.find((t) => bearerOk(req.headers.authorization, t.token))?.id ?? null
-      if (!tenantId && tenantStore) {
-        const token = bearerToken(req.headers.authorization)
-        if (token) tenantId = await tenantStore.resolveToken(token)
-      }
+      const tenantId = await resolveTenant(req.headers.authorization)
       if (!tenantId) {
         return reply.code(401).send({ error: 'unauthorized', message: 'Missing or invalid bearer token' })
       }
       req.tenantId = tenantId
     })
+  }
+
+  // Per-tenant budget for /sync. The limiter's onRequest hook may fire before the
+  // auth hook that sets req.tenantId, so resolve the tenant from the credential
+  // directly here (static map, or the same hashed-key lookup) — keeping the
+  // bucket per-tenant regardless of hook order. Unauthenticated / invalid
+  // attempts fall back to per-IP and never share a tenant's bucket.
+  const syncRateLimit = {
+    max: security.syncRateLimitMax ?? 1000,
+    timeWindow: '1 minute',
+    keyGenerator: async (req: FastifyRequest): Promise<string> => {
+      if (req.tenantId && req.tenantId !== DEFAULT_TENANT) return req.tenantId
+      return (await resolveTenant(req.headers.authorization)) ?? req.ip
+    },
   }
 
   // OpenAPI doc + interactive Swagger UI. Registered before routes so the
@@ -221,6 +247,7 @@ export function buildApp(
 
   // Push a batch of ops and pull back the resolved state + full op set.
   app.post('/sync', {
+    config: { rateLimit: syncRateLimit },
     schema: { tags: ['sync'], summary: 'Push ops, pull resolved state', body: SYNC_BODY_SCHEMA },
   }, async (req, reply) => {
     const body = (req.body ?? {}) as SyncBody
@@ -257,27 +284,47 @@ export function buildApp(
       }
     }
 
-    // Full-state response: return every record THIS TENANT knows about (not just
-    // those in this upload), so a device receives cases created on other devices
-    // in the same tenant — multi-device caseload sharing. (A production system
-    // would use a per-client cursor / since-lamport to make this incremental.)
+    // The tenant's current high-water cursor — clients checkpoint it and send it
+    // back as `since` to pull only the delta next time.
+    const cursor = await store.maxSeq(tenantId)
+
+    // Resolve a record's snapshot, materializing it on demand if missing (a pure
+    // replay sync, or a snapshot that was never persisted) so the client never
+    // receives null for a record it has ops for.
+    const snapshotOf = async (recordId: string): Promise<unknown> => {
+      let snapshot = await store.getSnapshot(recordId, tenantId)
+      if (snapshot == null) {
+        const recOps = await store.getOps(recordId, tenantId)
+        if (recOps.length === 0) return null
+        snapshot = resolve(recordId, recOps).record
+        await store.upsertSnapshot(recordId, snapshot, tenantId)
+      }
+      return snapshot
+    }
+
+    // Incremental: only the ops appended since the client's cursor, and snapshots
+    // for just the records those ops touched. Wall-cost scales with the delta,
+    // not the whole caseload.
+    if (typeof body.since === 'number') {
+      const opsSince = await store.getOpsSince(body.since, tenantId)
+      const records: Record<string, unknown> = {}
+      for (const recordId of new Set(opsSince.map((o) => o.recordId))) {
+        records[recordId] = await snapshotOf(recordId)
+      }
+      return reply.send({ records, ops: opsSince, ingested: inserted.size, cursor })
+    }
+
+    // Full state (first sync, or a client without a cursor): every record THIS
+    // TENANT knows about, so a device receives cases created on other devices in
+    // the same tenant — multi-device caseload sharing.
     const knownRecordIds = await store.allRecordIds(tenantId)
     const records: Record<string, unknown> = {}
     let merged: Op[] = []
     for (const recordId of knownRecordIds) {
-      const recOps = await store.getOps(recordId, tenantId)
-      let snapshot = await store.getSnapshot(recordId, tenantId)
-      // Defensive: if a record has ops but no stored snapshot (e.g. a pure
-      // replay sync, or a snapshot that was never persisted), resolve it on
-      // demand so the client never receives a null for a record it has ops for.
-      if (snapshot == null && recOps.length > 0) {
-        snapshot = resolve(recordId, recOps).record
-        await store.upsertSnapshot(recordId, snapshot, tenantId)
-      }
-      records[recordId] = snapshot
-      merged = merged.concat(recOps)
+      records[recordId] = await snapshotOf(recordId)
+      merged = merged.concat(await store.getOps(recordId, tenantId))
     }
-    return reply.send({ records, ops: merged, ingested: inserted.size })
+    return reply.send({ records, ops: merged, ingested: inserted.size, cursor })
   })
 
   // Inspect a record: resolved snapshot, its full op-log, and the audit trail.
