@@ -14,8 +14,10 @@ export interface TenantMetrics {
   responses: { '2xx': number; '4xx': number; '5xx': number }
 }
 
-/** A structured access-log line (method, path, tenant, status, latency). */
+/** A structured access-log line (request id, method, path, tenant, status, latency). */
 export interface AccessLogEntry {
+  /** Correlation id — the inbound x-request-id, or a minted UUID. */
+  requestId: string
   method: string
   path: string
   tenant: string
