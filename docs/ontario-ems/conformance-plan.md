@@ -53,27 +53,40 @@ clears once its data is captured), and the build backlog:
    each element's id as its tag (human label kept as a `name` attribute) and
    emitting the conformance gaps as a clearly-marked, non-schema annotation
    block. Offline-buildable, no external dictionaries needed *(done)*.
-3. **PR-2b:** XSD/value-set reconciliation — pull the official NEMSIS v3.5.0 +
-   OADS v4.0 dictionaries, lock element ids + code lists, and add a
-   schema-validation test asserting the serializer output passes the XSD. This
-   is the certification gate and needs the official spec files.
-4. **PR-3a:** Capture eResponse + eTimes — a "Response & times" PWA panel (EMS
+3. **PR-2b:** Pluggable conformance validator — `validateNemsisRecord(record,
+   ruleset)` (`src/nemsis/validation.ts`) checks a record against a declarative
+   `ConformanceRuleset` (element cardinality, datatype, value-set codes — the
+   same constraint classes an XSD encodes) and returns structured issues. Ships
+   a clearly-marked `PLACEHOLDER_RULESET` (`source: 'placeholder'`) so the
+   validator + its CI test run offline today; every result carries
+   `rulesetSource` so a placeholder pass is never mistaken for certification.
+   *Reconciliation* (PR-2c) still needs the official files — see below *(done)*.
+4. **PR-2c:** Official-dictionary reconciliation — generate a
+   `ConformanceRuleset` with `source: 'official'` from the real NEMSIS v3.5.0 +
+   OADS v4.0 dictionaries (locking element ids + code lists), and add a true XSD
+   validation of the serialized XML. Needs the official spec files; drops into
+   the PR-2b validator with no code change.
+5. **PR-3a:** Capture eResponse + eTimes — a "Response & times" PWA panel (EMS
    agency/unit/mode + the dispatch→destination time chain), mapped into the
    exporter's `eResponse`/`eTimes` sections, with the two gaps now cleared
    dynamically when filled. Tutorial step + i18n (×4) updated *(done)*.
-5. **PR-3b:** Capture eCrew + eScene — a "Crew & scene" PWA panel: a per-record
+6. **PR-3b:** Capture eCrew + eScene — a "Crew & scene" PWA panel: a per-record
    care-crew roster (name/role/cert, one-tap seed from the on-duty operator) and
    scene GPS + location type + mass-casualty flag, mapped into the exporter's
    `eCrew`/`eScene` sections with both gaps cleared dynamically. Tutorial step +
    i18n (×4) updated *(done)*. All four capture gaps now close at runtime.
-6. **PR-4:** Productionize the ONE ID / Ontario Health PCR `$match` + DHDR
+7. **PR-4:** Productionize the ONE ID / Ontario Health PCR `$match` + DHDR
    integration in `packages/ehr-gateway` (real mTLS client cert, token flow).
-7. **PR-5+:** CAD/dispatch + hospital-EHR handover; SOC 2 Type II + QMS evidence;
+8. **PR-5+:** CAD/dispatch + hospital-EHR handover; SOC 2 Type II + QMS evidence;
    certified-SaMD evidence stack (gated on the intended-use determination).
 
 ## Validation gate
 
 No OADS/NEMSIS export is "conformant" until it passes the official XSD and the
-OADS v4.0 business-rule validation. The PR-2a serializer is shaped XML only;
-PR-2b makes XSD validation a CI test. Nothing ships to a provincial submission
-before then.
+OADS v4.0 business-rule validation. The PR-2a serializer is shaped XML only. The
+PR-2b validator runs the same *classes* of check (cardinality, datatype, value
+sets) offline, but against a **placeholder** ruleset — every result carries
+`rulesetSource: 'placeholder'`, which is explicitly **not** certification.
+Certification waits on PR-2c: the official dictionary generated into a
+`source: 'official'` ruleset plus true XSD validation of the XML. Nothing ships
+to a provincial submission before then.
