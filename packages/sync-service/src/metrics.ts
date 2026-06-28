@@ -23,6 +23,9 @@ export interface AccessLogEntry {
   tenant: string
   status: number
   ms: number
+  /** Internal error detail for a 5xx — server-side diagnosis only, never sent
+   *  to the client (the response is sanitized). Absent for non-5xx responses. */
+  error?: string
 }
 
 function blank(): TenantMetrics {
