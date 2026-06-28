@@ -5,6 +5,8 @@ import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { TenantStore } from './tenant-store.js'
 import { type Metrics, renderPrometheus, PROMETHEUS_CONTENT_TYPE } from './metrics.js'
 import type { AdminAuditStore, AdminAction } from './admin-audit-store.js'
+import { type OpStore, DEFAULT_TENANT } from './ops-store.js'
+import { pruneTenantAudit, type RetentionConfig } from './retention.js'
 
 // The global rate-limit covers every route, but the admin surface is sensitive
 // (admin-token auth + key issuance), so it gets its own explicit, stricter
@@ -32,8 +34,16 @@ const STATUS_SCHEMA = {
   properties: { status: { type: 'string', enum: ['active', 'disabled'] } },
 }
 
+const RETENTION_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  // Override the configured window for this run (ms). Omit to use the default.
+  properties: { auditMaxAgeMs: { type: 'integer', minimum: 0 } },
+}
+
 export function registerAdminRoutes(
-  app: FastifyInstance, tenants: TenantStore, metrics?: Metrics, adminAudit?: AdminAuditStore,
+  app: FastifyInstance, tenants: TenantStore, store: OpStore,
+  retention: RetentionConfig, metrics?: Metrics, adminAudit?: AdminAuditStore,
 ): void {
   // Best-effort admin-action audit: record the change but never fail the
   // operation (or leak a token) on an audit-write hiccup.
@@ -59,6 +69,36 @@ export function registerAdminRoutes(
       return { entries: await adminAudit.list({ tenantId: tenant, limit: limit ? Number(limit) : undefined }) }
     })
   }
+
+  // Run audit-log retention: prune observational audit entries older than the
+  // window (configured default, or a per-request `auditMaxAgeMs` override)
+  // across every tenant. The op-log (source of truth) is never touched. An
+  // operator/scheduler hits this periodically; it is idempotent.
+  app.post('/admin/retention', opts(RETENTION_SCHEMA), async (req, reply) => {
+    const body = (req.body ?? {}) as { auditMaxAgeMs?: number }
+    const cfg: RetentionConfig = {
+      auditMaxAgeMs: body.auditMaxAgeMs ?? retention.auditMaxAgeMs,
+    }
+    if (!cfg.auditMaxAgeMs || cfg.auditMaxAgeMs <= 0) {
+      return reply.code(400).send({
+        error: 'Bad Request',
+        message: 'No retention window configured; set security.auditRetentionMs or pass auditMaxAgeMs.',
+        statusCode: 400,
+        requestId: String(req.id),
+      })
+    }
+    const now = Date.now()
+    const tenantIds = [DEFAULT_TENANT, ...(await tenants.listTenants()).map((t) => t.id)]
+    const prunedByTenant: Record<string, number> = {}
+    let total = 0
+    for (const id of new Set(tenantIds)) {
+      const n = await pruneTenantAudit(store, id, cfg, now)
+      prunedByTenant[id] = n
+      total += n
+    }
+    await logAdmin(req, 'retention.run', null, { auditMaxAgeMs: cfg.auditMaxAgeMs, total })
+    return { auditMaxAgeMs: cfg.auditMaxAgeMs, total, prunedByTenant }
+  })
 
   // Create a tenant.
   app.post('/admin/tenants', opts(CREATE_TENANT_SCHEMA), async (req, reply) => {
