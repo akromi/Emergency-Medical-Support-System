@@ -155,6 +155,19 @@ export class OpStore {
     return res.rows.map((r) => r.record_id)
   }
 
+  /** A bounded, ordered page of record ids strictly after `afterId`, for
+   *  paginated full-state sync. Ordered by record_id so the cursor is stable;
+   *  pass '' to start from the first record. */
+  async recordIdsPage(afterId: string, limit: number, tenantId: string = DEFAULT_TENANT): Promise<string[]> {
+    const res = await this.db.query(
+      `SELECT DISTINCT record_id FROM ops
+       WHERE tenant_id = $1 AND record_id > $2
+       ORDER BY record_id ASC LIMIT $3`,
+      [tenantId, afterId, limit],
+    )
+    return res.rows.map((r) => r.record_id)
+  }
+
   /** Ops appended after the client's cursor (`seq > since`), oldest first — the
    *  delta for an incremental sync. */
   async getOpsSince(recordCursor: number, tenantId: string = DEFAULT_TENANT): Promise<Op[]> {

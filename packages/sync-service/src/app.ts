@@ -40,6 +40,10 @@ interface SyncBody {
   /** Cursor from the client's last sync. When present, the response returns only
    *  ops/records changed since it (incremental); absent → full state. */
   since?: number
+  /** Full-state pagination: continue after this record id (exclusive). */
+  after?: string
+  /** Full-state pagination: records per page (server clamps to SYNC_PAGE_MAX). */
+  limit?: number
 }
 
 /** Hardening knobs for a deployed instance (all optional; off by default so
@@ -69,6 +73,9 @@ export interface SecurityOptions {
   bodyLimit?: number
   /** Trust `X-Forwarded-*` (enable behind a reverse proxy / load balancer). */
   trustProxy?: boolean
+  /** Records per page for the full-state (no-cursor) /sync pull. Default 500,
+   *  clamped to SYNC_PAGE_MAX. Bounds the heaviest sync response. */
+  syncPageLimit?: number
 }
 
 /** Constant-time bearer-token check (avoids leaking the token via timing). */
@@ -97,6 +104,12 @@ const OP_SCHEMA = {
     value: {},
   },
 }
+// Full-state (no-cursor) /sync pull is paginated by record id so the response
+// never grows without bound. The default page size is configurable; the schema
+// hard-caps a client-requested page at SYNC_PAGE_MAX.
+const SYNC_PAGE_DEFAULT = 500
+const SYNC_PAGE_MAX = 1000
+
 const SYNC_BODY_SCHEMA = {
   type: 'object',
   additionalProperties: false,
@@ -104,6 +117,10 @@ const SYNC_BODY_SCHEMA = {
     clientId: { type: 'string', maxLength: 256 },
     ops: { type: 'array', maxItems: 10000, items: OP_SCHEMA },
     since: { type: 'integer', minimum: 0 },
+    /** Full-state pagination: continue after this record id (exclusive). */
+    after: { type: 'string', maxLength: 256 },
+    /** Full-state pagination: records per page (1..SYNC_PAGE_MAX). */
+    limit: { type: 'integer', minimum: 1, maximum: SYNC_PAGE_MAX },
   },
 }
 
@@ -269,6 +286,9 @@ export function buildApp(
   // directly here (static map, or the same hashed-key lookup) — keeping the
   // bucket per-tenant regardless of hook order. Unauthenticated / invalid
   // attempts fall back to per-IP and never share a tenant's bucket.
+  // Default page size for full-state /sync pulls, clamped to the hard max.
+  const fullStatePageLimit = Math.min(security.syncPageLimit ?? SYNC_PAGE_DEFAULT, SYNC_PAGE_MAX)
+
   const syncRateLimit = {
     max: security.syncRateLimitMax ?? 1000,
     timeWindow: '1 minute',
@@ -464,17 +484,25 @@ export function buildApp(
       return reply.send({ records, ops: opsSince, ingested: inserted.size, cursor })
     }
 
-    // Full state (first sync, or a client without a cursor): every record THIS
+    // Full state (first sync, or a client without a cursor): the records THIS
     // TENANT knows about, so a device receives cases created on other devices in
-    // the same tenant — multi-device caseload sharing.
-    const knownRecordIds = await store.allRecordIds(tenantId)
+    // the same tenant — multi-device caseload sharing. PAGINATED by record id so
+    // a large caseload never produces an unbounded response: the client pages
+    // with `after` until `nextPage` is null, then checkpoints `cursor` and syncs
+    // incrementally via `since`. Fetch one extra id to detect a further page.
+    const after = typeof body.after === 'string' ? body.after : ''
+    const limit = Math.min(body.limit ?? fullStatePageLimit, SYNC_PAGE_MAX)
+    const pageIds = await store.recordIdsPage(after, limit + 1, tenantId)
+    const hasMore = pageIds.length > limit
+    const ids = hasMore ? pageIds.slice(0, limit) : pageIds
     const records: Record<string, unknown> = {}
     let merged: Op[] = []
-    for (const recordId of knownRecordIds) {
+    for (const recordId of ids) {
       records[recordId] = await snapshotOf(recordId)
       merged = merged.concat(await store.getOps(recordId, tenantId))
     }
-    return reply.send({ records, ops: merged, ingested: inserted.size, cursor })
+    const nextPage = hasMore ? ids[ids.length - 1] : null
+    return reply.send({ records, ops: merged, ingested: inserted.size, cursor, nextPage })
   })
 
   // Inspect a record: resolved snapshot, its full op-log, and the audit trail.
