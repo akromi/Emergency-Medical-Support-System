@@ -85,4 +85,23 @@ describe('per-tenant observability', () => {
   it('requires the admin token to read /admin/metrics', async () => {
     expect((await h.app.inject({ method: 'GET', url: '/admin/metrics' })).statusCode).toBe(401)
   })
+
+  it('exposes the counters in Prometheus exposition format', async () => {
+    await h.sync(TOKENS.a, nameOps('CAS-1', 'a', 'Alice'))
+    await h.sync(TOKENS.b, [])
+
+    const res = await h.app.inject({ method: 'GET', url: '/admin/metrics/prometheus', headers: { authorization: `Bearer ${ADMIN}` } })
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['content-type']).toContain('text/plain; version=0.0.4')
+
+    const body = res.body
+    expect(body).toContain('# TYPE triagelink_sync_requests_total counter')
+    expect(body).toMatch(/triagelink_sync_requests_total\{tenant="org-a"\} 1/)
+    expect(body).toMatch(/triagelink_ops_ingested_total\{tenant="org-a"\} 1/)
+    expect(body).toMatch(/triagelink_responses_total\{tenant="org-a",status="2xx"\} \d+/)
+    expect(body).toMatch(/triagelink_sync_requests_total\{tenant="org-b"\} 1/)
+
+    // The scrape endpoint is admin-gated.
+    expect((await h.app.inject({ method: 'GET', url: '/admin/metrics/prometheus' })).statusCode).toBe(401)
+  })
 })
