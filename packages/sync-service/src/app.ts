@@ -82,6 +82,10 @@ export interface SecurityOptions {
    *  full tenant can still sync down. Enforcement is at write time, so a tenant
    *  may overshoot by at most one already-capped batch. */
   tenantQuota?: { maxOps?: number; maxRecords?: number }
+  /** Default window (ms) for the audit-log retention prune run via
+   *  POST /admin/retention. Undefined → no default (the route requires an
+   *  explicit `auditMaxAgeMs` then). The op-log is never pruned. */
+  auditRetentionMs?: number
 }
 
 /** Constant-time bearer-token check (avoids leaking the token via timing). */
@@ -416,7 +420,9 @@ export function buildApp(
 
   // Tenant-admin API — only when a tenant store AND admin auth (static token or
   // OIDC) are configured.
-  if (tenantStore && adminAuthConfigured) registerAdminRoutes(app, tenantStore, metrics, adminAuditStore)
+  if (tenantStore && adminAuthConfigured) {
+    registerAdminRoutes(app, tenantStore, store, { auditMaxAgeMs: security.auditRetentionMs }, metrics, adminAuditStore)
+  }
 
   // Push a batch of ops and pull back the resolved state + full op set.
   app.post('/sync', {

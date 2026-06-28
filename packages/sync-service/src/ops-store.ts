@@ -217,6 +217,18 @@ export class OpStore {
     )
   }
 
+  /** Delete audit entries older than `cutoff` for a tenant; returns the count
+   *  pruned. The audit log is an append-only OBSERVATIONAL trail — pruning it
+   *  never affects record state or sync (unlike the op-log, which is the source
+   *  of truth and cannot be safely pruned without causal stability). */
+  async pruneAuditOlderThan(cutoff: Date, tenantId: string = DEFAULT_TENANT): Promise<number> {
+    const res = await this.db.query(
+      `DELETE FROM audit WHERE tenant_id = $1 AND created_at < $2 RETURNING id`,
+      [tenantId, cutoff],
+    )
+    return res.rows.length
+  }
+
   async getAudit(recordId: string, tenantId: string = DEFAULT_TENANT): Promise<AuditEntry[]> {
     const res = await this.db.query(
       `SELECT id, record_id, op_id, event_type, detail, created_at
