@@ -52,6 +52,16 @@ def arch_slide():
     foot='The PWA is fully functional with neither optional tier present. Sync and the EHR gateway are additive, server-side, and off by default.'
     slides.append(f'<section class="slide content">{head("Architecture","Offline-first core, optional everything else")}<div class="arch">{cards}</div><p class="archfoot">{esc(foot)}</p></section>')
 
+def shot_slide(kicker, title, img, caption, accent="ekg"):
+    slides.append(f'<section class="slide content">{head(kicker,title,accent)}'
+                  f'<div class="shot"><img src="img/{img}" alt="{esc(caption)}"><div class="cap">{esc(caption)}</div></div></section>')
+
+def duo_shot(kicker, title, img1, cap1, img2, cap2, accent="ekg"):
+    def fig(img, cap):
+        return f'<figure><img src="img/{img}" alt="{esc(cap)}"><figcaption>{esc(cap)}</figcaption></figure>'
+    slides.append(f'<section class="slide content">{head(kicker,title,accent)}'
+                  f'<div class="duo">{fig(img1,cap1)}{fig(img2,cap2)}</div></section>')
+
 def closing_slide():
     slides.append('''<section class="slide title closing">
       <div class="rule"></div>
@@ -80,6 +90,10 @@ twocol_slide("PWA · Capture","Documenting a casualty",
     "Triage & identity",["START-style tag: Immediate / Delayed / Minor / Deceased","Patient: name, DOB→age band, sex, MRN, NOK, blood type","Incident: time, mechanism, location","Color-coded multi-casualty Triage Board"],
     accL="ekg",accR="ekg")
 
+shot_slide("PWA · Screenshot","The field record — one screen, fully offline",
+    "app-record.png",
+    "Triage tag · patient identity · incident · injury body-chart · acuity glance (GCS, TBSA) · vitals — captured on-device.")
+
 twocol_slide("PWA · Clinical","Vitals, interventions & trends",
     "Vitals & scoring",["Timestamped vital sets: HR, BP, RR, SpO₂, GCS, pain","Built-in GCS calculator (eye/verbal/motor → total)","Vitals-trend sparklines once ≥2 readings exist","Time-since-injury clock (T+) on the record"],
     "Treatments",["Structured log: tourniquet, airway, decompression, IV/fluids,","medication, splinting, wound packing, CPR…","Each entry timestamped + attributed to the on-duty operator","Feeds the AT-MIST handover summary"],
@@ -92,6 +106,11 @@ bullets_slide("PWA · Handover","Summaries & clean handoff",[
     "Optional 'Send to EHR' contributes the handover to a provincial EHR via the gateway.",
     "Everything renders offline; nothing leaves the device unless you export or sync.",
 ])
+
+duo_shot("PWA · Screenshot","Handover card & the scene picture",
+    "app-summary.png","One-page AT-MIST casualty card — print or save as PDF.",
+    "app-board.png","Triage Board — every casualty by acuity, on-scene vs handed-over.",
+    accent="ekg")
 
 twocol_slide("PWA · Accessibility","Four languages, guided & spoken",
     "Internationalization",["EN / FR / AR / FA built in — Arabic & Persian fully RTL","Loadable JSON language packs: add a language with NO app release","Downloadable English template to translate; parity-tested in CI","Natural wording, not literal — reviewed per language"],
@@ -222,6 +241,14 @@ ul.bul li::before{content:'▸';position:absolute;left:0;color:var(--ekg);font-w
 .abox li::before{content:'•';position:absolute;left:0;opacity:.7}
 .arrow{display:flex;align-items:center;justify-content:center;width:64px;color:var(--faint);font-size:34px;flex:0 0 64px}
 .archfoot{margin-top:26px;font-size:17px;color:var(--dim);line-height:1.45;max-width:1140px}
+/* screenshots */
+.shot{display:flex;flex-direction:column;align-items:center;justify-content:center;margin-top:22px;flex:1;min-height:0}
+.shot img{max-width:100%;max-height:472px;border:1px solid var(--line);border-radius:10px;box-shadow:0 18px 50px rgba(0,0,0,.55)}
+.shot .cap{margin-top:16px;font-size:15px;color:var(--dim);text-align:center;max-width:1100px}
+.duo{display:flex;gap:30px;margin-top:24px;flex:1;align-items:center;justify-content:center;min-height:0}
+.duo figure{display:flex;flex-direction:column;align-items:center;max-width:49%}
+.duo img{max-width:100%;max-height:430px;border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 40px rgba(0,0,0,.5)}
+.duo figcaption{margin-top:12px;font-size:14px;color:var(--dim);text-align:center}
 /* footer */
 .foot{position:absolute;left:64px;bottom:26px;font-family:var(--mono);font-size:13px;color:var(--faint)}
 .foot b{color:var(--ekg)}

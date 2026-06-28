@@ -9,10 +9,11 @@ backend).
 
 | File | What it is |
 |---|---|
-| `triage-link-overview.html` | **Canonical deck** — self-contained, no network deps. Open in any browser; `←` / `→` (or space) to navigate; auto-scales to the window. |
-| `triage-link-overview.pdf` | Rendered handout (20 pages), produced from the HTML via the bundled Chromium. |
+| `triage-link-overview.html` | **Canonical deck** — brand-themed, keyboard-navigable. Open in any browser; `←` / `→` (or space) to navigate; auto-scales to the window. References the screenshots in `img/`, so keep that folder alongside it. |
+| `triage-link-overview.pdf` | Self-contained handout (22 pages, screenshots baked in) — produced from the HTML via the bundled Chromium. The single file to email/share. |
+| `img/app-*.png` | Real screenshots of the running PWA (record · summary card · triage board). |
 
-Both are generated — edit the source script, don't hand-edit the outputs.
+Both decks are generated — edit the source script, don't hand-edit the outputs.
 
 ## Regenerate
 
@@ -30,6 +31,18 @@ node docs/overview/render_pdf.mjs
 `render_pdf.mjs` points Playwright at the pre-installed browser
 (`/opt/pw-browsers/chromium`); locally without that path, drop the
 `executablePath` option or run `npx playwright install chromium` first.
+
+### Re-capturing the screenshots
+
+The shots in `img/` come from the real app. To refresh them, build + serve the
+PWA and drive it with Playwright:
+
+```bash
+npm run build && npm run preview -- --port 4178 --strictPort &
+# then a short Playwright script: populate a record (pick an injury type, drop a
+# marker, set triage, record a vital) and screenshot the record, the Summary
+# card (.summary-sheet), and the Triage Board (.board) into docs/overview/img/.
+```
 
 ## Optional: editable PowerPoint
 
