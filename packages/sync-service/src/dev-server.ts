@@ -9,7 +9,6 @@
 //   npm run dev --workspace @triage-link/sync-service
 //   → open http://localhost:8080/docs      (API, "Try it out")
 //   → open http://localhost:8080/console    (admin console; token: dev-admin)
-import { readFile } from 'node:fs/promises'
 import { newDb } from 'pg-mem'
 import { MockGateway } from '@triage-link/ehr-gateway'
 import { buildApp } from './app.js'
@@ -38,17 +37,11 @@ async function main(): Promise<void> {
     tenantStore: new TenantStore(pool),
     adminAuditStore: new AdminAuditStore(pool),
     metrics: new Metrics(),
-    // Admin API on (token below); default-tenant data-plane token so seeded
-    // /sync calls populate the metrics the console renders.
-    security: { adminToken: ADMIN_TOKEN, authToken: API_TOKEN },
+    // Admin API on (token below) + the console; default-tenant data-plane token
+    // so seeded /sync calls populate the metrics the console renders.
+    security: { adminToken: ADMIN_TOKEN, authToken: API_TOKEN, adminConsole: true },
     docs: true,
   })
-
-  // The admin console (static HTML). Served OUTSIDE the /admin/* prefix so the
-  // page itself isn't behind the bearer gate — it prompts for the token and
-  // sends it on each fetch.
-  const consoleHtml = await readFile(new URL('../public/admin.html', import.meta.url), 'utf8')
-  app.get('/console', (_req, reply) => reply.type('text/html').send(consoleHtml))
 
   // ---- seed a little demo data so the console isn't empty ----
   const admin = (method: 'GET' | 'POST' | 'PATCH', url: string, payload?: object) =>
@@ -84,7 +77,7 @@ async function main(): Promise<void> {
       `  • API      http://localhost:${port}\n` +
       `  • Swagger  http://localhost:${port}/docs\n` +
       `  • OpenAPI  http://localhost:${port}/docs/json\n` +
-      `  • Admin    http://localhost:${port}/console   (token: ${ADMIN_TOKEN})\n`,
+      `  • Admin    http://localhost:${port}/console#token=${ADMIN_TOKEN}\n`,
   )
 }
 

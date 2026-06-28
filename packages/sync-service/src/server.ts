@@ -118,6 +118,8 @@ function buildSecurity(): SecurityOptions {
     corsOrigins,
     rateLimitMax: process.env.RATE_LIMIT_MAX ? Number(process.env.RATE_LIMIT_MAX) : undefined,
     trustProxy: process.env.TRUST_PROXY === 'true',
+    auditRetentionMs: process.env.AUDIT_RETENTION_MS ? Number(process.env.AUDIT_RETENTION_MS) : undefined,
+    adminConsole: process.env.ENABLE_ADMIN_CONSOLE === 'true',
   }
 }
 

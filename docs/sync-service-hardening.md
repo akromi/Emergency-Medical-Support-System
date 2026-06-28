@@ -99,6 +99,12 @@ Together: requests are bounded by **size** (body limit), **count** (batch cap),
   rejections, and responses by status class.
 - **Probes & lifecycle** — `/health` (liveness, open) and `/ready` (readiness, DB
   connectivity); graceful shutdown drains in-flight requests.
+- **Admin console** (opt-in, `ENABLE_ADMIN_CONSOLE=true`) — a static operator UI
+  at `GET /console` for the `/admin/*` API (metrics, tenants, keys, retention,
+  audit). Only mounts when the admin API is configured. The page holds no
+  secrets and sits outside the `/admin/*` bearer gate; it prompts for the admin
+  credential (static token or a pasted OIDC JWT) and the API gate enforces every
+  call. Off by default.
 
 ---
 

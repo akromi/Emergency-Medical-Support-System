@@ -48,9 +48,10 @@
 <header>
   <h1>TRIAGE&#8209;LINK</h1><span class="tag">Sync Admin</span>
   <span class="sp"></span>
-  <span class="muted">admin token</span>
-  <input id="tok" value="dev-admin" />
-  <button class="p" onclick="loadAll()">Reload</button>
+  <span id="status" class="muted">enter admin token</span>
+  <input id="tok" type="password" placeholder="admin token / JWT" autocomplete="off" />
+  <button class="p" onclick="loadAll()">Connect</button>
+  <button onclick="lock()" title="Clear the token from this session">Lock</button>
 </header>
 <main>
   <section class="panel">
@@ -104,8 +105,22 @@
 <script>
   const tok = () => document.getElementById('tok').value.trim()
   const hdr = () => ({ 'authorization': 'Bearer ' + tok(), 'content-type': 'application/json' })
-  const api = (path, opts={}) => fetch(path, { ...opts, headers: { ...hdr(), ...(opts.headers||{}) } })
   let selected = null
+  const setStatus = (txt, ok) => {
+    const el = document.getElementById('status')
+    el.textContent = txt; el.style.color = ok === true ? 'var(--ekg)' : ok === false ? 'var(--red)' : 'var(--faint)'
+  }
+  // One fetch wrapper that flags the auth state (401 → locked-out).
+  async function api(path, opts={}) {
+    const res = await fetch(path, { ...opts, headers: { ...hdr(), ...(opts.headers||{}) } })
+    if (res.status === 401) setStatus('unauthorized — check token', false)
+    return res
+  }
+  function lock() {
+    try { sessionStorage.removeItem('tl.admin.token') } catch {}
+    document.getElementById('tok').value = ''
+    setStatus('locked — enter admin token', null)
+  }
 
   async function loadMetrics() {
     const el = document.getElementById('metrics')
@@ -176,8 +191,26 @@
     document.getElementById('retOut').textContent = r.ok ? ('pruned '+j.total+' entries') : (j.message||'error')
     loadAudit()
   }
-  function loadAll(){ loadMetrics(); loadTenants(); loadAudit() }
-  window.addEventListener('DOMContentLoaded', loadAll)
+  async function loadAll(){
+    const t = tok()
+    if (!t) { setStatus('enter admin token', null); return }
+    try { sessionStorage.setItem('tl.admin.token', t) } catch {}
+    // Validate against a cheap admin call before painting the rest.
+    const probe = await api('/admin/tenants')
+    if (probe.status === 401) return
+    setStatus('connected', true)
+    loadMetrics(); loadTenants(); loadAudit()
+  }
+  // Token source priority: the session, then a #token= hash (so a dev link can
+  // prefill without the token ever hitting the server/logs), else empty.
+  function initToken() {
+    let t = ''
+    try { t = sessionStorage.getItem('tl.admin.token') || '' } catch {}
+    const m = location.hash.match(/token=([^&]+)/)
+    if (!t && m) { t = decodeURIComponent(m[1]); history.replaceState(null, '', location.pathname) }
+    if (t) { document.getElementById('tok').value = t; loadAll() }
+  }
+  window.addEventListener('DOMContentLoaded', initToken)
 </script>
 </body>
 </html>
