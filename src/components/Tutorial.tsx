@@ -18,6 +18,7 @@ interface Step {
 
 const STEPS: Step[] = [
   { key: 'welcome' },
+  { target: 'deployment', key: 'deployment' },
   { target: 'patient', key: 'patient' },
   { target: 'palette', key: 'palette' },
   { target: 'charts', key: 'charts', advanceWhen: (s) => s.hasInjury },

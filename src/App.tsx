@@ -20,6 +20,7 @@ import { capturePhoto } from './photo'
 import { PhotoLightbox } from './components/PhotoLightbox'
 import { Tip, OfflineBanner, InstallPrompt, useDismissed } from './components/hints'
 import { Tutorial } from './components/Tutorial'
+import { DeploymentBar } from './components/DeploymentBar'
 import { Elapsed } from './components/Elapsed'
 import { VitalsTrend } from './components/VitalsTrend'
 import { EhrTestConsole } from './components/EhrTestConsole'
@@ -407,6 +408,10 @@ export function App() {
         {ehrStatus && <span className="ehr-status">{ehrStatus}</span>}
         {langMsg && <span className="ehr-status">{langMsg}</span>}
       </header>
+
+      {/* Deployment context — the operation/site this device documents (offline,
+          device-wide). Humanitarian/MCI coordination + donor-report provenance. */}
+      <DeploymentBar />
 
       {/* Prominent, always-visible triage tag (acuity channel, distinct from
           injury-type marker colours). Quick-set here; persists on the record. */}
