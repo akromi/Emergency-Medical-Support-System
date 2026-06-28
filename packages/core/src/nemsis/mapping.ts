@@ -112,9 +112,12 @@ function eDisposition(rec: CasualtyRecord): NemsisSection {
 
 /** Elements OADS/NEMSIS require for a complete record that TRIAGE-LINK does not
  *  capture today — kept explicit so the conformance gap is visible. */
-function conformanceGaps(rec: CasualtyRecord): string[] {
+function conformanceGaps(_rec: CasualtyRecord): string[] {
   const gaps: string[] = []
-  if (!rec.incident.injuryTime) gaps.push('eTimes — incident/response/at-scene timestamps')
+  // eTimes is ALWAYS a gap: an incident time alone is not the required chain
+  // (PSAP/dispatch/at-scene/at-patient/transport/at-destination), so it must not
+  // be suppressed just because injuryTime is set.
+  gaps.push('eTimes — full PSAP/dispatch/at-scene/at-patient/transport/at-destination timestamp chain')
   gaps.push('eResponse — agency/unit/vehicle identifiers')
   gaps.push('eCrew — crew member ids, roles, certification levels')
   gaps.push('eScene — scene GPS, incident location type/coding')

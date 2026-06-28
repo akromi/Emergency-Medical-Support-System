@@ -60,4 +60,10 @@ describe('toNemsisRecord', () => {
     // An empty record has no vitals/injuries/treatments → those sections are absent.
     expect(n.sections.some((s) => s.section === 'eVitals')).toBe(false)
   })
+
+  it('always reports the eTimes gap, even when an incident time is set', () => {
+    // sample() has incident.injuryTime — the full timestamp chain still doesn't
+    // exist, so eTimes must remain a declared gap.
+    expect(toNemsisRecord(sample()).gaps.some((g) => g.startsWith('eTimes'))).toBe(true)
+  })
 })
