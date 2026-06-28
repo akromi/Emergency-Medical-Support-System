@@ -4,6 +4,7 @@ import {
   TRIAGE_COLORS, elapsedSince, formatElapsed,
 } from '@triage-link/core'
 import { useLang, regionLabel } from '../i18n'
+import { getDeployment, hasDeployment, type DeploymentKind } from '../db/deployment'
 
 // Scene-wide / incident-command roll-up: a single printable + shareable snapshot
 // of every casualty for command — the START triage tally, the on-scene vs
@@ -44,8 +45,13 @@ export function SceneSummary({ records, onClose }: { records: ReadonlyArray<Casu
   const primaryRegion = (r: CasualtyRecord): string =>
     r.injuries.length ? regionLabel(r.injuries[0].region, lang) : '—'
 
+  const dep = getDeployment()
+  const kindLabel = (k: DeploymentKind) => (k ? t(`deploy.kind.${k}`) : '')
+  const depLine = [dep.operation, kindLabel(dep.kind), dep.org].filter(Boolean).join(' · ')
+
   function buildText(): string {
     const head = `${t('scene.title')} — ${fmtNow(now)}`
+    const depTextLine = hasDeployment(dep) ? `${t('deploy.summary')}: ${depLine}` : null
     const totals = `${t('scene.casualties')}: ${records.length} · ${t('scene.status.onscene')} ${onScene} · ${t('scene.status.handed')} ${handed}`
     const tallyLine = [...ORDER.map((k) => `${t(`triage.${k}`).split(' ')[0]} ${tally[k]}`), `${t('board.untriaged')} ${tally.unset}`].join(' · ')
     const rows = roster.map((r) => {
@@ -53,7 +59,7 @@ export function SceneSummary({ records, onClose }: { records: ReadonlyArray<Casu
       const status = r.handover ? t('scene.status.handed') : t('scene.status.onscene')
       return `${r.id}\t${r.tombstone.name || t('saved.unidentified')}\t${tri}\t${primaryRegion(r)}\t${elapsedStr(r)}\t${status}`
     })
-    return [head, totals, tallyLine, '', ...rows].join('\n')
+    return [head, ...(depTextLine ? [depTextLine] : []), totals, tallyLine, '', ...rows].join('\n')
   }
 
   async function share() {
@@ -77,6 +83,7 @@ export function SceneSummary({ records, onClose }: { records: ReadonlyArray<Casu
         <header className="sm-head">
           <div>
             <div className="sm-brand">{t('scene.title')}</div>
+            {hasDeployment(dep) && <div className="sm-deploy">{depLine}</div>}
             <div className="sm-case">{fmtNow(now)}</div>
           </div>
           <div className="scene-total">{records.length}<span>{t('scene.casualties')}</span></div>

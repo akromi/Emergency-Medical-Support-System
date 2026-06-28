@@ -38,6 +38,11 @@ This market is served by the **offline-first core**, not the hosted backend:
 
 ## What this branch should add next
 
+- **Deployment context** *(done)* — a device-wide operation tag (name, response
+  type, organization) shown in a banner and on the command summary, so a
+  multi-team / multi-site response stays organized and donor reports have
+  provenance (`src/db/deployment.ts`, `src/components/DeploymentBar.tsx`).
+  Offline, blank by default.
 - A **disaster/MCI deployment profile**: kiosk/shared-device defaults,
   mandatory-encryption policy, scene-roll-up/command-summary emphasis.
 - Packaging for **fully air-gapped** install (PWA + optional self-hosted sync on a
