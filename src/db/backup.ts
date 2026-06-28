@@ -1,6 +1,7 @@
 import type { CasualtyRecord } from '@triage-link/core'
 import { recordRepo } from './repository'
 import { deriveKey, randomSaltB64, encryptString, decryptString } from './crypto'
+import { getDeployment, hasDeployment, type Deployment } from './deployment'
 
 // Whole-database backup & restore. Everything lives only in this device's
 // IndexedDB, so a cleared browser or lost phone means total data loss — this is
@@ -21,6 +22,10 @@ export interface Backup {
   format: number
   exportedAt: number
   records: CasualtyRecord[]
+  /** Deployment/provenance the export was taken under (present only when set).
+   *  Carried for provenance — restore does NOT change the importing device's
+   *  deployment, so a donor/coordination handoff never clobbers it. */
+  deployment?: Deployment
 }
 
 /** Encrypted backup envelope — no plaintext PHI, only ciphertext + KDF params. */
@@ -40,7 +45,11 @@ export async function exportAll(): Promise<Backup> {
   const records = (await Promise.all(stubs.map((r) => recordRepo.get(r.id)))).filter(
     (r): r is CasualtyRecord => !!r,
   )
-  return { app: APP, format: FORMAT, exportedAt: Date.now(), records }
+  const deployment = getDeployment()
+  return {
+    app: APP, format: FORMAT, exportedAt: Date.now(), records,
+    ...(hasDeployment(deployment) ? { deployment } : {}),
+  }
 }
 
 /** Snapshot + encrypt the whole backup under a passphrase. */

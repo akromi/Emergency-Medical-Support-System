@@ -11,9 +11,10 @@ vi.mock('../src/db/repository', () => ({
 }))
 
 import { exportEncrypted, decryptBackup, readBackupFile, isEncryptedBackup } from '../src/db/backup'
+import { setDeployment } from '../src/db/deployment'
 
 describe('encrypted backup', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => { vi.clearAllMocks(); setDeployment({ operation: '', kind: '', org: '' }) })
 
   it('round-trips: exportEncrypted → decryptBackup recovers the records', async () => {
     const env = await exportEncrypted('correct horse battery staple')
@@ -41,5 +42,16 @@ describe('encrypted backup', () => {
     const plainRead = readBackupFile(JSON.stringify(plain))
     expect(plainRead.encrypted).toBe(false)
     if (!plainRead.encrypted) expect(plainRead.backup.records).toEqual([sample])
+  })
+
+  it('carries the deployment context as provenance when set', async () => {
+    setDeployment({ operation: 'Cyclone — Beira', kind: 'flood', org: 'Red Cross' })
+    const restored = await decryptBackup(await exportEncrypted('pw'), 'pw')
+    expect(restored.deployment).toMatchObject({ operation: 'Cyclone — Beira', kind: 'flood', org: 'Red Cross' })
+  })
+
+  it('omits the deployment field when none is set', async () => {
+    const restored = await decryptBackup(await exportEncrypted('pw'), 'pw')
+    expect(restored.deployment).toBeUndefined()
   })
 })

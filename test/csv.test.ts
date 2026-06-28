@@ -58,4 +58,30 @@ describe('roster CSV', () => {
     expect(csvToRecords('id,name')).toEqual([])
     expect(csvToRecords('')).toEqual([])
   })
+
+  it('stamps deployment provenance columns only when a deployment is set', () => {
+    const r = rec('CAS-1', { name: 'Doe, Jane' }, 'immediate')
+    // No deployment → byte-identical to before (no extra columns).
+    expect(parseCsv(recordsToCsv([r]))[0]).not.toContain('operation')
+    // With a deployment → operation/responseType/organization appended + stamped.
+    const rows = parseCsv(recordsToCsv([r], { operation: 'Cyclone — Beira', kind: 'flood', org: 'Red Cross' }))
+    const h = rows[0]
+    expect(h).toEqual(expect.arrayContaining(['operation', 'responseType', 'organization']))
+    expect(rows[1][h.indexOf('operation')]).toBe('Cyclone — Beira')
+    expect(rows[1][h.indexOf('responseType')]).toBe('flood') // the stable code, not a label
+    expect(rows[1][h.indexOf('organization')]).toBe('Red Cross')
+  })
+
+  it('treats a blank deployment as none (no columns)', () => {
+    const rows = parseCsv(recordsToCsv([rec('CAS-1', {})], { operation: '', kind: '', org: '' }))
+    expect(rows[0]).not.toContain('operation')
+  })
+
+  it('ignores deployment columns on import (field-col round-trip holds)', () => {
+    const csv = recordsToCsv([rec('CAS-9', { name: 'Roe, John', sex: 'male' }, 'delayed')], { operation: 'Op X', kind: 'earthquake', org: 'MSF' })
+    const [back] = csvToRecords(csv)
+    expect(back.id).toBe('CAS-9')
+    expect(back.tombstone.name).toBe('Roe, John')
+    expect(back.incident.triage).toBe('delayed')
+  })
 })

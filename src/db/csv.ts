@@ -1,4 +1,5 @@
 import { createEmptyRecord, genCaseId, type CasualtyRecord, type Sex, type TriageCategory, type AgeBand } from '@triage-link/core'
+import type { Deployment } from './deployment'
 
 // Roster CSV import/export. One row per casualty covering the SCALAR identity +
 // incident fields. Nested data (injuries, vitals, treatments, photos) is NOT
@@ -14,6 +15,10 @@ const FIELD_COLS = [
 ] as const
 /** Export-only summary columns (ignored on import). */
 const SUMMARY_COLS = ['injuries', 'handedOver', 'author', 'updatedAt'] as const
+/** Export-only deployment/provenance columns, stamped on every row when a
+ *  deployment context is set (ignored on import). `responseType` is the stable
+ *  kind CODE, not a localized label, so the CSV stays machine-readable. */
+const DEPLOY_COLS = ['operation', 'responseType', 'organization'] as const
 
 const TRIAGES: TriageCategory[] = ['immediate', 'delayed', 'minor', 'deceased']
 const AGE_BANDS: AgeBand[] = ['infant', 'age1', 'age5', 'age10', 'age15', 'adult']
@@ -21,8 +26,11 @@ const SEXES: Sex[] = ['', 'female', 'male', 'other', 'unknown']
 
 const esc = (v: string): string => (/[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)
 
-export function recordsToCsv(records: CasualtyRecord[]): string {
-  const header = [...FIELD_COLS, ...SUMMARY_COLS].join(',')
+export function recordsToCsv(records: CasualtyRecord[], deployment?: Deployment): string {
+  // Stamp deployment/provenance columns only when a context is actually set, so
+  // an export with no deployment is byte-for-byte unchanged (backward compatible).
+  const dep = deployment && (deployment.operation || deployment.kind || deployment.org) ? deployment : null
+  const header = [...FIELD_COLS, ...SUMMARY_COLS, ...(dep ? DEPLOY_COLS : [])].join(',')
   const rows = records.map((r) => {
     const t = r.tombstone, i = r.incident
     return [
@@ -32,6 +40,7 @@ export function recordsToCsv(records: CasualtyRecord[]): string {
       r.handover ? (r.handover.facility || 'yes') : '',
       r.author?.name ?? '',
       r.updatedAt ? new Date(r.updatedAt).toISOString() : '',
+      ...(dep ? [dep.operation, dep.kind, dep.org] : []),
     ].map((c) => esc(c ?? '')).join(',')
   })
   return [header, ...rows].join('\r\n')

@@ -45,8 +45,12 @@ This market is served by the **offline-first core**, not the hosted backend:
   Offline, blank by default.
 - A **disaster/MCI deployment profile**: kiosk/shared-device defaults,
   mandatory-encryption policy, scene-roll-up/command-summary emphasis.
+- Donor-friendly **data-export provenance** *(in progress)* — the deployment tag
+  (operation / response type / organization) is now stamped onto every CSV row
+  and carried in the JSON backup, so an extract handed to a donor or coordination
+  cell is self-describing. Next: an operation/date-range export filter.
 - Packaging for **fully air-gapped** install (PWA + optional self-hosted sync on a
-  field laptop), and donor-friendly **data-export/retention** presets.
+  field laptop), and donor-friendly **retention** presets.
 - Lightweight optional sync to the multi-tenant backend **only** where a program
   wants cross-team aggregation — never required.
 

@@ -21,6 +21,7 @@ import { PhotoLightbox } from './components/PhotoLightbox'
 import { Tip, OfflineBanner, InstallPrompt, useDismissed } from './components/hints'
 import { Tutorial } from './components/Tutorial'
 import { DeploymentBar } from './components/DeploymentBar'
+import { getDeployment } from './db/deployment'
 import { Elapsed } from './components/Elapsed'
 import { VitalsTrend } from './components/VitalsTrend'
 import { EhrTestConsole } from './components/EhrTestConsole'
@@ -270,7 +271,7 @@ export function App() {
   async function exportRecordsCsv() {
     if (!(await guard('csv.export'))) return
     recordRepo.list().then((records) => {
-      const blob = new Blob([recordsToCsv(records)], { type: 'text/csv;charset=utf-8' })
+      const blob = new Blob([recordsToCsv(records, getDeployment())], { type: 'text/csv;charset=utf-8' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
