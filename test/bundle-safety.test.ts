@@ -24,13 +24,6 @@ const ENTRY = join(ROOT, 'src/main.tsx')
 // Specifiers that must never be reachable from the browser entry.
 const FORBIDDEN: RegExp[] = [/^node:/, /^undici$/, /^pg$/, /^fastify$/, /^@fastify\//]
 
-// Workspace packages are walked from SOURCE (not their built dist) so the guard
-// sees the real import graph regardless of how `main`/`exports` resolve.
-const WORKSPACE_ROOTS: Record<string, string> = {
-  '@triage-link/core': 'packages/core',
-  '@triage-link/ehr-gateway': 'packages/ehr-gateway',
-}
-
 const EXTS = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.cts']
 
 function isFile(p: string): boolean {
@@ -39,16 +32,19 @@ function isFile(p: string): boolean {
 
 // Resolve a relative or @triage-link import to an on-disk source file. Returns
 // null for bare third-party modules — those are the leaves we test against
-// FORBIDDEN and never recurse into.
+// FORBIDDEN and never recurse into. ANY @triage-link workspace is resolved from
+// source (the dir name matches the package-name suffix), so a client reaching a
+// server-only package like @triage-link/sync-service gets walked — and flagged
+// when its graph hits fastify/node:* — rather than silently treated as external.
 function resolveToFile(spec: string, fromFile: string): string | null {
   let base: string
   if (spec.startsWith('.')) {
     base = resolve(dirname(fromFile), spec)
   } else if (spec.startsWith('@triage-link/')) {
-    const m = spec.match(/^(@triage-link\/[^/]+)(?:\/(.+))?$/)
-    const pkgRoot = m && WORKSPACE_ROOTS[m[1]]
-    if (!m || !pkgRoot) return null
-    base = m[2] ? join(ROOT, pkgRoot, m[2]) : join(ROOT, pkgRoot, 'src/index')
+    const m = spec.match(/^@triage-link\/([^/]+)(?:\/(.+))?$/)
+    if (!m) return null
+    const pkgDir = join(ROOT, 'packages', m[1])
+    base = m[2] ? join(pkgDir, m[2]) : join(pkgDir, 'src/index')
   } else {
     return null // bare external module
   }
@@ -101,7 +97,13 @@ describe('client bundle stays browser-safe', () => {
           continue
         }
         const next = resolveToFile(spec, file)
-        if (next) stack.push(next)
+        if (next) {
+          stack.push(next)
+        } else if (spec.startsWith('@triage-link/')) {
+          // A workspace import we couldn't resolve to source can't be proven
+          // browser-safe — flag it rather than silently passing (fail-safe).
+          violations.push(`${spec}  (unresolved @triage-link import)  ←  ${file.replace(ROOT + '/', '')}`)
+        }
       }
     }
 
