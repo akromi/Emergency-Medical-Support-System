@@ -2,7 +2,8 @@
 // See ./types.ts for the conformance caveat: element ids/codes are our best
 // mapping and must be validated against the official NEMSIS v3.5.0 XSD and the
 // Ontario OADS v4.0 spec before certification.
-import type { CasualtyRecord, Injury, Treatment, VitalSign, Sex, TriageCategory } from '../domain/types.js'
+import type { CasualtyRecord, Injury, Treatment, VitalSign, Sex, TriageCategory, Response, ResponseMode } from '../domain/types.js'
+import { emptyResponse } from '../domain/types.js'
 import { injuryLabel } from '../domain/injuries.js'
 import type { NemsisElement, NemsisRecord, NemsisSection } from './types.js'
 
@@ -16,6 +17,19 @@ const SEX_TO_NEMSIS: Record<Sex, string | undefined> = {
   unknown: '9906009', // Unknown
   '': undefined,
 }
+
+// eResponse.23 "Response Mode to Scene". Codes are placeholders pending the
+// official value set.
+const MODE_TO_NEMSIS: Record<ResponseMode, string | undefined> = {
+  emergent: '2207001', // Emergent (Immediate Response)
+  'non-emergent': '2207009', // Non-Emergent
+  '': undefined,
+}
+
+/** The eTimes elements a complete field-care chain needs. Used to decide when
+ *  the eTimes conformance gap is satisfied. PSAP/en-route are not field-required
+ *  (a field crew may not know the PSAP time), so they are not gating. */
+const TIMES_REQUIRED: Array<keyof Response> = ['dispatch', 'atScene', 'atPatient', 'transport', 'atDestination']
 
 // NEMSIS eDisposition uses a Patient Evaluation/Care priority; field triage maps
 // to the START/SALT-style acuity our four categories express. Codes are
@@ -99,6 +113,30 @@ function eProceduresAndMeds(treatments: Treatment[]): NemsisSection[] {
   return out
 }
 
+function eResponse(r: Response): NemsisSection {
+  return section('eResponse', [
+    el('EMS Agency Number', r.agency, 'eResponse.01'),
+    el('EMS Unit / Vehicle Number', r.unit, 'eResponse.07'),
+    el('Response Mode to Scene', MODE_TO_NEMSIS[r.mode], 'eResponse.23'),
+  ])
+}
+
+// Timestamps are stored as `datetime-local` strings; emit them verbatim (as the
+// raw local-time string), matching eSituation's Incident Date/Time, rather than
+// coercing through Date — `new Date('YYYY-MM-DDTHH:mm')` parses as local time, so
+// toISOString() would be timezone-dependent and non-deterministic.
+function eTimes(r: Response): NemsisSection {
+  return section('eTimes', [
+    el('PSAP Call Date/Time', r.psap, 'eTimes.01'),
+    el('Unit Notified by Dispatch Date/Time', r.dispatch, 'eTimes.03'),
+    el('Unit En Route Date/Time', r.enRoute, 'eTimes.05'),
+    el('Unit Arrived on Scene Date/Time', r.atScene, 'eTimes.06'),
+    el('Arrived at Patient Date/Time', r.atPatient, 'eTimes.07'),
+    el('Unit Left Scene Date/Time', r.transport, 'eTimes.09'),
+    el('Patient Arrived at Destination Date/Time', r.atDestination, 'eTimes.11'),
+  ])
+}
+
 function eDisposition(rec: CasualtyRecord): NemsisSection {
   const triage = rec.incident.triage
   const ho = rec.handover
@@ -112,13 +150,18 @@ function eDisposition(rec: CasualtyRecord): NemsisSection {
 
 /** Elements OADS/NEMSIS require for a complete record that TRIAGE-LINK does not
  *  capture today — kept explicit so the conformance gap is visible. */
-function conformanceGaps(_rec: CasualtyRecord): string[] {
+function conformanceGaps(rec: CasualtyRecord): string[] {
   const gaps: string[] = []
-  // eTimes is ALWAYS a gap: an incident time alone is not the required chain
-  // (PSAP/dispatch/at-scene/at-patient/transport/at-destination), so it must not
-  // be suppressed just because injuryTime is set.
-  gaps.push('eTimes — full PSAP/dispatch/at-scene/at-patient/transport/at-destination timestamp chain')
-  gaps.push('eResponse — agency/unit/vehicle identifiers')
+  const r = rec.response ?? emptyResponse()
+  // eTimes: report until the field-care chain is complete. An incident time
+  // alone never satisfied this — now the dedicated chain does, when filled.
+  if (TIMES_REQUIRED.some((k) => !r[k])) {
+    gaps.push('eTimes — full PSAP/dispatch/at-scene/at-patient/transport/at-destination timestamp chain')
+  }
+  // eResponse: agency + unit are the minimum to identify the responder.
+  if (!r.agency || !r.unit) {
+    gaps.push('eResponse — agency/unit/vehicle identifiers')
+  }
   gaps.push('eCrew — crew member ids, roles, certification levels')
   gaps.push('eScene — scene GPS, incident location type/coding')
   gaps.push('ePayment / eOutcome — billing + linked hospital outcome')
@@ -131,9 +174,12 @@ function conformanceGaps(_rec: CasualtyRecord): string[] {
  * ids/codes against the official XSD/OADS spec first (see ./types.ts).
  */
 export function toNemsisRecord(rec: CasualtyRecord): NemsisRecord {
+  const response = rec.response ?? emptyResponse()
   const sections: NemsisSection[] = [
     section('eRecord', [el('Patient Care Report Number', rec.id, 'eRecord.01')]),
     ePatient(rec),
+    eResponse(response),
+    eTimes(response),
     section('eSituation', [
       el('Incident Date/Time', rec.incident.injuryTime, 'eSituation.01'),
       el('Incident Location', rec.incident.location),

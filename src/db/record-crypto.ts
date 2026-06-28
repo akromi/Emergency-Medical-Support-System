@@ -1,5 +1,6 @@
 import Dexie from 'dexie'
 import type { CasualtyRecord, Op } from '@triage-link/core'
+import { normalizeRecord } from '@triage-link/core'
 import { db } from './database'
 import { encryptJson, decryptJson } from './crypto'
 
@@ -39,11 +40,13 @@ export async function sealRecord(key: CryptoKey | null, r: CasualtyRecord): Prom
   return { id: r.id, updatedAt: r.updatedAt ?? 0, enc: await encryptJson(key, r) }
 }
 
-/** Decrypt a stored record. Throws VaultLockedError if it's sealed and key is null. */
+/** Decrypt a stored record. Throws VaultLockedError if it's sealed and key is null.
+ *  Normalizes the result so records persisted before a field group existed
+ *  (e.g. `response`) load with that group defaulted rather than undefined. */
 export async function openRecord(key: CryptoKey | null, s: StoredRecord): Promise<CasualtyRecord> {
-  if (!isSealedRecord(s)) return s
+  if (!isSealedRecord(s)) return normalizeRecord(s)
   if (!key) throw new VaultLockedError()
-  return decryptJson<CasualtyRecord>(key, s.enc)
+  return normalizeRecord(await decryptJson<CasualtyRecord>(key, s.enc))
 }
 
 /** Encrypt an op for storage (id/recordId/lamport stay clear for indexing). */

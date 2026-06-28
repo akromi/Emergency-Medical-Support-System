@@ -24,6 +24,7 @@ const STEPS: Step[] = [
   { target: 'editor', key: 'editor' },
   { target: 'triage', key: 'triage', advanceWhen: (s) => s.hasTriage },
   { target: 'vitals', key: 'vitals' },
+  { target: 'response', key: 'response' },
   { target: 'handover', key: 'handover' },
   { target: 'summary', key: 'summary' },
   { target: 'board', key: 'board' },

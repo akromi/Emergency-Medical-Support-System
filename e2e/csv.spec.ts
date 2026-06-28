@@ -37,7 +37,8 @@ test('export a roster CSV and import one back', async ({ page }) => {
     mimeType: 'text/csv',
     buffer: Buffer.from('id,name,triage\r\nCAS-IMPORTED,Imported Casualty,minor'),
   })
-  await page.getByRole('button', { name: 'Merge' }).click()
+  // exact: the substring "merge" also lives inside "E·merge·nt" response-mode buttons.
+  await page.getByRole('button', { name: 'Merge', exact: true }).click()
 
   // Now two casualties; the imported one shows on the board.
   await expect(board).toContainText('· 2')
