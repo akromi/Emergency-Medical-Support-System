@@ -255,10 +255,16 @@ export function buildApp(
   // log. onResponse runs after the auth hook, so req.tenantId is resolved.
   if (metrics || onAccessLog) {
     app.addHook('onResponse', async (req, reply) => {
-      metrics?.recordResponse(req.tenantId, reply.statusCode)
+      const path = req.url.split('?')[0]
+      // Count responses only for the tenant data plane (/sync, /ehr), where
+      // req.tenantId is a real tenant. Admin, health, and the Prometheus scrape
+      // itself leave tenantId as 'default', so counting them would invent a
+      // bogus `default` series that inflates just because monitoring is on.
+      const dataPlane = path === '/sync' || path.startsWith('/sync/') || path.startsWith('/ehr')
+      if (metrics && dataPlane) metrics.recordResponse(req.tenantId, reply.statusCode)
       onAccessLog?.({
         method: req.method,
-        path: req.url.split('?')[0],
+        path,
         tenant: req.tenantId,
         status: reply.statusCode,
         ms: Math.round(reply.elapsedTime),

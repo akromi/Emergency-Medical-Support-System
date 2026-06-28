@@ -3,7 +3,7 @@
 // from the public OpenAPI doc — this is an operational surface, not a client API.
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { TenantStore } from './tenant-store.js'
-import type { Metrics } from './metrics.js'
+import { type Metrics, renderPrometheus, PROMETHEUS_CONTENT_TYPE } from './metrics.js'
 import type { AdminAuditStore, AdminAction } from './admin-audit-store.js'
 
 // The global rate-limit covers every route, but the admin surface is sensitive
@@ -42,9 +42,14 @@ export function registerAdminRoutes(
     try { await adminAudit.record({ action, tenantId, detail, actor: req.adminSubject, ip: req.ip }) } catch { /* best-effort */ }
   }
 
-  // Per-tenant operational counters (in-memory, per-instance).
+  // Per-tenant operational counters (in-memory, per-instance) — JSON, plus a
+  // Prometheus scrape endpoint (admin-gated; point a scraper's bearer_token at it).
   if (metrics) {
     app.get('/admin/metrics', HIDDEN, async () => metrics.snapshot())
+    app.get('/admin/metrics/prometheus', HIDDEN, async (_req, reply) => {
+      reply.header('content-type', PROMETHEUS_CONTENT_TYPE)
+      return renderPrometheus(metrics.snapshot())
+    })
   }
 
   // Read the admin-action audit trail (optionally filtered by ?tenant=).
