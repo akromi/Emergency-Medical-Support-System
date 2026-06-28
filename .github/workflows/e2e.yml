@@ -11,6 +11,11 @@ permissions:
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    # A healthy run (build + preview + Playwright) finishes in ~2-3 min. Cap the
+    # job so an intermittent GitHub-runner stall on `npm run test:e2e` self-aborts
+    # as a failure in minutes instead of sitting for GitHub's 6h default — a hung
+    # runner then fails fast and can be re-dispatched rather than blocking forever.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
