@@ -16,25 +16,61 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Skip the heavy build/test on DOCS-ONLY changes. The job still runs and
+      # reports success (so the required "build" check is satisfied), but the
+      # expensive steps below are gated. Fails SAFE: any ambiguity (or any changed
+      # file outside docs/) runs the full pipeline — only an all-docs/ diff skips.
+      - name: Detect non-docs changes
+        id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -u
+          if [ "$EVENT" = "pull_request" ]; then
+            git fetch --no-tags origin "$BASE_REF" || true
+            range="origin/$BASE_REF...HEAD"
+          else
+            range="HEAD~1 HEAD"
+          fi
+          changed=$(git diff --name-only $range 2>/dev/null || true)
+          echo "Changed files:"; printf '%s\n' "$changed"
+          if [ -z "$changed" ] || printf '%s\n' "$changed" | grep -qvE '^docs/'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Docs-only change — skipping typecheck/test/build."
+          fi
       - uses: actions/setup-node@v4
+        if: steps.changes.outputs.code == 'true'
         with:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+        if: steps.changes.outputs.code == 'true'
       # Supply-chain gate: fail the build on a known high/critical advisory in
       # the dependency tree (run early so it blocks before the slower steps).
       - run: npm audit --audit-level=high
+        if: steps.changes.outputs.code == 'true'
       - run: npm run typecheck
+        if: steps.changes.outputs.code == 'true'
       - run: npm run typecheck --workspace @triage-link/core
+        if: steps.changes.outputs.code == 'true'
       - run: npm run typecheck --workspace @triage-link/ehr-gateway
+        if: steps.changes.outputs.code == 'true'
       - run: npm run typecheck --workspace @triage-link/sync-service
+        if: steps.changes.outputs.code == 'true'
       # Runs the whole suite (all packages + app) in one pass AND emits the
       # browsable HTML report to ./html, published below as an artifact.
       - run: npm run test:report
+        if: steps.changes.outputs.code == 'true'
       - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.changes.outputs.code == 'true' }}
         with:
           name: test-report
           path: html/
           retention-days: 14
       - run: npm run build
+        if: steps.changes.outputs.code == 'true'
