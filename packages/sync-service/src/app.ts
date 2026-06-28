@@ -14,6 +14,7 @@ import { registerEhrRoutes, registerEhrAuditRoute } from './ehr-routes.js'
 import type { EhrAuditStore } from './ehr-audit-store.js'
 import { type TenantStore, bearerToken } from './tenant-store.js'
 import { registerAdminRoutes } from './admin-routes.js'
+import { ERROR_RESPONSE_SCHEMA, OPAQUE_ARRAY_SCHEMA } from './schemas.js'
 import type { Metrics, AccessLogEntry } from './metrics.js'
 import type { AdminAuditStore } from './admin-audit-store.js'
 import type { OidcVerifier } from './oidc.js'
@@ -145,19 +146,8 @@ const STATUS_TEXT: Record<number, string> = {
 // ---- response schemas (for the OpenAPI doc + safe serialization) ----
 // All use additionalProperties:true so dynamic content (record snapshots, ops,
 // per-route error extras) passes through unstripped while the known shape is
-// still documented.
-const ERROR_RESPONSE_SCHEMA = {
-  type: 'object',
-  description: 'Sanitized error envelope. On 5xx the message is generic — the real cause stays server-side, correlatable by requestId.',
-  properties: {
-    error: { type: 'string', description: 'HTTP reason phrase.' },
-    message: { type: 'string' },
-    statusCode: { type: 'integer' },
-    requestId: { type: 'string', description: 'Correlation id (also echoed as the x-request-id header).' },
-  },
-  additionalProperties: true,
-} as const
-
+// still documented. ERROR_RESPONSE_SCHEMA + the opaque helpers are shared via
+// ./schemas.js (no import cycle with the route modules).
 const QUOTA_ERROR_RESPONSE_SCHEMA = {
   type: 'object',
   description: 'Storage-quota rejection: the tenant is at/over its op/record cap. Reads (empty-ops pulls) are still allowed.',
@@ -190,6 +180,17 @@ const SYNC_RESPONSE_SCHEMA = {
     ingested: { type: 'integer', description: 'New (non-duplicate) ops accepted from this request.' },
     cursor: { type: 'integer', description: 'Tenant high-water cursor; send back as `since` for the next incremental sync.' },
     nextPage: { type: ['string', 'null'], description: 'Full-state pagination cursor: pass as `after` for the next page, or null when the pull is complete.' },
+  },
+  additionalProperties: true,
+} as const
+
+const RECORD_DETAIL_SCHEMA = {
+  type: 'object',
+  description: 'One record: its resolved snapshot, full op-log, and audit trail.',
+  properties: {
+    snapshot: { type: ['object', 'null'], additionalProperties: true, description: 'Resolved record state (null only if the record has no ops).' },
+    ops: { ...OPAQUE_ARRAY_SCHEMA, description: 'The record\'s full op-log.' },
+    audit: { ...OPAQUE_ARRAY_SCHEMA, description: 'The record\'s audit trail (ingest / conflict events).' },
   },
   additionalProperties: true,
 } as const
@@ -599,7 +600,14 @@ export function buildApp(
   })
 
   // Inspect a record: resolved snapshot, its full op-log, and the audit trail.
-  app.get('/sync/:recordId', async (req) => {
+  app.get('/sync/:recordId', {
+    schema: {
+      tags: ['sync'],
+      summary: 'Inspect a record: snapshot, op-log, audit trail',
+      params: { type: 'object', properties: { recordId: { type: 'string' } } },
+      response: { 200: RECORD_DETAIL_SCHEMA, 401: ERROR_RESPONSE_SCHEMA },
+    },
+  }, async (req) => {
     const { recordId } = req.params as { recordId: string }
     const tenantId = req.tenantId
     const [stored, ops, audit] = await Promise.all([

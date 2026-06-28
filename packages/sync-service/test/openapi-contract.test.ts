@@ -105,4 +105,17 @@ describe('OpenAPI contract (/docs) ⇄ live EHR routes', () => {
       expect(err?.properties, `400 envelope missing ${k}`).toHaveProperty(k)
     }
   })
+
+  it('documents responses on the remaining data routes (record detail + EHR)', () => {
+    // GET /sync/{recordId}: snapshot + op-log + audit.
+    const detail = jsonSchema(doc.paths['/sync/{recordId}'].get, '200')
+    for (const k of ['snapshot', 'ops', 'audit']) {
+      expect(detail?.properties, `record-detail 200 missing ${k}`).toHaveProperty(k)
+    }
+    // EHR $match: a documented 200 plus the error envelope on its failure codes.
+    const match = doc.paths['/ehr/patient/$match'].post
+    expect(jsonSchema(match, '200')?.properties).toHaveProperty('provider')
+    expect(jsonSchema(match, '400')?.properties).toHaveProperty('message')
+    expect(jsonSchema(match, '503')?.properties).toHaveProperty('error')
+  })
 })
