@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@triage-link/core": "*"
+    "@triage-link/core": "*",
+    "undici": "^7.16.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

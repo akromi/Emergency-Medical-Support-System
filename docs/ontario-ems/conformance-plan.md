@@ -83,7 +83,22 @@ clears once its data is captured), and the build backlog:
    make clear this is an offline pre-check, **not** certification. Tutorial step +
    i18n (×4) updated *(done)*.
 8. **PR-4:** Productionize the ONE ID / Ontario Health PCR `$match` + DHDR
-   integration in `packages/ehr-gateway` (real mTLS client cert, token flow).
+   integration in `packages/ehr-gateway`.
+   - **Transport (mTLS) — *(done)***. The ONE Access Gateway requires a CLIENT
+     certificate on every connection. `src/mtls.ts` builds an undici `Agent`
+     (`createMtlsDispatcher`, plus `mtlsDispatcherFromFiles` /
+     `mtlsDispatcherFromEnv`) from PEM cert/key/CA, threaded through `OneIdClient`
+     and `OntarioHealthGateway` (both already accept a `dispatcher`) and wired in
+     `sync-service/server.ts` from `ONE_ID_CLIENT_CERT[_FILE]` / `_KEY[_FILE]` /
+     CA env. Server-side only (the key never reaches the browser); fails closed
+     on partial config; **off by default** (no cert → no mTLS). Verified by a real
+     TLS handshake test (a server requiring a client cert; certs generated fresh
+     per run, never committed).
+   - **Live integration — blocked.** The OAuth client-credentials flow + FHIR
+     `$match`/`fetchContext` code exists; bringing it up against the real ONE
+     Access Gateway needs Ontario-issued **credentials + the production client
+     certificate** (and sandbox entitlements). Drop the cert/secret into the env
+     above — no code change to the transport.
 9. **PR-5+:** CAD/dispatch + hospital-EHR handover; SOC 2 Type II + QMS evidence;
    certified-SaMD evidence stack (gated on the intended-use determination).
 
