@@ -142,6 +142,58 @@ const STATUS_TEXT: Record<number, string> = {
   500: 'Internal Server Error', 503: 'Service Unavailable',
 }
 
+// ---- response schemas (for the OpenAPI doc + safe serialization) ----
+// All use additionalProperties:true so dynamic content (record snapshots, ops,
+// per-route error extras) passes through unstripped while the known shape is
+// still documented.
+const ERROR_RESPONSE_SCHEMA = {
+  type: 'object',
+  description: 'Sanitized error envelope. On 5xx the message is generic — the real cause stays server-side, correlatable by requestId.',
+  properties: {
+    error: { type: 'string', description: 'HTTP reason phrase.' },
+    message: { type: 'string' },
+    statusCode: { type: 'integer' },
+    requestId: { type: 'string', description: 'Correlation id (also echoed as the x-request-id header).' },
+  },
+  additionalProperties: true,
+} as const
+
+const QUOTA_ERROR_RESPONSE_SCHEMA = {
+  type: 'object',
+  description: 'Storage-quota rejection: the tenant is at/over its op/record cap. Reads (empty-ops pulls) are still allowed.',
+  properties: {
+    error: { type: 'string' },
+    message: { type: 'string' },
+    statusCode: { type: 'integer' },
+    requestId: { type: 'string' },
+    quota: {
+      type: 'object',
+      properties: { maxOps: { type: ['integer', 'null'] }, maxRecords: { type: ['integer', 'null'] } },
+      additionalProperties: true,
+    },
+    usage: {
+      type: 'object',
+      properties: { ops: { type: 'integer' }, records: { type: 'integer' } },
+      additionalProperties: true,
+    },
+  },
+  additionalProperties: true,
+} as const
+
+const SYNC_RESPONSE_SCHEMA = {
+  type: 'object',
+  description:
+    'Resolved snapshots + ops. For a full-state (no-cursor) pull, page with `nextPage` until it is null, then checkpoint `cursor` and sync incrementally via `since`.',
+  properties: {
+    records: { type: 'object', additionalProperties: true, description: 'Resolved record snapshots, keyed by record id.' },
+    ops: { type: 'array', items: { type: 'object', additionalProperties: true }, description: 'Op-log entries for the returned records.' },
+    ingested: { type: 'integer', description: 'New (non-duplicate) ops accepted from this request.' },
+    cursor: { type: 'integer', description: 'Tenant high-water cursor; send back as `since` for the next incremental sync.' },
+    nextPage: { type: ['string', 'null'], description: 'Full-state pagination cursor: pass as `after` for the next page, or null when the pull is complete.' },
+  },
+  additionalProperties: true,
+} as const
+
 export function buildApp(
   { store, ehr, ehrAudit, tenantStore, adminAuditStore, oidcVerifier, metrics, onAccessLog, docs = true, security = {} }: {
     store: OpStore
@@ -427,7 +479,12 @@ export function buildApp(
   // Push a batch of ops and pull back the resolved state + full op set.
   app.post('/sync', {
     config: { rateLimit: syncRateLimit },
-    schema: { tags: ['sync'], summary: 'Push ops, pull resolved state', body: SYNC_BODY_SCHEMA },
+    schema: {
+      tags: ['sync'],
+      summary: 'Push ops, pull resolved state',
+      body: SYNC_BODY_SCHEMA,
+      response: { 200: SYNC_RESPONSE_SCHEMA, 400: ERROR_RESPONSE_SCHEMA, 403: QUOTA_ERROR_RESPONSE_SCHEMA },
+    },
   }, async (req, reply) => {
     const body = (req.body ?? {}) as SyncBody
     const ops = Array.isArray(body.ops) ? body.ops : []
