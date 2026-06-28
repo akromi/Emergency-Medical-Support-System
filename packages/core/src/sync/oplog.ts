@@ -20,6 +20,10 @@ const TOMBSTONE_FIELDS = [
   'name', 'dob', 'sex', 'mrn', 'bloodType', 'address', 'nextOfKin', 'nextOfKinPhone',
 ] as const
 const INCIDENT_FIELDS = ['injuryTime', 'mechanism', 'location', 'triage'] as const
+const RESPONSE_FIELDS = [
+  'agency', 'unit', 'mode',
+  'psap', 'dispatch', 'enRoute', 'atScene', 'atPatient', 'transport', 'atDestination',
+] as const
 const COLLECTIONS: CollectionName[] = ['injuries', 'vitals', 'treatments']
 
 /** Total order over ops. Lamport is authoritative; clientId and id break ties. */
@@ -47,8 +51,11 @@ function setScalar(rec: CasualtyRecord, path: string, value: unknown): void {
     return
   }
   const [group, field] = path.split('.')
-  // group is 'tombstone' | 'incident'; both are flat string/enum maps.
-  ;(rec as unknown as Record<string, Record<string, unknown>>)[group][field] = value
+  // group is 'tombstone' | 'incident' | 'response'; all are flat string/enum maps.
+  const groups = rec as unknown as Record<string, Record<string, unknown>>
+  // A group may be absent on a record persisted before it existed (e.g.
+  // `response`); create it on demand so folding ops never crashes.
+  ;(groups[group] ??= {})[field] = value
 }
 
 function getScalar(rec: CasualtyRecord | undefined, path: string): unknown {
@@ -56,7 +63,8 @@ function getScalar(rec: CasualtyRecord | undefined, path: string): unknown {
   if (path === 'createdAt') return rec.createdAt
   if (path === 'handover') return rec.handover
   const [group, field] = path.split('.')
-  return (rec as unknown as Record<string, Record<string, unknown>>)[group][field]
+  // Tolerate a missing group on older records (see setScalar).
+  return (rec as unknown as Record<string, Record<string, unknown>>)[group]?.[field]
 }
 
 /**
@@ -174,6 +182,7 @@ export function diffToOps(
     'createdAt',
     ...TOMBSTONE_FIELDS.map((f) => `tombstone.${f}`),
     ...INCIDENT_FIELDS.map((f) => `incident.${f}`),
+    ...RESPONSE_FIELDS.map((f) => `response.${f}`),
     'handover',
   ]
   for (const path of scalarPaths) {

@@ -29,14 +29,18 @@ a certification gate, not a coding detail — see "Next" below.
 
 ## Capture gaps (what a complete OADS/NEMSIS record needs that we don't have)
 
-Surfaced at runtime via `NemsisRecord.gaps`, and the build backlog:
+Surfaced at runtime via `NemsisRecord.gaps` — now reported *dynamically* (a gap
+clears once its data is captured), and the build backlog:
 
-- **`eResponse`** — agency, unit/vehicle, response mode, dispatch/response times.
+- **`eResponse`** — agency, unit/vehicle, response mode. *Captured (PR-3a)*; the
+  gap clears when agency + unit are entered.
+- **`eTimes`** — the full PSAP→dispatch→en-route→at-scene→at-patient→transport→
+  at-destination chain. *Captured (PR-3a)*; the gap clears when the required
+  field-care chain (dispatch, at-scene, at-patient, transport, at-destination)
+  is complete.
 - **`eCrew`** — crew member ids, roles, certification levels (the operator roster
-  is the seed; needs NEMSIS crew structure + cert codes).
-- **`eTimes`** — the full PSAP→at-scene→at-patient→transport→at-destination chain
-  (we capture injury time + handover time only).
-- **`eScene`** — GPS, incident location type, mass-casualty flag/role.
+  is the seed; needs NEMSIS crew structure + cert codes). *PR-3b.*
+- **`eScene`** — GPS, incident location type, mass-casualty flag/role. *PR-3b.*
 - **`ePayment` / `eOutcome`** — billing + linked hospital outcome (DI linkage).
 
 ## Sequenced build
@@ -51,11 +55,15 @@ Surfaced at runtime via `NemsisRecord.gaps`, and the build backlog:
    OADS v4.0 dictionaries, lock element ids + code lists, and add a
    schema-validation test asserting the serializer output passes the XSD. This
    is the certification gate and needs the official spec files.
-3. **PR-3:** Capture the gap fields (eResponse/eCrew/eTimes/eScene) — new
-   data-entry surfaces in the PWA (tutorial + i18n updates as usual).
-4. **PR-4:** Productionize the ONE ID / Ontario Health PCR `$match` + DHDR
+4. **PR-3a:** Capture eResponse + eTimes — a "Response & times" PWA panel (EMS
+   agency/unit/mode + the dispatch→destination time chain), mapped into the
+   exporter's `eResponse`/`eTimes` sections, with the two gaps now cleared
+   dynamically when filled. Tutorial step + i18n (×4) updated *(done)*.
+5. **PR-3b:** Capture eCrew + eScene — crew roster (ids/roles/cert levels) and
+   scene GPS / location type. eCrew seeds from the operator roster.
+6. **PR-4:** Productionize the ONE ID / Ontario Health PCR `$match` + DHDR
    integration in `packages/ehr-gateway` (real mTLS client cert, token flow).
-5. **PR-5+:** CAD/dispatch + hospital-EHR handover; SOC 2 Type II + QMS evidence;
+7. **PR-5+:** CAD/dispatch + hospital-EHR handover; SOC 2 Type II + QMS evidence;
    certified-SaMD evidence stack (gated on the intended-use determination).
 
 ## Validation gate

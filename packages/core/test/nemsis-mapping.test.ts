@@ -61,9 +61,37 @@ describe('toNemsisRecord', () => {
     expect(n.sections.some((s) => s.section === 'eVitals')).toBe(false)
   })
 
-  it('always reports the eTimes gap, even when an incident time is set', () => {
-    // sample() has incident.injuryTime — the full timestamp chain still doesn't
-    // exist, so eTimes must remain a declared gap.
+  it('reports the eTimes gap when the response time chain is incomplete', () => {
+    // sample() has incident.injuryTime but no response chain — eTimes is a gap.
     expect(toNemsisRecord(sample()).gaps.some((g) => g.startsWith('eTimes'))).toBe(true)
+  })
+
+  it('maps response context into eResponse and the time chain into eTimes', () => {
+    const r = sample()
+    r.response = {
+      ...r.response,
+      agency: 'Toronto Paramedic Services', unit: 'M-12', mode: 'emergent',
+      dispatch: '2026-06-28T09:50', atScene: '2026-06-28T09:58',
+      atPatient: '2026-06-28T10:00', transport: '2026-06-28T10:20',
+      atDestination: '2026-06-28T10:35',
+    }
+    const n = toNemsisRecord(r)
+    expect(value(n, 'eResponse', 'EMS Agency Number')).toBe('Toronto Paramedic Services')
+    expect(value(n, 'eResponse', 'EMS Unit / Vehicle Number')).toBe('M-12')
+    expect(value(n, 'eResponse', 'Response Mode to Scene')).toBeTruthy()
+    // Timestamps are emitted verbatim (raw datetime-local), not tz-coerced.
+    expect(value(n, 'eTimes', 'Unit Arrived on Scene Date/Time')).toBe('2026-06-28T09:58')
+    expect(value(n, 'eTimes', 'Patient Arrived at Destination Date/Time')).toBe('2026-06-28T10:35')
+    // With agency+unit and the full required chain present, both gaps clear.
+    expect(n.gaps.some((g) => g.startsWith('eTimes'))).toBe(false)
+    expect(n.gaps.some((g) => g.startsWith('eResponse'))).toBe(false)
+    // …but eCrew/eScene remain unmet (not captured in this slice).
+    expect(n.gaps.some((g) => g.startsWith('eCrew'))).toBe(true)
+  })
+
+  it('keeps the eResponse gap when only a partial responder id is given', () => {
+    const r = sample()
+    r.response = { ...r.response, agency: 'Toronto Paramedic Services' } // unit missing
+    expect(toNemsisRecord(r).gaps.some((g) => g.startsWith('eResponse'))).toBe(true)
   })
 })

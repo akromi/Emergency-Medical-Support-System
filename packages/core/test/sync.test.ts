@@ -39,6 +39,22 @@ describe('diffToOps', () => {
     expect(ops.filter((o) => o.kind === 'item-put').map((o) => o.itemId)).toEqual(['inj-1'])
   })
 
+  it('journals response (eResponse/eTimes) fields and folds them back', () => {
+    const r0 = base()
+    const r1: CasualtyRecord = {
+      ...r0,
+      response: { ...r0.response, agency: 'TPS', unit: 'M-12', atScene: '2026-06-28T09:58' },
+    }
+    const ops = diffToOps(r0, r1, ctx('A'))
+    expect(ops.filter((o) => o.kind === 'scalar').map((o) => o.path).sort())
+      .toEqual(['response.agency', 'response.atScene', 'response.unit'])
+    // The fold reconstructs the response group deterministically.
+    const folded = resolve('CAS-1', ops).record
+    expect(folded.response.agency).toBe('TPS')
+    expect(folded.response.unit).toBe('M-12')
+    expect(folded.response.atScene).toBe('2026-06-28T09:58')
+  })
+
   it('journals createdAt on first save so it survives a resolve round-trip', () => {
     const rec: CasualtyRecord = {
       ...base(),

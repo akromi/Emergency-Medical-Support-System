@@ -144,6 +144,8 @@ export function App() {
     persist({ ...record, tombstone: { ...record.tombstone, ...patch } })
   const setInc = (key: keyof CasualtyRecord['incident'], value: string) =>
     persist({ ...record, incident: { ...record.incident, [key]: value } })
+  const setResp = (key: keyof CasualtyRecord['response'], value: string) =>
+    persist({ ...record, response: { ...record.response, [key]: value } })
   // Entering a DOB auto-derives the Lund–Browder age band (clinician can still
   // override it manually afterwards); clearing the DOB leaves the band as-is.
   function setDob(value: string) {
@@ -592,6 +594,35 @@ export function App() {
           </section>
           </div>
           </div>
+
+          {/* ---- response & times: EMS unit + the dispatch→destination care chain
+                 (NEMSIS eResponse / eTimes capture). All optional; blank by default. ---- */}
+          <section className="panel" data-tour="response">
+            <div className="panel-h"><h2>{t('resp.title')}</h2><em className="panel-note">{t('resp.note')}</em></div>
+            <div className="panel-b grid2">
+              <label className="field"><span>{t('resp.agency')}</span><input value={record.response.agency} onChange={(e) => setResp('agency', e.target.value)} placeholder={t('resp.agency_ph')} /></label>
+              <label className="field"><span>{t('resp.unit')}</span><input value={record.response.unit} onChange={(e) => setResp('unit', e.target.value)} placeholder={t('resp.unit_ph')} /></label>
+              <div className="field col2"><span>{t('resp.mode')}</span>
+                <div className="ageband" role="group" aria-label={t('resp.mode')}>
+                  {(['emergent', 'non-emergent'] as const).map((m) => (
+                    <button key={m} type="button" className={record.response.mode === m ? 'on' : ''}
+                      onClick={() => setResp('mode', record.response.mode === m ? '' : m)}>
+                      {t(m === 'emergent' ? 'resp.mode.emergent' : 'resp.mode.nonemergent')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="field col2"><span className="times-sub">{t('resp.times')} <em>{t('resp.times_note')}</em></span></div>
+              {([
+                ['psap', 'resp.psap'], ['dispatch', 'resp.dispatch'], ['enRoute', 'resp.enroute'],
+                ['atScene', 'resp.atscene'], ['atPatient', 'resp.atpatient'],
+                ['transport', 'resp.transport'], ['atDestination', 'resp.atdestination'],
+              ] as const).map(([k, lbl]) => (
+                <label className="field" key={k}><span>{t(lbl)}</span>
+                  <input type="datetime-local" value={record.response[k]} onChange={(e) => setResp(k, e.target.value)} /></label>
+              ))}
+            </div>
+          </section>
 
           {/* ---- handover sign-off (who took over care, and when) ---- */}
           <HandoverPanel key={record.id} handover={record.handover} onChange={setHandover} onShare={shareHandover} />

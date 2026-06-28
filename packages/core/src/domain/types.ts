@@ -74,6 +74,29 @@ export interface Handover {
   facility: string
 }
 
+export type ResponseMode = '' | 'emergent' | 'non-emergent'
+
+/** EMS response context + the OADS/NEMSIS time chain (NEMSIS eResponse + eTimes).
+ *  All fields blank by default — purely additive: an all-blank Response leaves
+ *  existing behaviour, exports, and the op-log unchanged. Timestamps are stored
+ *  as `datetime-local` strings, the same shape as `incident.injuryTime`. */
+export interface Response {
+  /** eResponse — agency / service name or number. */
+  agency: string
+  /** eResponse — responding unit / vehicle id. */
+  unit: string
+  /** eResponse — emergent (lights & sirens) vs non-emergent response. */
+  mode: ResponseMode
+  // eTimes chain, in order:
+  psap: string // PSAP / 9-1-1 call received
+  dispatch: string // unit notified by dispatch
+  enRoute: string // unit en route
+  atScene: string // unit arrived on scene
+  atPatient: string // arrived at patient
+  transport: string // left scene / en route to destination
+  atDestination: string // arrived at destination
+}
+
 /** Who created the record — a snapshot of the operator (see db/operators.ts),
  *  captured at creation so it survives the operator later being renamed/removed.
  *  Optional: single-operator / community use leaves it undefined. */
@@ -90,9 +113,20 @@ export interface CasualtyRecord {
   vitals: VitalSign[]
   treatments: Treatment[]
   handover: Handover | null
+  /** EMS response context + time chain (eResponse/eTimes). Blank by default. */
+  response: Response
   author?: RecordAuthor
   createdAt: number
   updatedAt: number
+}
+
+/** A blank Response (all fields empty). */
+export function emptyResponse(): Response {
+  return {
+    agency: '', unit: '', mode: '',
+    psap: '', dispatch: '', enRoute: '', atScene: '',
+    atPatient: '', transport: '', atDestination: '',
+  }
 }
 
 export function createEmptyRecord(id: string): CasualtyRecord {
@@ -108,9 +142,18 @@ export function createEmptyRecord(id: string): CasualtyRecord {
     vitals: [],
     treatments: [],
     handover: null,
+    response: emptyResponse(),
     createdAt: now,
     updatedAt: now,
   }
+}
+
+/** Fill in record groups added after a record was first stored (e.g. `response`),
+ *  so records persisted by an older build load without crashing. Purely additive
+ *  and idempotent — a record that already has the group is returned unchanged. */
+export function normalizeRecord(rec: CasualtyRecord): CasualtyRecord {
+  if (rec.response) return rec
+  return { ...rec, response: emptyResponse() }
 }
 
 export const TRIAGE_LABELS: Record<TriageCategory, string> = {
