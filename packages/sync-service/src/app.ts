@@ -1,7 +1,7 @@
 // Fastify sync endpoint. The merge/resolution authority is @triage-link/core's
 // deterministic resolver — the server stores ops and folds them; it does not
 // implement its own (divergent) merge logic.
-import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify'
+import Fastify, { type FastifyInstance, type FastifyRequest, type FastifyError } from 'fastify'
 import helmet from '@fastify/helmet'
 import cors from '@fastify/cors'
 import rateLimit from '@fastify/rate-limit'
@@ -26,6 +26,11 @@ declare module 'fastify' {
     /** The authenticated admin's OIDC subject, or null for the static admin
      *  token (and on non-admin routes). Recorded as the admin-audit actor. */
     adminSubject: string | null
+  }
+  interface FastifyReply {
+    /** On a 5xx, the real (internal) error message — kept server-side for the
+     *  access log only, never sent to the client. Null otherwise. */
+    serverError: string | null
   }
 }
 
@@ -102,6 +107,14 @@ const SYNC_BODY_SCHEMA = {
   },
 }
 
+// Reason phrases for the sanitized error envelope (see setErrorHandler).
+const STATUS_TEXT: Record<number, string> = {
+  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found',
+  405: 'Method Not Allowed', 409: 'Conflict', 413: 'Payload Too Large',
+  415: 'Unsupported Media Type', 422: 'Unprocessable Entity', 429: 'Too Many Requests',
+  500: 'Internal Server Error', 503: 'Service Unavailable',
+}
+
 export function buildApp(
   { store, ehr, ehrAudit, tenantStore, adminAuditStore, oidcVerifier, metrics, onAccessLog, docs = true, security = {} }: {
     store: OpStore
@@ -173,6 +186,8 @@ export function buildApp(
   // read req.tenantId (dev/tests with no auth run under the single default tenant).
   app.decorateRequest('tenantId', DEFAULT_TENANT)
   app.decorateRequest('adminSubject', null)
+  // Stashes a 5xx's internal message for the access log (never sent to clients).
+  app.decorateReply('serverError', null)
 
   // Bearer-token gate on the data + EHR routes (/health stays open for probes).
   // Active only when at least one token is configured, so dev/tests stay open; a
@@ -281,9 +296,52 @@ export function buildApp(
         tenant: req.tenantId,
         status: reply.statusCode,
         ms: Math.round(reply.elapsedTime),
+        // Present only for 5xx — the internal cause, kept server-side so an
+        // operator can diagnose by request id without it ever reaching a client.
+        ...(reply.serverError ? { error: reply.serverError } : {}),
       })
     })
   }
+
+  // ---- consistent, sanitized error responses ----
+  // 5xx never leak internal detail to the client (the real cause is kept
+  // server-side in the access log, correlatable by request id); 4xx keep their
+  // client-facing message (validation / bad input). Every error body carries
+  // statusCode + requestId. Manual `reply.code(4xx).send(...)` paths (e.g. the
+  // auth gate) bypass this and keep their own bodies — only THROWN errors and
+  // unmatched routes flow through here.
+  const reasonFor = (code: number): string =>
+    STATUS_TEXT[code] ?? (code >= 500 ? 'Internal Server Error' : 'Error')
+
+  app.setErrorHandler((err: FastifyError, req, reply) => {
+    const status = typeof err.statusCode === 'number' && err.statusCode >= 400 ? err.statusCode : 500
+    if (status >= 500) {
+      // Keep the real cause server-side only (the access-log hook reads this).
+      reply.serverError = err.message || String(err)
+      return reply.code(status).send({
+        error: reasonFor(status),
+        message: 'An unexpected error occurred.',
+        statusCode: status,
+        requestId: String(req.id),
+      })
+    }
+    // 4xx: the message is client-facing and safe (schema validation, etc.).
+    return reply.code(status).send({
+      error: reasonFor(status),
+      message: err.message,
+      statusCode: status,
+      requestId: String(req.id),
+    })
+  })
+
+  app.setNotFoundHandler((req, reply) => {
+    reply.code(404).send({
+      error: 'Not Found',
+      message: `Route ${req.method} ${req.url.split('?')[0]} not found`,
+      statusCode: 404,
+      requestId: String(req.id),
+    })
+  })
 
   // OpenAPI doc + interactive Swagger UI. Registered before routes so the
   // onRoute hook captures every endpoint and its schema. Run the service with
