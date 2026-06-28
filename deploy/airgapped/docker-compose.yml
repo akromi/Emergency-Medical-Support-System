@@ -1,0 +1,46 @@
+name: triage-link-airgapped
+
+# Fully offline TRIAGE-LINK stack for a field laptop: the PWA + sync API in one
+# container (app), backed by a local Postgres with a persistent volume (db).
+# No cloud, no internet at runtime. See README.md for the build/transfer flow.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-triagelink}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-triagelink}
+      POSTGRES_DB: ${POSTGRES_DB:-triagelink}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-triagelink} -d ${POSTGRES_DB:-triagelink}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  app:
+    build:
+      context: ../..
+      dockerfile: deploy/airgapped/Dockerfile
+    image: triage-link-airgapped:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # The app and API share an origin, so the PWA talks to /sync same-origin
+      # (no CORS needed). Set the tokens below to lock the API down on a shared LAN.
+      DATABASE_URL: postgres://${POSTGRES_USER:-triagelink}:${POSTGRES_PASSWORD:-triagelink}@db:5432/${POSTGRES_DB:-triagelink}
+      PORT: "8080"
+      STATIC_DIR: /app/dist
+      SYNC_API_TOKEN: ${SYNC_API_TOKEN:-}
+      SYNC_ADMIN_TOKEN: ${SYNC_ADMIN_TOKEN:-}
+      ENABLE_ADMIN_CONSOLE: ${ENABLE_ADMIN_CONSOLE:-false}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    restart: unless-stopped
+
+volumes:
+  pgdata:

@@ -169,6 +169,8 @@ async function main(): Promise<void> {
     security,
     // Swagger UI is dev/QA furniture — off unless explicitly enabled.
     docs: process.env.ENABLE_DOCS === 'true',
+    // Air-gapped single-process deploy: serve the built PWA from this origin too.
+    staticDir: process.env.STATIC_DIR,
   })
   const port = Number(process.env.PORT ?? 8080)
   await app.listen({ port, host: '0.0.0.0' })
