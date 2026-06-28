@@ -7,6 +7,37 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { EhrError, type EhrGateway, type PatientIdentity, type CasualtyRecord } from '@triage-link/core'
 import type { EhrAuditStore } from './ehr-audit-store.js'
 import { runWithTenant } from './tenant-context.js'
+import { ERROR_RESPONSE_SCHEMA, OPAQUE_OBJECT_SCHEMA, OPAQUE_ARRAY_SCHEMA } from './schemas.js'
+
+// Build a `response` map: a 200 success schema plus the error envelope for each
+// listed status code (all permissive, so no field is stripped on serialization).
+const withErrors = (success: object, ...codes: number[]): Record<string, object> => ({
+  200: success,
+  ...Object.fromEntries(codes.map((c) => [String(c), ERROR_RESPONSE_SCHEMA])),
+})
+
+const EHR_HEALTH_RESPONSE = {
+  type: 'object',
+  properties: { provider: { type: 'string' }, ok: { type: 'boolean' } },
+  additionalProperties: true,
+}
+const EHR_MATCH_RESPONSE = {
+  type: 'object',
+  description: 'Provider name plus the registry match result.',
+  properties: { provider: { type: 'string' }, resolved: { type: 'boolean' } },
+  additionalProperties: true,
+}
+const EHR_HANDOVER_RESPONSE = {
+  type: 'object',
+  description: 'Provider name plus the contribution outcome.',
+  properties: { provider: { type: 'string' }, accepted: { type: 'boolean' } },
+  additionalProperties: true,
+}
+const EHR_AUDIT_RESPONSE = {
+  type: 'object',
+  properties: { entries: OPAQUE_ARRAY_SCHEMA },
+  additionalProperties: true,
+}
 
 function statusForCode(code: EhrError['code']): number {
   switch (code) {
@@ -46,7 +77,7 @@ export function registerEhrRoutes(app: FastifyInstance, ehr: EhrGateway): void {
   // Liveness/auth probe for the configured provider.
   app.get(
     '/ehr/health',
-    { schema: { tags: ['ehr'], summary: 'Gateway liveness + provider name' } },
+    { schema: { tags: ['ehr'], summary: 'Gateway liveness + provider name', response: withErrors(EHR_HEALTH_RESPONSE, 401) } },
     async () => ({ provider: ehr.provider, ok: await ehr.ping() }),
   )
 
@@ -60,6 +91,7 @@ export function registerEhrRoutes(app: FastifyInstance, ehr: EhrGateway): void {
       summary: 'Resolve a patient (PCR $match)',
       description: 'Match a patient against the provincial client registry. Try { "healthCardNumber": "1234567890" } against the mock.',
       body: patientIdentitySchema,
+      response: withErrors(EHR_MATCH_RESPONSE, 400, 401, 403, 404, 429, 502, 503),
     },
   }, async (req, reply) => {
     const body = req.body
@@ -85,6 +117,7 @@ export function registerEhrRoutes(app: FastifyInstance, ehr: EhrGateway): void {
       summary: 'Contribute a casualty handover (Send to EHR)',
       description: 'POST a CasualtyRecord (must have an "id"). Against the mock this returns { accepted, id: "mock-tx-<id>" }.',
       body: { type: 'object', required: ['id'], properties: { id: { type: 'string' } }, additionalProperties: true, examples: [{ id: 'CAS-9', tombstone: { name: 'Doe, Jane' } }] },
+      response: withErrors(EHR_HANDOVER_RESPONSE, 400, 401, 403, 404, 429, 501, 502, 503),
     },
   }, async (req, reply) => {
     if (!ehr.contributeHandover) {
@@ -110,6 +143,7 @@ export function registerEhrRoutes(app: FastifyInstance, ehr: EhrGateway): void {
       summary: 'Pull clinical context for a resolved patient',
       description: 'Returns a FHIR Bundle (meds/allergies/labs). Try id "pcr-1001" against the mock.',
       params: { type: 'object', properties: { id: { type: 'string' } } },
+      response: withErrors(OPAQUE_OBJECT_SCHEMA, 401, 403, 404, 429, 501, 502, 503),
     },
   }, async (req, reply) => {
     if (!ehr.fetchContext) {
@@ -132,6 +166,7 @@ export function registerEhrAuditRoute(app: FastifyInstance, audit: EhrAuditStore
       tags: ['ehr'],
       summary: 'Read the EHR access audit trail',
       querystring: { type: 'object', properties: { patient: { type: 'string' }, limit: { type: 'string' } } },
+      response: withErrors(EHR_AUDIT_RESPONSE, 401),
     },
   }, async (req) => {
     const { patient, limit } = (req.query ?? {}) as { patient?: string; limit?: string }
