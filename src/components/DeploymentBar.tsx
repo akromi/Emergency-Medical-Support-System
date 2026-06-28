@@ -4,11 +4,13 @@ import {
   getDeployment, setDeployment, subscribeDeployment, hasDeployment,
   DEPLOYMENT_KINDS, type DeploymentKind,
 } from '../db/deployment'
+import { setVaultPolicy } from '../db/vault'
 
 // A slim, always-visible banner naming the operation this device is documenting.
 // Collapsed it shows the operation summary (or a prompt to set it); expanded it
-// reveals three quick fields. Device-wide, offline, persisted to localStorage.
-export function DeploymentBar() {
+// reveals the fields + the disaster/MCI profile toggle. Device-wide, offline,
+// persisted to localStorage.
+export function DeploymentBar({ onCommand }: { onCommand?: () => void }) {
   const { t } = useLang()
   const dep = useSyncExternalStore(subscribeDeployment, getDeployment)
   const [open, setOpen] = useState(false)
@@ -16,9 +18,18 @@ export function DeploymentBar() {
   const kindLabel = (k: DeploymentKind) => (k ? t(`deploy.kind.${k}`) : '')
   const summary = [dep.operation, kindLabel(dep.kind), dep.org].filter(Boolean).join(' · ')
 
+  // MCI profile: a shared-device mode that makes encryption mandatory (via the
+  // vault required-policy) and surfaces the command roll-up. Enabling it forces
+  // the encryption-setup flow, so confirm first; disabling lifts the policy.
+  function toggleMci(on: boolean) {
+    if (on && !window.confirm(t('mci.confirm'))) return
+    setDeployment({ mci: on })
+    void setVaultPolicy(on)
+  }
+
   return (
-    <div className="deploybar" data-tour="deployment">
-      <span className="deploy-ico" aria-hidden>🎒</span>
+    <div className={`deploybar${dep.mci ? ' mci' : ''}`} data-tour="deployment">
+      <span className="deploy-ico" aria-hidden>{dep.mci ? '⛑️' : '🎒'}</span>
       {open ? (
         <div className="deploy-fields">
           <input
@@ -36,15 +47,27 @@ export function DeploymentBar() {
             className="deploy-org" value={dep.org} placeholder={t('deploy.org_ph')}
             aria-label={t('deploy.org')} onChange={(e) => setDeployment({ org: e.target.value })}
           />
+          <label className="deploy-mci" title={t('mci.help')}>
+            <input type="checkbox" checked={dep.mci} onChange={(e) => toggleMci(e.target.checked)} />
+            <span>{t('mci.toggle')}</span>
+          </label>
           <button type="button" className="deploy-done" onClick={() => setOpen(false)}>{t('deploy.done')}</button>
         </div>
       ) : (
-        <button type="button" className="deploy-show" onClick={() => setOpen(true)}>
-          <span className="deploy-label">{t('deploy.label')}</span>
-          {hasDeployment(dep)
-            ? <span className="deploy-summary">{summary}</span>
-            : <span className="deploy-set">{t('deploy.set')}</span>}
-        </button>
+        <>
+          <button type="button" className="deploy-show" onClick={() => setOpen(true)}>
+            <span className="deploy-label">{t('deploy.label')}</span>
+            {dep.mci && <span className="mci-badge" title={t('mci.help')}>{t('mci.badge')}</span>}
+            {hasDeployment(dep)
+              ? <span className="deploy-summary">{summary}</span>
+              : <span className="deploy-set">{t('deploy.set')}</span>}
+          </button>
+          {dep.mci && onCommand && (
+            <button type="button" className="deploy-command" onClick={onCommand} title={t('mci.command')}>
+              {t('mci.command')}
+            </button>
+          )}
+        </>
       )}
     </div>
   )
