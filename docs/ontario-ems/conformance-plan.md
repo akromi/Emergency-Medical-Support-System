@@ -41,10 +41,16 @@ Surfaced at runtime via `NemsisRecord.gaps`, and the build backlog:
 
 ## Sequenced build
 
-1. **PR-1 (this):** NEMSIS section exporter + gap surfacing + tests *(done)*.
-2. **PR-2:** XSD/value-set reconciliation — pull the official NEMSIS v3.5.0 +
-   OADS v4.0 dictionaries, lock element ids + code lists, add an XML serializer
-   and schema-validation test against the XSD.
+1. **PR-1:** NEMSIS section exporter + gap surfacing + tests *(done)*.
+2. **PR-2a:** Offline XML serializer — `toNemsisXml(record)` (`src/nemsis/xml.ts`)
+   renders the mapped sections as deterministic, NEMSIS v3.5-shaped XML, using
+   each element's id as its tag (human label kept as a `name` attribute) and
+   emitting the conformance gaps as a clearly-marked, non-schema annotation
+   block. Offline-buildable, no external dictionaries needed *(done)*.
+3. **PR-2b:** XSD/value-set reconciliation — pull the official NEMSIS v3.5.0 +
+   OADS v4.0 dictionaries, lock element ids + code lists, and add a
+   schema-validation test asserting the serializer output passes the XSD. This
+   is the certification gate and needs the official spec files.
 3. **PR-3:** Capture the gap fields (eResponse/eCrew/eTimes/eScene) — new
    data-entry surfaces in the PWA (tutorial + i18n updates as usual).
 4. **PR-4:** Productionize the ONE ID / Ontario Health PCR `$match` + DHDR
@@ -55,5 +61,6 @@ Surfaced at runtime via `NemsisRecord.gaps`, and the build backlog:
 ## Validation gate
 
 No OADS/NEMSIS export is "conformant" until it passes the official XSD and the
-OADS v4.0 business-rule validation. PR-2 makes that a CI test; nothing ships to a
-provincial submission before then.
+OADS v4.0 business-rule validation. The PR-2a serializer is shaped XML only;
+PR-2b makes XSD validation a CI test. Nothing ships to a provincial submission
+before then.
