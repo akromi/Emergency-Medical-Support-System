@@ -5,7 +5,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify'
 import helmet from '@fastify/helmet'
 import cors from '@fastify/cors'
 import rateLimit from '@fastify/rate-limit'
-import { timingSafeEqual } from 'node:crypto'
+import { timingSafeEqual, randomUUID } from 'node:crypto'
 import swagger from '@fastify/swagger'
 import swaggerUi from '@fastify/swagger-ui'
 import { resolve, type Op, type EhrGateway } from '@triage-link/core'
@@ -133,6 +133,18 @@ export function buildApp(
     logger: false,
     bodyLimit: security.bodyLimit ?? 10 * 1024 * 1024,
     trustProxy: security.trustProxy ?? false,
+    // Request-id correlation: honour an inbound x-request-id (so a trace spans the
+    // PWA → this service → the EHR gateway), else mint a fresh UUID.
+    genReqId: (req) => {
+      const h = req.headers['x-request-id']
+      return typeof h === 'string' && h.length > 0 && h.length <= 200 ? h : randomUUID()
+    },
+  })
+
+  // Echo the request id on every response (set first, so even a 401/429/parse
+  // error carries it) and expose it for the access log.
+  app.addHook('onRequest', async (req, reply) => {
+    reply.header('x-request-id', req.id)
   })
 
   // ---- security middleware (registered first, so it wraps every route) ----
@@ -263,6 +275,7 @@ export function buildApp(
       const dataPlane = path === '/sync' || path.startsWith('/sync/') || path.startsWith('/ehr')
       if (metrics && dataPlane) metrics.recordResponse(req.tenantId, reply.statusCode)
       onAccessLog?.({
+        requestId: String(req.id),
         method: req.method,
         path,
         tenant: req.tenantId,
