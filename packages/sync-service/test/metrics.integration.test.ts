@@ -86,6 +86,17 @@ describe('per-tenant observability', () => {
     expect((await h.app.inject({ method: 'GET', url: '/admin/metrics' })).statusCode).toBe(401)
   })
 
+  it('does not count admin or scrape traffic as tenant responses', async () => {
+    await h.sync(TOKENS.a, nameOps('CAS-1', 'a', 'Alice')) // one real data-plane 2xx for org-a
+    for (let i = 0; i < 3; i++) {
+      await h.metricsApi()
+      await h.app.inject({ method: 'GET', url: '/admin/metrics/prometheus', headers: { authorization: `Bearer ${ADMIN}` } })
+    }
+    const snap = (await h.metricsApi()).json().tenants
+    expect(snap['org-a'].responses['2xx']).toBe(1) // not inflated by the admin/scrape calls
+    expect(snap['default']).toBeUndefined() // no bogus series invented by monitoring
+  })
+
   it('exposes the counters in Prometheus exposition format', async () => {
     await h.sync(TOKENS.a, nameOps('CAS-1', 'a', 'Alice'))
     await h.sync(TOKENS.b, [])
