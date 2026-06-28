@@ -15,7 +15,7 @@ import { getActiveOperator } from './operators'
 // and remain reviewable even when the vault is locked.
 
 export type AuditAction =
-  | 'record.create' | 'record.view' | 'record.delete' | 'record.export'
+  | 'record.create' | 'record.view' | 'record.delete' | 'record.export' | 'record.purge'
   | 'backup.create' | 'backup.restore'
   | 'vault.enable' | 'vault.disable' | 'vault.unlock' | 'vault.lock'
   | 'auth.stepup'

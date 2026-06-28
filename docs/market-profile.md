@@ -58,6 +58,11 @@ This market is served by the **offline-first core**, not the hosted backend:
   self-describing; and a **date-range filter** scopes the CSV to just the
   casualties logged in a window (last 24 h / 7 / 30 days, or custom). Full
   backups stay whole (safety net).
+- Donor-friendly **retention presets** *(done)* — a device-wide data-retention
+  window (off / 30 / 90 / 180 / 365 days) in the saved-casualties header. Records
+  first documented longer ago than the window are flagged with a count, and an
+  operator **purges them in one confirmed, step-up-gated step** — never a silent
+  background delete. Off by default (`src/db/retention.ts`).
 - Packaging for **fully air-gapped** install *(done)* — a Docker Compose bundle
   (`deploy/airgapped/`) runs the whole stack offline on a field laptop: **one
   container serves the PWA and the sync API from the same origin**, backed by a

@@ -648,6 +648,12 @@ input::placeholder { color:var(--txt-faint); }
   background:var(--panel-2); border:1px solid var(--line); color:var(--txt);
   border-radius:7px; padding:4px 7px; font:inherit; font-size:12px; }
 .export-range input[type=date] { max-width:140px; }
+/* Data-retention control (purge window) in the Saved-casualties header. */
+.retention { display:inline-flex; align-items:center; gap:6px; margin-inline-start:8px; }
+.retention select { background:var(--panel-2); border:1px solid var(--line); color:var(--txt);
+  border-radius:7px; padding:4px 7px; font:inherit; font-size:12px; }
+.minibtn.danger { border-color:#7a2b2e; color:#ffb4b6; }
+.minibtn.danger:hover { background:rgba(229,72,77,.14); color:#ffb4b6; }
 
 /* ---- MCI / disaster deployment profile ---- */
 .deploybar.mci { background:color-mix(in srgb, var(--amber) 14%, var(--panel)); border-bottom-color:var(--amber); }
