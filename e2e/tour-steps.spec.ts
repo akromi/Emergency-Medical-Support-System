@@ -9,9 +9,9 @@ test('guided tour walks the extended step list with instructions', async ({ page
   const card = page.locator('.tour-card')
   await expect(card).toBeVisible()
 
-  // 11 steps: welcome, patient, palette, charts, editor, triage, vitals,
-  // handover, summary, board, done.
-  await expect(card.locator('.tour-step')).toHaveText('1 / 11')
+  // 15 steps: welcome, patient, palette, charts, editor, triage, vitals,
+  // handover, summary, board, operators, vault, backup, langpack, done.
+  await expect(card.locator('.tour-step')).toHaveText('1 / 15')
   await expect(card.locator('.tour-title')).toHaveText('Welcome')
 
   // Next reaches the new "patient" step, which tells the user what to enter.
