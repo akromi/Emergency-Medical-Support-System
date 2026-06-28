@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   type CasualtyRecord, type InjuryTypeKey, type TriageCategory,
   type VitalSign, type Treatment, type TreatmentPlace, type Handover,
+  type SceneLocationType,
   createEmptyRecord, TRIAGE_COLORS,
   AGE_BAND_ORDER, AGE_BAND_LABELS, estimateBurnTBSA,
   ageFromDob, ageBandFromDob,
@@ -31,7 +32,7 @@ import { audit } from './db/audit'
 import { requireStepUp } from './db/stepup'
 import { AuditLog } from './components/AuditLog'
 import { OperatorPanel, useOperators } from './components/OperatorPanel'
-import { initOperators, canViewAdmin } from './db/operators'
+import { initOperators, canViewAdmin, getActiveOperator } from './db/operators'
 import { useLang, regionLabel, nextLang, registerLanguage, saveLanguagePack, templatePack } from './i18n'
 
 const TRIAGE_ORDER: TriageCategory[] = ['immediate', 'delayed', 'minor', 'deceased']
@@ -146,6 +147,21 @@ export function App() {
     persist({ ...record, incident: { ...record.incident, [key]: value } })
   const setResp = (key: keyof CasualtyRecord['response'], value: string) =>
     persist({ ...record, response: { ...record.response, [key]: value } })
+  // eScene — gps/locationType are strings; massCasualty is a boolean toggle.
+  const setScene = (key: keyof CasualtyRecord['scene'], value: string | boolean) =>
+    persist({ ...record, scene: { ...record.scene, [key]: value } })
+  // eCrew — per-record care crew; rows are added blank or seeded from the roster.
+  const addCrew = (over: Partial<CasualtyRecord['crew'][number]> = {}) =>
+    persist({ ...record, crew: [...record.crew, { id: genLocalId('crew-'), name: '', role: '', cert: '', ...over }] })
+  const updateCrew = (id: string, patch: Partial<CasualtyRecord['crew'][number]>) =>
+    persist({ ...record, crew: record.crew.map((c) => (c.id === id ? { ...c, ...patch } : c)) })
+  const removeCrew = (id: string) =>
+    persist({ ...record, crew: record.crew.filter((c) => c.id !== id) })
+  // Quick-add the on-duty operator as a crew member (name prefilled).
+  function addOnDutyCrew() {
+    const op = getActiveOperator()
+    addCrew({ name: op?.name ?? '' })
+  }
   // Entering a DOB auto-derives the Lund–Browder age band (clinician can still
   // override it manually afterwards); clearing the DOB leaves the band as-is.
   function setDob(value: string) {
@@ -621,6 +637,46 @@ export function App() {
                 <label className="field" key={k}><span>{t(lbl)}</span>
                   <input type="datetime-local" value={record.response[k]} onChange={(e) => setResp(k, e.target.value)} /></label>
               ))}
+            </div>
+          </section>
+
+          {/* ---- crew & scene (NEMSIS eCrew / eScene capture). All optional. ---- */}
+          <section className="panel" data-tour="crewscene">
+            <div className="panel-h"><h2>{t('crew.title')}</h2><em className="panel-note">{t('crew.note')}</em></div>
+            <div className="panel-b">
+              {/* eCrew — care crew roster */}
+              <div className="crewlist">
+                {record.crew.length === 0 && <div className="empty">{t('crew.empty')}</div>}
+                {record.crew.map((c) => (
+                  <div className="crewrow" key={c.id}>
+                    <input className="cn" value={c.name} onChange={(e) => updateCrew(c.id, { name: e.target.value })} placeholder={t('crew.name_ph')} />
+                    <input className="cr" value={c.role} onChange={(e) => updateCrew(c.id, { role: e.target.value })} placeholder={t('crew.role_ph')} />
+                    <input className="cc" value={c.cert} onChange={(e) => updateCrew(c.id, { cert: e.target.value })} placeholder={t('crew.cert_ph')} />
+                    <button className="x" aria-label={t('crew.remove')} onClick={() => removeCrew(c.id)}>×</button>
+                  </div>
+                ))}
+              </div>
+              <div className="crewadd">
+                <button type="button" className="btn" onClick={() => addCrew()}>{t('crew.add')}</button>
+                <button type="button" className="btn ghost" onClick={addOnDutyCrew}>{t('crew.add_onduty')}</button>
+              </div>
+
+              {/* eScene — where the incident happened */}
+              <div className="grid2 scene">
+                <label className="field"><span>{t('scene.gps')}</span><input value={record.scene.gps} onChange={(e) => setScene('gps', e.target.value)} placeholder={t('scene.gps_ph')} /></label>
+                <label className="field"><span>{t('scene.loctype')}</span>
+                  <select value={record.scene.locationType} onChange={(e) => setScene('locationType', e.target.value as SceneLocationType)}>
+                    <option value="">{t('scene.loc.none')}</option>
+                    {(['home', 'street', 'public', 'workplace', 'healthcare', 'recreation', 'other'] as const).map((k) => (
+                      <option key={k} value={k}>{t(`scene.loc.${k}`)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field check col2">
+                  <input type="checkbox" checked={record.scene.massCasualty} onChange={(e) => setScene('massCasualty', e.target.checked)} />
+                  <span>{t('scene.mci')} <em>{t('scene.mci_note')}</em></span>
+                </label>
+              </div>
             </div>
           </section>
 

@@ -55,6 +55,23 @@ describe('diffToOps', () => {
     expect(folded.response.atScene).toBe('2026-06-28T09:58')
   })
 
+  it('journals scene (eScene) scalars and crew (eCrew) items, and folds them back', () => {
+    const r0 = base()
+    const r1: CasualtyRecord = {
+      ...r0,
+      scene: { gps: '43.6, -79.3', locationType: 'street', massCasualty: true },
+      crew: [{ id: 'crew-1', name: 'A. Medic', role: 'lead', cert: 'PCP' }],
+    }
+    const ops = diffToOps(r0, r1, ctx('A'))
+    expect(ops.filter((o) => o.kind === 'scalar').map((o) => o.path).sort())
+      .toEqual(['scene.gps', 'scene.locationType', 'scene.massCasualty'])
+    expect(ops.filter((o) => o.kind === 'item-put').map((o) => o.itemId)).toEqual(['crew-1'])
+    const folded = resolve('CAS-1', ops).record
+    expect(folded.scene.locationType).toBe('street')
+    expect(folded.scene.massCasualty).toBe(true)
+    expect(folded.crew).toEqual([{ id: 'crew-1', name: 'A. Medic', role: 'lead', cert: 'PCP' }])
+  })
+
   it('journals createdAt on first save so it survives a resolve round-trip', () => {
     const rec: CasualtyRecord = {
       ...base(),

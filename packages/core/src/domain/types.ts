@@ -97,6 +97,28 @@ export interface Response {
   atDestination: string // arrived at destination
 }
 
+/** NEMSIS eCrew member — who provided care. Seeded from the operator roster but
+ *  stored per-record so it survives the roster changing. Free-text role/cert
+ *  pending the NEMSIS crew-role / certification-level value sets. */
+export interface CrewMember {
+  id: string
+  name: string
+  role: string // e.g. lead, attendant, driver
+  cert: string // certification level, e.g. PCP / ACP
+}
+
+/** NEMSIS eScene location-type value set (codes TBD against the OADS/NEMSIS
+ *  dictionary; the keys here are our stable internal identifiers). */
+export type SceneLocationType =
+  | '' | 'home' | 'street' | 'public' | 'workplace' | 'healthcare' | 'recreation' | 'other'
+
+/** NEMSIS eScene — where the incident happened. Blank by default (additive). */
+export interface Scene {
+  gps: string // "lat, long" or a grid reference
+  locationType: SceneLocationType
+  massCasualty: boolean // mass-casualty incident flag
+}
+
 /** Who created the record — a snapshot of the operator (see db/operators.ts),
  *  captured at creation so it survives the operator later being renamed/removed.
  *  Optional: single-operator / community use leaves it undefined. */
@@ -115,6 +137,10 @@ export interface CasualtyRecord {
   handover: Handover | null
   /** EMS response context + time chain (eResponse/eTimes). Blank by default. */
   response: Response
+  /** Care crew (eCrew). Empty by default. */
+  crew: CrewMember[]
+  /** Scene location (eScene). Blank by default. */
+  scene: Scene
   author?: RecordAuthor
   createdAt: number
   updatedAt: number
@@ -127,6 +153,11 @@ export function emptyResponse(): Response {
     psap: '', dispatch: '', enRoute: '', atScene: '',
     atPatient: '', transport: '', atDestination: '',
   }
+}
+
+/** A blank Scene. */
+export function emptyScene(): Scene {
+  return { gps: '', locationType: '', massCasualty: false }
 }
 
 export function createEmptyRecord(id: string): CasualtyRecord {
@@ -143,17 +174,24 @@ export function createEmptyRecord(id: string): CasualtyRecord {
     treatments: [],
     handover: null,
     response: emptyResponse(),
+    crew: [],
+    scene: emptyScene(),
     createdAt: now,
     updatedAt: now,
   }
 }
 
-/** Fill in record groups added after a record was first stored (e.g. `response`),
- *  so records persisted by an older build load without crashing. Purely additive
- *  and idempotent — a record that already has the group is returned unchanged. */
+/** Fill in record groups added after a record was first stored (e.g. `response`,
+ *  `crew`, `scene`), so records persisted by an older build load without
+ *  crashing. Purely additive and idempotent — groups already present are kept. */
 export function normalizeRecord(rec: CasualtyRecord): CasualtyRecord {
-  if (rec.response) return rec
-  return { ...rec, response: emptyResponse() }
+  if (rec.response && rec.crew && rec.scene) return rec
+  return {
+    ...rec,
+    response: rec.response ?? emptyResponse(),
+    crew: rec.crew ?? [],
+    scene: rec.scene ?? emptyScene(),
+  }
 }
 
 export const TRIAGE_LABELS: Record<TriageCategory, string> = {

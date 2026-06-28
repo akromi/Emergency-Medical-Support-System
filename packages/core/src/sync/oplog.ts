@@ -24,7 +24,8 @@ const RESPONSE_FIELDS = [
   'agency', 'unit', 'mode',
   'psap', 'dispatch', 'enRoute', 'atScene', 'atPatient', 'transport', 'atDestination',
 ] as const
-const COLLECTIONS: CollectionName[] = ['injuries', 'vitals', 'treatments']
+const SCENE_FIELDS = ['gps', 'locationType', 'massCasualty'] as const
+const COLLECTIONS: CollectionName[] = ['injuries', 'vitals', 'treatments', 'crew']
 
 /** Total order over ops. Lamport is authoritative; clientId and id break ties. */
 export function compareOps(a: Op, b: Op): number {
@@ -51,7 +52,7 @@ function setScalar(rec: CasualtyRecord, path: string, value: unknown): void {
     return
   }
   const [group, field] = path.split('.')
-  // group is 'tombstone' | 'incident' | 'response'; all are flat string/enum maps.
+  // group is 'tombstone' | 'incident' | 'response' | 'scene'; all flat maps.
   const groups = rec as unknown as Record<string, Record<string, unknown>>
   // A group may be absent on a record persisted before it existed (e.g.
   // `response`); create it on demand so folding ops never crashes.
@@ -183,6 +184,7 @@ export function diffToOps(
     ...TOMBSTONE_FIELDS.map((f) => `tombstone.${f}`),
     ...INCIDENT_FIELDS.map((f) => `incident.${f}`),
     ...RESPONSE_FIELDS.map((f) => `response.${f}`),
+    ...SCENE_FIELDS.map((f) => `scene.${f}`),
     'handover',
   ]
   for (const path of scalarPaths) {

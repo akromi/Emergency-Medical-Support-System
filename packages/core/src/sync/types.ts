@@ -6,7 +6,7 @@
 export type OpKind = 'scalar' | 'item-put' | 'item-remove'
 
 /** Collections on CasualtyRecord that are merged item-by-item. */
-export type CollectionName = 'injuries' | 'vitals' | 'treatments'
+export type CollectionName = 'injuries' | 'vitals' | 'treatments' | 'crew'
 
 export interface Op {
   /** Globally-unique id — also the idempotency key for ingest. */
