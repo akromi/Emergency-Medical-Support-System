@@ -76,6 +76,12 @@ export interface SecurityOptions {
   /** Records per page for the full-state (no-cursor) /sync pull. Default 500,
    *  clamped to SYNC_PAGE_MAX. Bounds the heaviest sync response. */
   syncPageLimit?: number
+  /** Per-tenant storage caps (noisy-neighbor guard). Either limit is optional;
+   *  unset → unlimited (default). A tenant already at/over a limit has further
+   *  WRITES (ingest) refused with 403 — reads/pulls are always allowed, so a
+   *  full tenant can still sync down. Enforcement is at write time, so a tenant
+   *  may overshoot by at most one already-capped batch. */
+  tenantQuota?: { maxOps?: number; maxRecords?: number }
 }
 
 /** Constant-time bearer-token check (avoids leaking the token via timing). */
@@ -288,6 +294,8 @@ export function buildApp(
   // attempts fall back to per-IP and never share a tenant's bucket.
   // Default page size for full-state /sync pulls, clamped to the hard max.
   const fullStatePageLimit = Math.min(security.syncPageLimit ?? SYNC_PAGE_DEFAULT, SYNC_PAGE_MAX)
+  // Per-tenant storage quota (undefined → unlimited; only the configured limits apply).
+  const tenantQuota = security.tenantQuota
 
   const syncRateLimit = {
     max: security.syncRateLimitMax ?? 1000,
@@ -418,6 +426,28 @@ export function buildApp(
     const body = (req.body ?? {}) as SyncBody
     const ops = Array.isArray(body.ops) ? body.ops : []
     const tenantId = req.tenantId // scopes every store call below to this tenant
+
+    // Per-tenant storage quota (noisy-neighbor guard). Only WRITES are gated —
+    // a pull (ops empty) is always allowed so a full tenant can still sync down.
+    // Sent directly (not thrown) so the actionable reason reaches the client
+    // instead of the sanitized 5xx envelope. Enforced at write time, so a tenant
+    // can overshoot by at most one (already-capped) batch before being blocked.
+    if (tenantQuota && ops.length > 0) {
+      const [opCount, recordCount] = await Promise.all([store.countOps(tenantId), store.countRecords(tenantId)])
+      const overOps = tenantQuota.maxOps != null && opCount >= tenantQuota.maxOps
+      const overRecords = tenantQuota.maxRecords != null && recordCount >= tenantQuota.maxRecords
+      if (overOps || overRecords) {
+        metrics?.incQuotaRejection(tenantId)
+        return reply.code(403).send({
+          error: 'Forbidden',
+          message: 'Tenant storage quota exceeded; no further records can be stored.',
+          statusCode: 403,
+          requestId: String(req.id),
+          quota: { maxOps: tenantQuota.maxOps ?? null, maxRecords: tenantQuota.maxRecords ?? null },
+          usage: { ops: opCount, records: recordCount },
+        })
+      }
+    }
 
     // Idempotent ingest: only ids not already present are inserted.
     const inserted = new Set(await store.insertOps(ops, tenantId))
