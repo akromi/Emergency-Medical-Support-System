@@ -1,7 +1,7 @@
 // Fastify sync endpoint. The merge/resolution authority is @triage-link/core's
 // deterministic resolver — the server stores ops and folds them; it does not
 // implement its own (divergent) merge logic.
-import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify'
+import Fastify, { type FastifyInstance, type FastifyRequest, type FastifyError } from 'fastify'
 import helmet from '@fastify/helmet'
 import cors from '@fastify/cors'
 import rateLimit from '@fastify/rate-limit'
@@ -313,7 +313,7 @@ export function buildApp(
   const reasonFor = (code: number): string =>
     STATUS_TEXT[code] ?? (code >= 500 ? 'Internal Server Error' : 'Error')
 
-  app.setErrorHandler((err, req, reply) => {
+  app.setErrorHandler((err: FastifyError, req, reply) => {
     const status = typeof err.statusCode === 'number' && err.statusCode >= 400 ? err.statusCode : 500
     if (status >= 500) {
       // Keep the real cause server-side only (the access-log hook reads this).
