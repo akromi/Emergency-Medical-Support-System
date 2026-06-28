@@ -12,7 +12,7 @@ import {
 } from '@triage-link/core'
 import { recordRepo } from './db/repository'
 import { exportAll, exportEncrypted, readBackupFile, decryptBackup, importBackup, type Backup, type ImportMode } from './db/backup'
-import { recordsToCsv, csvToRecords } from './db/csv'
+import { recordsToCsv, csvToRecords, filterByDateRange } from './db/csv'
 import { BodyChart, type NewInjuryPlacement } from './components/BodyChart'
 import { CasualtySummary } from './components/CasualtySummary'
 import { TriageBoard } from './components/TriageBoard'
@@ -75,6 +75,10 @@ export function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [tourOffered, dismissTourOffer] = useDismissed('tour-offered')
   const [backupMsg, setBackupMsg] = useState('')
+  // CSV export date-range filter (export just the casualties logged in a window).
+  const [exportRange, setExportRange] = useState<'all' | '24h' | '7d' | '30d' | 'custom'>('all')
+  const [exportFrom, setExportFrom] = useState('')
+  const [exportTo, setExportTo] = useState('')
   const [pendingImport, setPendingImport] = useState<{ backup: Backup; count: number } | null>(null)
   const saveTimer = useRef<number | undefined>(undefined)
   const vaultState = useVaultState()
@@ -268,9 +272,27 @@ export function App() {
     input.click()
   }
   // ---- CSV roster export / import (scalar identity + incident layer) ----
+  // The [from, to] ms bounds for the selected export range (undefined = open end).
+  function exportBounds(): { from?: number; to?: number } {
+    const now = Date.now(), DAY = 86_400_000
+    if (exportRange === '24h') return { from: now - DAY }
+    if (exportRange === '7d') return { from: now - 7 * DAY }
+    if (exportRange === '30d') return { from: now - 30 * DAY }
+    if (exportRange === 'custom') {
+      return {
+        from: exportFrom ? new Date(exportFrom).getTime() : undefined,
+        // include the whole "to" day (end-of-day).
+        to: exportTo ? new Date(exportTo).getTime() + DAY - 1 : undefined,
+      }
+    }
+    return {} // 'all'
+  }
+
   async function exportRecordsCsv() {
     if (!(await guard('csv.export'))) return
-    recordRepo.list().then((records) => {
+    recordRepo.list().then((all) => {
+      const { from, to } = exportBounds()
+      const records = filterByDateRange(all, from, to)
       const blob = new Blob([recordsToCsv(records, getDeployment())], { type: 'text/csv;charset=utf-8' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -278,8 +300,8 @@ export function App() {
       a.download = `triage-link-roster-${new Date().toISOString().slice(0, 10)}.csv`
       a.click()
       URL.revokeObjectURL(url)
-      audit('record.export', { detail: 'csv' })
-      flashBackup(`Exported ${records.length} record${records.length === 1 ? '' : 's'} to CSV.`)
+      audit('record.export', { detail: `csv:${exportRange}` })
+      flashBackup(`Exported ${records.length} of ${all.length} record${all.length === 1 ? '' : 's'} to CSV.`)
     }).catch(() => flashBackup('CSV export failed.'))
   }
   function pickCsvFile() {
@@ -608,6 +630,21 @@ export function App() {
               <button type="button" className="minibtn" onClick={exportAllRecords} title="Download a backup file of every saved record">{t('saved.backup')}</button>
               <button type="button" className="minibtn" onClick={exportEncryptedRecords} title="Download a passphrase-encrypted backup (PHI is unreadable without the passphrase)">{t('saved.backupEnc')}</button>
               <button type="button" className="minibtn" onClick={pickBackupFile} title="Restore records from a backup file (encrypted or plain)">{t('saved.restore')}</button>
+              <span className="export-range" data-tour="export">
+                <select value={exportRange} onChange={(e) => setExportRange(e.target.value as typeof exportRange)} aria-label={t('export.range')} title={t('export.range')}>
+                  <option value="all">{t('export.range.all')}</option>
+                  <option value="24h">{t('export.range.24h')}</option>
+                  <option value="7d">{t('export.range.7d')}</option>
+                  <option value="30d">{t('export.range.30d')}</option>
+                  <option value="custom">{t('export.range.custom')}</option>
+                </select>
+                {exportRange === 'custom' && (
+                  <>
+                    <input type="date" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} aria-label={t('export.from')} title={t('export.from')} />
+                    <input type="date" value={exportTo} onChange={(e) => setExportTo(e.target.value)} aria-label={t('export.to')} title={t('export.to')} />
+                  </>
+                )}
+              </span>
               <button type="button" className="minibtn" onClick={exportRecordsCsv} title="Export a roster CSV (identity + incident fields) for analytics or QA">{t('saved.csv')}</button>
               <button type="button" className="minibtn" onClick={pickCsvFile} title="Import a roster CSV to create casualty records (onboard a patient list)">{t('saved.csvin')}</button>
               <span className="count">{saved.length}</span>
