@@ -21,8 +21,12 @@ interface OpenApiOperation {
   tags?: string[]
   summary?: string
   requestBody?: { content?: { 'application/json'?: { example?: unknown } } }
+  responses?: Record<string, { content?: { 'application/json'?: { schema?: { properties?: Record<string, unknown> } } } }>
 }
 type OpenApiDoc = { openapi: string; paths: Record<string, Record<string, OpenApiOperation>> }
+
+const jsonSchema = (op: OpenApiOperation, status: string) =>
+  op.responses?.[status]?.content?.['application/json']?.schema
 
 describe('OpenAPI contract (/docs) ⇄ live EHR routes', () => {
   let app: ReturnType<typeof buildApp>
@@ -81,5 +85,24 @@ describe('OpenAPI contract (/docs) ⇄ live EHR routes', () => {
     const example = doc.paths['/ehr/handover'].post.requestBody!.content!['application/json']!.example
     const res = await app.inject({ method: 'POST', url: '/ehr/handover', payload: example as object })
     expect(res.json()).toMatchObject({ provider: 'mock', accepted: true })
+  })
+
+  it('documents the POST /sync response: pagination, quota 403, and the error envelope', () => {
+    const op = doc.paths['/sync'].post
+    // 200 — the resolved-state shape, including the full-state pagination cursor.
+    const ok = jsonSchema(op, '200')
+    expect(ok?.properties).toBeTruthy()
+    for (const k of ['records', 'ops', 'ingested', 'cursor', 'nextPage']) {
+      expect(ok!.properties, `200 schema missing ${k}`).toHaveProperty(k)
+    }
+    // 403 — storage-quota rejection, with the quota + usage detail.
+    const quota = jsonSchema(op, '403')
+    expect(quota?.properties).toHaveProperty('quota')
+    expect(quota?.properties).toHaveProperty('usage')
+    // 400 — the sanitized error envelope.
+    const err = jsonSchema(op, '400')
+    for (const k of ['error', 'message', 'statusCode', 'requestId']) {
+      expect(err?.properties, `400 envelope missing ${k}`).toHaveProperty(k)
+    }
   })
 })
