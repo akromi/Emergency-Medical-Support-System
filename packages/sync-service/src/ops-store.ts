@@ -98,6 +98,16 @@ function rowToOp(r: any): Op {
 export class OpStore {
   constructor(private readonly db: Queryable) {}
 
+  /** Readiness check: true iff the database answers a trivial query. */
+  async ping(): Promise<boolean> {
+    try {
+      await this.db.query('SELECT 1')
+      return true
+    } catch {
+      return false
+    }
+  }
+
   /**
    * Append ops idempotently. Returns the ids that were ACTUALLY newly inserted.
    *
