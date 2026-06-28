@@ -401,15 +401,15 @@ export function App() {
           <button className="topbtn" data-tour="summary" onClick={() => setShowSummary(true)} title="One-page casualty card — print or save as PDF for handover">{t('hdr.summary')}</button>
           <button className="topbtn" data-tour="conformance" onClick={() => { setShowConformance(true); setMenuOpen(false) }} title="NEMSIS/OADS conformance view — capture gaps + offline validator (not certification)">{t('hdr.conformance')}</button>
           <button className="topbtn" onClick={() => setShowTour(true)} title="Replay the guided tour">{t('hdr.tour')}</button>
-          <button className="topbtn" onClick={loadLanguagePack} title="Load a custom language pack (JSON) — adds a language with no app update">{t('lang.pack')}</button>
+          <button className="topbtn" data-tour="langpack" onClick={loadLanguagePack} title="Load a custom language pack (JSON) — adds a language with no app update">{t('lang.pack')}</button>
           <button className="topbtn" onClick={downloadTemplate} title="Download the English strings as a starter template to translate">{t('lang.template')}</button>
-          <button className="topbtn" onClick={() => { setShowOperators(true); setMenuOpen(false) }} title="Assign records to the operator on duty (shared-device attribution)">{t('op.menu')}</button>
+          <button className="topbtn" data-tour="operators" onClick={() => { setShowOperators(true); setMenuOpen(false) }} title="Assign records to the operator on duty (shared-device attribution)">{t('op.menu')}</button>
           {canViewAdmin() && (
             <button className="topbtn" onClick={async () => { setMenuOpen(false); if (await guard('audit.view')) setShowAudit(true) }} title="Tamper-evident log of data access and security events">{t('audit.menu')}</button>
           )}
           <button className="topbtn" onClick={sendToEhr} title="Contribute this handover to the provincial EHR">{t('hdr.ehr')}</button>
           {vaultState === 'disabled' && (
-            <button className="topbtn" onClick={enablePhotoVault} title="Encrypt all wound photos at rest behind a passphrase">{t('vault.enable')}</button>
+            <button className="topbtn" data-tour="vault" onClick={enablePhotoVault} title="Encrypt all wound photos at rest behind a passphrase">{t('vault.enable')}</button>
           )}
           {vaultState === 'unlocked' && (
             <>
@@ -688,7 +688,7 @@ export function App() {
 
           {/* ---- saved casualties (navigation, end of the record) ---- */}
           <section className="panel">
-            <div className="panel-h"><h2>{t('saved.title')}</h2>
+            <div className="panel-h" data-tour="backup"><h2>{t('saved.title')}</h2>
               <button type="button" className="minibtn" onClick={exportAllRecords} title="Download a backup file of every saved record">{t('saved.backup')}</button>
               <button type="button" className="minibtn" onClick={exportEncryptedRecords} title="Download a passphrase-encrypted backup (PHI is unreadable without the passphrase)">{t('saved.backupEnc')}</button>
               <button type="button" className="minibtn" onClick={pickBackupFile} title="Restore records from a backup file (encrypted or plain)">{t('saved.restore')}</button>
