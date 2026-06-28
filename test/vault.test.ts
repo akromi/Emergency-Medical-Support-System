@@ -9,6 +9,15 @@ import {
 const TINY_PNG =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
 
+// The 8-byte PNG file signature. We assert presence/absence of the WHOLE
+// signature rather than a single byte: AES-GCM ciphertext is effectively random,
+// so a one-byte "not 0x89" check false-fails ~1/256 of the time when the first
+// ciphertext byte happens to collide with the header. Matching all 8 bytes drops
+// that to ~2^-64 while keeping the intent ("at rest it isn't the plaintext PNG").
+const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+const startsWithPng = (bytes: Uint8Array): boolean =>
+  PNG_SIG.every((b, i) => bytes[i] === b)
+
 function recordWithPhoto(id: string): CasualtyRecord {
   const r = createEmptyRecord(id)
   r.injuries.push({
@@ -30,8 +39,8 @@ describe('photo vault (opt-in at-rest encryption)', () => {
     await recordRepo.save(recordWithPhoto('CASE-A'))
     const [photo] = await db.photos.toArray()
     expect(photo.iv).toBeUndefined()
-    // Plaintext PNG signature byte present when not encrypted.
-    expect(photo.bytes[0]).toBe(0x89)
+    // Plaintext PNG signature present when not encrypted.
+    expect(startsWithPng(photo.bytes)).toBe(true)
   })
 
   it('encrypts existing photos when enabled and stays readable', async () => {
@@ -43,7 +52,7 @@ describe('photo vault (opt-in at-rest encryption)', () => {
 
     const [photo] = await db.photos.toArray()
     expect(ArrayBuffer.isView(photo.iv)).toBe(true); expect(photo.iv!.length).toBe(12)
-    expect(photo.bytes[0]).not.toBe(0x89) // ciphertext, not the PNG header
+    expect(startsWithPng(photo.bytes)).toBe(false) // ciphertext, not the PNG header
 
     // Transparent decryption on read while unlocked.
     const got = await recordRepo.get('CASE-A')
@@ -89,7 +98,7 @@ describe('photo vault (opt-in at-rest encryption)', () => {
     expect(getState()).toBe('disabled')
     const [photo] = await db.photos.toArray()
     expect(photo.iv).toBeUndefined()
-    expect(photo.bytes[0]).toBe(0x89) // plaintext PNG header restored
+    expect(startsWithPng(photo.bytes)).toBe(true) // plaintext PNG header restored
     expect((await recordRepo.get('CASE-A'))!.injuries[0].photos[0]).toBe(TINY_PNG)
   })
 })

@@ -29,6 +29,7 @@ const STEPS: Step[] = [
   { target: 'handover', key: 'handover' },
   { target: 'summary', key: 'summary' },
   { target: 'board', key: 'board' },
+  { target: 'conformance', key: 'conformance' },
   { key: 'done' },
 ]
 

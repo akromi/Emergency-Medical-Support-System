@@ -125,8 +125,13 @@ describe('resolve — determinism & convergence', () => {
   })
 
   it('picks a deterministic winner for same-field edits and reports the conflict', () => {
-    const a = diffToOps(base(), { ...base(), tombstone: { ...base().tombstone, name: 'Alice' } }, ctx('A', 1))
-    const b = diffToOps(base(), { ...base(), tombstone: { ...base().tombstone, name: 'Bob' } }, ctx('B', 5))
+    // Diff BOTH edits from a single base instance: a fresh base() per call stamps
+    // its own createdAt (Date.now()), so if the clock ticks between calls diffToOps
+    // would emit an extra createdAt op and shift a[0] off the name op (a timing
+    // flake). Concurrent edits to the same record share one base.
+    const r0 = base()
+    const a = diffToOps(r0, { ...r0, tombstone: { ...r0.tombstone, name: 'Alice' } }, ctx('A', 1))
+    const b = diffToOps(r0, { ...r0, tombstone: { ...r0.tombstone, name: 'Bob' } }, ctx('B', 5))
     const { record, conflicts } = resolve('CAS-1', mergeOps(a, b))
     expect(record.tombstone.name).toBe('Bob') // higher Lamport wins (not wall-clock)
     expect(conflicts).toHaveLength(1)

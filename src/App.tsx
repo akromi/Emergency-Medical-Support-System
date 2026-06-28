@@ -16,6 +16,7 @@ import { exportAll, exportEncrypted, readBackupFile, decryptBackup, importBackup
 import { recordsToCsv, csvToRecords } from './db/csv'
 import { BodyChart, type NewInjuryPlacement } from './components/BodyChart'
 import { CasualtySummary } from './components/CasualtySummary'
+import { NemsisConformance } from './components/NemsisConformance'
 import { TriageBoard } from './components/TriageBoard'
 import { capturePhoto } from './photo'
 import { PhotoLightbox } from './components/PhotoLightbox'
@@ -62,6 +63,7 @@ export function App() {
   const [activeType, setActiveType] = useState<InjuryTypeKey>('laceration')
   const [selectedInjury, setSelectedInjury] = useState<string | null>(null)
   const [showSummary, setShowSummary] = useState(false)
+  const [showConformance, setShowConformance] = useState(false)
   const [showBoard, setShowBoard] = useState(false)
   const [ehrStatus, setEhrStatus] = useState('')
   const [lightbox, setLightbox] = useState<{ photos: string[]; index: number } | null>(null)
@@ -397,6 +399,7 @@ export function App() {
         <button type="button" className="topbtn more-btn" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)} title="More actions">{t('hdr.more')}</button>
         <div className={`topbar-rest${menuOpen ? ' open' : ''}`} onClick={() => setMenuOpen(false)}>
           <button className="topbtn" data-tour="summary" onClick={() => setShowSummary(true)} title="One-page casualty card — print or save as PDF for handover">{t('hdr.summary')}</button>
+          <button className="topbtn" data-tour="conformance" onClick={() => { setShowConformance(true); setMenuOpen(false) }} title="NEMSIS/OADS conformance view — capture gaps + offline validator (not certification)">{t('hdr.conformance')}</button>
           <button className="topbtn" onClick={() => setShowTour(true)} title="Replay the guided tour">{t('hdr.tour')}</button>
           <button className="topbtn" onClick={loadLanguagePack} title="Load a custom language pack (JSON) — adds a language with no app update">{t('lang.pack')}</button>
           <button className="topbtn" onClick={downloadTemplate} title="Download the English strings as a starter template to translate">{t('lang.template')}</button>
@@ -726,6 +729,7 @@ export function App() {
       <p className="footnote">{t('footnote')}</p>
     </div>
     {showSummary && <CasualtySummary record={record} onClose={() => setShowSummary(false)} />}
+    {showConformance && <NemsisConformance record={record} onClose={() => setShowConformance(false)} />}
     {showBoard && (
       <TriageBoard records={saved} currentId={record.id} onSelect={loadCase} onClose={() => setShowBoard(false)} />
     )}

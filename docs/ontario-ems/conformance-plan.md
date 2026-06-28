@@ -75,9 +75,16 @@ clears once its data is captured), and the build backlog:
    scene GPS + location type + mass-casualty flag, mapped into the exporter's
    `eCrew`/`eScene` sections with both gaps cleared dynamically. Tutorial step +
    i18n (×4) updated *(done)*. All four capture gaps now close at runtime.
-7. **PR-4:** Productionize the ONE ID / Ontario Health PCR `$match` + DHDR
+7. **PR-3c:** In-app conformance view — a read-only "Conformance" panel
+   (`src/components/NemsisConformance.tsx`) that, for the current record, surfaces
+   the live capture **gaps** and runs `validateNemsisRecord` against
+   `PLACEHOLDER_RULESET`, listing the validator's errors/warnings and exposing the
+   PR-2a shaped-XML export. A prominent banner + the result's `rulesetSource`
+   make clear this is an offline pre-check, **not** certification. Tutorial step +
+   i18n (×4) updated *(done)*.
+8. **PR-4:** Productionize the ONE ID / Ontario Health PCR `$match` + DHDR
    integration in `packages/ehr-gateway` (real mTLS client cert, token flow).
-8. **PR-5+:** CAD/dispatch + hospital-EHR handover; SOC 2 Type II + QMS evidence;
+9. **PR-5+:** CAD/dispatch + hospital-EHR handover; SOC 2 Type II + QMS evidence;
    certified-SaMD evidence stack (gated on the intended-use determination).
 
 ## Validation gate
