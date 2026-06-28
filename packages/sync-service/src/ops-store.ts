@@ -185,6 +185,18 @@ export class OpStore {
     return Number(res.rows[0].c)
   }
 
+  /** Total ops stored for a tenant (for the storage-quota guard). */
+  async countOps(tenantId: string = DEFAULT_TENANT): Promise<number> {
+    const res = await this.db.query(`SELECT COUNT(*)::bigint AS c FROM ops WHERE tenant_id = $1`, [tenantId])
+    return Number(res.rows[0].c)
+  }
+
+  /** Distinct records a tenant holds ops for (for the storage-quota guard). */
+  async countRecords(tenantId: string = DEFAULT_TENANT): Promise<number> {
+    const res = await this.db.query(`SELECT COUNT(DISTINCT record_id)::bigint AS c FROM ops WHERE tenant_id = $1`, [tenantId])
+    return Number(res.rows[0].c)
+  }
+
   async upsertSnapshot(recordId: string, record: unknown, tenantId: string = DEFAULT_TENANT): Promise<void> {
     await this.db.query(
       `INSERT INTO snapshots (tenant_id, record_id, record, updated_at) VALUES ($1, $2, $3, now())

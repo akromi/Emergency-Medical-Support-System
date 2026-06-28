@@ -10,6 +10,8 @@ export interface TenantMetrics {
   opsIngested: number
   /** Conflicts the resolver recorded. */
   conflicts: number
+  /** Ingests refused because the tenant was at/over its storage quota. */
+  quotaRejections: number
   /** Responses bucketed by status class. */
   responses: { '2xx': number; '4xx': number; '5xx': number }
 }
@@ -29,7 +31,7 @@ export interface AccessLogEntry {
 }
 
 function blank(): TenantMetrics {
-  return { syncRequests: 0, opsIngested: 0, conflicts: 0, responses: { '2xx': 0, '4xx': 0, '5xx': 0 } }
+  return { syncRequests: 0, opsIngested: 0, conflicts: 0, quotaRejections: 0, responses: { '2xx': 0, '4xx': 0, '5xx': 0 } }
 }
 
 export class Metrics {
@@ -44,6 +46,7 @@ export class Metrics {
   incSyncRequest(tenant: string): void { this.get(tenant).syncRequests += 1 }
   addOpsIngested(tenant: string, n: number): void { if (n) this.get(tenant).opsIngested += n }
   addConflicts(tenant: string, n: number): void { if (n) this.get(tenant).conflicts += n }
+  incQuotaRejection(tenant: string): void { this.get(tenant).quotaRejections += 1 }
 
   recordResponse(tenant: string, status: number): void {
     const bucket = status >= 500 ? '5xx' : status >= 400 ? '4xx' : status >= 200 && status < 300 ? '2xx' : null
@@ -87,6 +90,8 @@ export function renderPrometheus(snap: { tenants: Record<string, TenantMetrics> 
     tenants.map(([t, m]) => ({ labels: { tenant: t }, value: m.opsIngested })))
   counter('triagelink_conflicts_total', 'Total conflicts resolved.',
     tenants.map(([t, m]) => ({ labels: { tenant: t }, value: m.conflicts })))
+  counter('triagelink_quota_rejections_total', 'Total ingests refused for exceeding a tenant storage quota.',
+    tenants.map(([t, m]) => ({ labels: { tenant: t }, value: m.quotaRejections })))
   counter('triagelink_responses_total', 'Total responses by status class.',
     tenants.flatMap(([t, m]) => (['2xx', '4xx', '5xx'] as const).map((s) => ({ labels: { tenant: t, status: s }, value: m.responses[s] }))))
   return lines.join('\n') + '\n'
