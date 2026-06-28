@@ -641,3 +641,10 @@ input::placeholder { color:var(--txt-faint); }
   border-radius:7px; padding:5px 11px; cursor:pointer; }
 .deploy-done:hover { border-color:var(--ekg); }
 .sm-deploy { font-size:13px; color:var(--txt-dim); margin-top:1px; }
+
+/* ---- CSV export date-range filter ---- */
+.export-range { display:inline-flex; align-items:center; gap:6px; }
+.export-range select, .export-range input[type=date] {
+  background:var(--panel-2); border:1px solid var(--line); color:var(--txt);
+  border-radius:7px; padding:4px 7px; font:inherit; font-size:12px; }
+.export-range input[type=date] { max-width:140px; }

@@ -26,6 +26,18 @@ const SEXES: Sex[] = ['', 'female', 'male', 'other', 'unknown']
 
 const esc = (v: string): string => (/[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)
 
+/** Filter records to those LOGGED within [fromMs, toMs] (inclusive), by
+ *  `createdAt` (when the casualty was first documented) — for exporting just the
+ *  casualties from a given window. Bounds are optional: omit one for an open end. */
+export function filterByDateRange(
+  records: CasualtyRecord[], fromMs?: number, toMs?: number,
+): CasualtyRecord[] {
+  return records.filter((r) => {
+    const t = r.createdAt
+    return (fromMs == null || t >= fromMs) && (toMs == null || t <= toMs)
+  })
+}
+
 export function recordsToCsv(records: CasualtyRecord[], deployment?: Deployment): string {
   // Stamp deployment/provenance columns only when a context is actually set, so
   // an export with no deployment is byte-for-byte unchanged (backward compatible).

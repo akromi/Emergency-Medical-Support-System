@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createEmptyRecord, type CasualtyRecord } from '@triage-link/core'
-import { recordsToCsv, parseCsv, csvToRecords } from '../src/db/csv'
+import { recordsToCsv, parseCsv, csvToRecords, filterByDateRange } from '../src/db/csv'
 
 function rec(id: string, patch: Partial<CasualtyRecord['tombstone']>, triage: CasualtyRecord['incident']['triage'] = ''): CasualtyRecord {
   const r = createEmptyRecord(id)
@@ -83,5 +83,18 @@ describe('roster CSV', () => {
     expect(back.id).toBe('CAS-9')
     expect(back.tombstone.name).toBe('Roe, John')
     expect(back.incident.triage).toBe('delayed')
+  })
+
+  it('filters records by created-at date range (inclusive, open-ended bounds)', () => {
+    const at = (id: string, createdAt: number): CasualtyRecord => ({ ...createEmptyRecord(id), createdAt })
+    const recs = [at('OLD', 1_000), at('MID', 5_000), at('NEW', 9_000)]
+    // window [4000, 6000] → just MID
+    expect(filterByDateRange(recs, 4_000, 6_000).map((r) => r.id)).toEqual(['MID'])
+    // open lower bound (≤ 5000) → OLD + MID
+    expect(filterByDateRange(recs, undefined, 5_000).map((r) => r.id)).toEqual(['OLD', 'MID'])
+    // open upper bound (≥ 5000) → MID + NEW
+    expect(filterByDateRange(recs, 5_000).map((r) => r.id)).toEqual(['MID', 'NEW'])
+    // no bounds → everything (unchanged)
+    expect(filterByDateRange(recs)).toHaveLength(3)
   })
 })
