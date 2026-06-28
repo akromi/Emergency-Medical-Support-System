@@ -22,10 +22,10 @@ After editing it:
 
 ```bash
 # 1. rebuild the HTML deck
-python3 docs/overview/gen_html.py
+python3 docs/marketing/gen_html.py
 
 # 2. re-render the PDF from that HTML (uses the repo's Chromium via @playwright/test)
-node docs/overview/render_pdf.mjs
+node docs/marketing/render_pdf.mjs
 ```
 
 `render_pdf.mjs` points Playwright at the pre-installed browser
@@ -41,7 +41,7 @@ PWA and drive it with Playwright:
 npm run build && npm run preview -- --port 4178 --strictPort &
 # then a short Playwright script: populate a record (pick an injury type, drop a
 # marker, set triage, record a vital) and screenshot the record, the Summary
-# card (.summary-sheet), and the Triage Board (.board) into docs/overview/img/.
+# card (.summary-sheet), and the Triage Board (.board) into docs/marketing/img/.
 ```
 
 ## Optional: editable PowerPoint
@@ -51,7 +51,7 @@ PowerPoint / Keynote / Google Slides). It needs `python-pptx`:
 
 ```bash
 pip install python-pptx
-python3 docs/overview/build_deck.py   # writes TRIAGE-LINK-overview.pptx here
+python3 docs/marketing/build_deck.py   # writes TRIAGE-LINK-overview.pptx here
 ```
 
 The `.pptx` is not committed (it's a regenerable binary); the HTML + PDF are the
