@@ -2,8 +2,11 @@
 // See ./types.ts for the conformance caveat: element ids/codes are our best
 // mapping and must be validated against the official NEMSIS v3.5.0 XSD and the
 // Ontario OADS v4.0 spec before certification.
-import type { CasualtyRecord, Injury, Treatment, VitalSign, Sex, TriageCategory, Response, ResponseMode } from '../domain/types.js'
-import { emptyResponse } from '../domain/types.js'
+import type {
+  CasualtyRecord, Injury, Treatment, VitalSign, Sex, TriageCategory,
+  Response, ResponseMode, CrewMember, Scene, SceneLocationType,
+} from '../domain/types.js'
+import { emptyResponse, emptyScene } from '../domain/types.js'
 import { injuryLabel } from '../domain/injuries.js'
 import type { NemsisElement, NemsisRecord, NemsisSection } from './types.js'
 
@@ -30,6 +33,19 @@ const MODE_TO_NEMSIS: Record<ResponseMode, string | undefined> = {
  *  the eTimes conformance gap is satisfied. PSAP/en-route are not field-required
  *  (a field crew may not know the PSAP time), so they are not gating. */
 const TIMES_REQUIRED: Array<keyof Response> = ['dispatch', 'atScene', 'atPatient', 'transport', 'atDestination']
+
+// eScene.09 "Incident Location Type". Codes are placeholders pending the official
+// value set; the text is carried so the export stays legible.
+const LOCATION_TO_NEMSIS: Record<SceneLocationType, { code: string; text: string } | undefined> = {
+  home: { code: '1201001', text: 'Home / Residence' },
+  street: { code: '1201005', text: 'Street / Highway' },
+  public: { code: '1201013', text: 'Public Building' },
+  workplace: { code: '1201009', text: 'Industrial / Workplace' },
+  healthcare: { code: '1201003', text: 'Healthcare Facility' },
+  recreation: { code: '1201011', text: 'Recreation / Sport' },
+  other: { code: '1201019', text: 'Other' },
+  '': undefined,
+}
 
 // NEMSIS eDisposition uses a Patient Evaluation/Care priority; field triage maps
 // to the START/SALT-style acuity our four categories express. Codes are
@@ -137,6 +153,24 @@ function eTimes(r: Response): NemsisSection {
   ])
 }
 
+function eCrew(crew: CrewMember[]): NemsisSection {
+  return section('eCrew', [
+    el('Crew Members', crew.map((c) => {
+      const quals = [c.role, c.cert].filter(Boolean).join(', ')
+      return quals ? `${c.name} (${quals})` : c.name
+    }), 'eCrew.01'),
+  ])
+}
+
+function eScene(s: Scene): NemsisSection {
+  const loc = LOCATION_TO_NEMSIS[s.locationType]
+  return section('eScene', [
+    el('Incident GPS / Location', s.gps, 'eScene.13'),
+    el('Incident Location Type', loc?.text, 'eScene.09'),
+    el('Mass Casualty Incident', s.massCasualty ? 'Yes' : undefined, 'eScene.01'),
+  ])
+}
+
 function eDisposition(rec: CasualtyRecord): NemsisSection {
   const triage = rec.incident.triage
   const ho = rec.handover
@@ -162,8 +196,15 @@ function conformanceGaps(rec: CasualtyRecord): string[] {
   if (!r.agency || !r.unit) {
     gaps.push('eResponse — agency/unit/vehicle identifiers')
   }
-  gaps.push('eCrew — crew member ids, roles, certification levels')
-  gaps.push('eScene — scene GPS, incident location type/coding')
+  // eCrew: at least one crew member documents who provided care.
+  if ((rec.crew ?? []).length === 0) {
+    gaps.push('eCrew — crew member ids, roles, certification levels')
+  }
+  // eScene: GPS + location type are the minimum to place the incident.
+  const scene = rec.scene ?? emptyScene()
+  if (!scene.gps || !scene.locationType) {
+    gaps.push('eScene — scene GPS, incident location type/coding')
+  }
   gaps.push('ePayment / eOutcome — billing + linked hospital outcome')
   return gaps
 }
@@ -179,7 +220,9 @@ export function toNemsisRecord(rec: CasualtyRecord): NemsisRecord {
     section('eRecord', [el('Patient Care Report Number', rec.id, 'eRecord.01')]),
     ePatient(rec),
     eResponse(response),
+    eCrew(rec.crew ?? []),
     eTimes(response),
+    eScene(rec.scene ?? emptyScene()),
     section('eSituation', [
       el('Incident Date/Time', rec.incident.injuryTime, 'eSituation.01'),
       el('Incident Location', rec.incident.location),

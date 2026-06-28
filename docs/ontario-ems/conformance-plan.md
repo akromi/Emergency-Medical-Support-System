@@ -38,9 +38,11 @@ clears once its data is captured), and the build backlog:
   at-destination chain. *Captured (PR-3a)*; the gap clears when the required
   field-care chain (dispatch, at-scene, at-patient, transport, at-destination)
   is complete.
-- **`eCrew`** — crew member ids, roles, certification levels (the operator roster
-  is the seed; needs NEMSIS crew structure + cert codes). *PR-3b.*
-- **`eScene`** — GPS, incident location type, mass-casualty flag/role. *PR-3b.*
+- **`eCrew`** — crew member names, roles, certification levels (seeded from the
+  operator roster). *Captured (PR-3b)*; the gap clears when ≥1 crew member is
+  added. Role/cert remain free text pending the NEMSIS crew-role/cert value sets.
+- **`eScene`** — GPS, incident location type, mass-casualty flag. *Captured
+  (PR-3b)*; the gap clears when GPS + location type are set.
 - **`ePayment` / `eOutcome`** — billing + linked hospital outcome (DI linkage).
 
 ## Sequenced build
@@ -59,8 +61,11 @@ clears once its data is captured), and the build backlog:
    agency/unit/mode + the dispatch→destination time chain), mapped into the
    exporter's `eResponse`/`eTimes` sections, with the two gaps now cleared
    dynamically when filled. Tutorial step + i18n (×4) updated *(done)*.
-5. **PR-3b:** Capture eCrew + eScene — crew roster (ids/roles/cert levels) and
-   scene GPS / location type. eCrew seeds from the operator roster.
+5. **PR-3b:** Capture eCrew + eScene — a "Crew & scene" PWA panel: a per-record
+   care-crew roster (name/role/cert, one-tap seed from the on-duty operator) and
+   scene GPS + location type + mass-casualty flag, mapped into the exporter's
+   `eCrew`/`eScene` sections with both gaps cleared dynamically. Tutorial step +
+   i18n (×4) updated *(done)*. All four capture gaps now close at runtime.
 6. **PR-4:** Productionize the ONE ID / Ontario Health PCR `$match` + DHDR
    integration in `packages/ehr-gateway` (real mTLS client cert, token flow).
 7. **PR-5+:** CAD/dispatch + hospital-EHR handover; SOC 2 Type II + QMS evidence;

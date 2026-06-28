@@ -94,4 +94,26 @@ describe('toNemsisRecord', () => {
     r.response = { ...r.response, agency: 'Toronto Paramedic Services' } // unit missing
     expect(toNemsisRecord(r).gaps.some((g) => g.startsWith('eResponse'))).toBe(true)
   })
+
+  it('maps crew into eCrew and scene into eScene, clearing those gaps', () => {
+    const r = sample()
+    r.crew = [
+      { id: 'c1', name: 'A. Medic', role: 'lead', cert: 'PCP' },
+      { id: 'c2', name: 'B. Driver', role: 'driver', cert: '' },
+    ]
+    r.scene = { gps: '43.6532, -79.3832', locationType: 'street', massCasualty: true }
+    const n = toNemsisRecord(r)
+    expect(value(n, 'eCrew', 'Crew Members')).toEqual(['A. Medic (lead, PCP)', 'B. Driver (driver)'])
+    expect(value(n, 'eScene', 'Incident GPS / Location')).toBe('43.6532, -79.3832')
+    expect(value(n, 'eScene', 'Incident Location Type')).toBe('Street / Highway')
+    expect(value(n, 'eScene', 'Mass Casualty Incident')).toBe('Yes')
+    expect(n.gaps.some((g) => g.startsWith('eCrew'))).toBe(false)
+    expect(n.gaps.some((g) => g.startsWith('eScene'))).toBe(false)
+  })
+
+  it('keeps the eScene gap when GPS is given but location type is not', () => {
+    const r = sample()
+    r.scene = { gps: '43.6, -79.3', locationType: '', massCasualty: false }
+    expect(toNemsisRecord(r).gaps.some((g) => g.startsWith('eScene'))).toBe(true)
+  })
 })
