@@ -6,6 +6,7 @@ import helmet from '@fastify/helmet'
 import cors from '@fastify/cors'
 import rateLimit from '@fastify/rate-limit'
 import { timingSafeEqual, randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import swagger from '@fastify/swagger'
 import swaggerUi from '@fastify/swagger-ui'
 import { resolve, type Op, type EhrGateway } from '@triage-link/core'
@@ -87,6 +88,11 @@ export interface SecurityOptions {
    *  POST /admin/retention. Undefined → no default (the route requires an
    *  explicit `auditMaxAgeMs` then). The op-log is never pruned. */
   auditRetentionMs?: number
+  /** Serve the static admin console at GET /console (default off). Opt-in: only
+   *  mounted when the admin API is also configured (adminToken / OIDC). The page
+   *  holds no secrets — it prompts for the admin credential and sends it on each
+   *  /admin/* call, so the API's bearer gate does the real enforcement. */
+  adminConsole?: boolean
 }
 
 /** Constant-time bearer-token check (avoids leaking the token via timing). */
@@ -458,6 +464,16 @@ export function buildApp(
   // shadows the outer instance, so the route bodies below read unchanged.
   app.register(async (app) => {
   app.get('/health', { schema: { tags: ['sync'], summary: 'Liveness probe' } }, async () => ({ ok: true }))
+
+  // Opt-in admin console (static HTML). Served OUTSIDE the /admin/* prefix so the
+  // page itself isn't behind the bearer gate — it holds no secrets and prompts
+  // for the admin credential, which the API gate then enforces on every call.
+  // Read lazily (only when enabled) so the default build never depends on the
+  // asset and existing deployments/tests are unaffected.
+  if (security.adminConsole && adminAuthConfigured) {
+    const html = readFileSync(new URL('../public/admin.html', import.meta.url), 'utf8')
+    app.get('/console', { schema: { hide: true } }, async (_req, reply) => reply.type('text/html').send(html))
+  }
 
   // Readiness probe (distinct from liveness): 200 only when the database answers,
   // else 503 so an orchestrator stops routing traffic to an instance that can't
