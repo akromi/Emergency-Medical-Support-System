@@ -6,11 +6,20 @@ import {
 describe('deployment context store', () => {
   beforeEach(() => {
     try { localStorage.clear() } catch { /* ignore */ }
-    setDeployment({ operation: '', kind: '', org: '' }) // reset module state
+    setDeployment({ operation: '', kind: '', org: '', mci: false }) // reset module state
   })
 
   it('is blank by default (hasDeployment false)', () => {
     expect(hasDeployment(getDeployment())).toBe(false)
+    expect(getDeployment().mci).toBe(false)
+  })
+
+  it('carries the MCI profile flag independently of operation fields', () => {
+    setDeployment({ mci: true })
+    expect(getDeployment().mci).toBe(true)
+    // MCI alone is a mode, not "a deployment" — hasDeployment still needs op/kind/org.
+    expect(hasDeployment(getDeployment())).toBe(false)
+    expect(JSON.parse(localStorage.getItem('tl.deployment')!).mci).toBe(true)
   })
 
   it('persists a patch and reflects it in getDeployment + localStorage', () => {

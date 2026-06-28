@@ -28,7 +28,7 @@ import { EhrTestConsole } from './components/EhrTestConsole'
 import { PcrVerify } from './components/PcrVerify'
 import { contributeHandover, EhrUnavailableError } from './ehr/client'
 import { LockScreen, useVaultState } from './components/VaultLock'
-import { initVault, enableVault, disableVault, lock as lockVault, noteActivity, isRequired } from './db/vault'
+import { initVault, enableVault, disableVault, lock as lockVault, noteActivity, isRequired, setVaultPolicy } from './db/vault'
 import { audit } from './db/audit'
 import { requireStepUp } from './db/stepup'
 import { AuditLog } from './components/AuditLog'
@@ -85,7 +85,11 @@ export function App() {
   const { active: activeOperator } = useOperators()
 
   useEffect(() => {
-    initVault()
+    initVault().then(() => {
+      // Re-assert the MCI profile's mandatory-encryption policy after a reload:
+      // the deployment flag (localStorage) is the source of truth for the mode.
+      if (getDeployment().mci && !isRequired()) void setVaultPolicy(true)
+    })
     initOperators()
   }, [])
 
@@ -434,7 +438,7 @@ export function App() {
 
       {/* Deployment context — the operation/site this device documents (offline,
           device-wide). Humanitarian/MCI coordination + donor-report provenance. */}
-      <DeploymentBar />
+      <DeploymentBar onCommand={() => setShowBoard(true)} />
 
       {/* Prominent, always-visible triage tag (acuity channel, distinct from
           injury-type marker colours). Quick-set here; persists on the record. */}

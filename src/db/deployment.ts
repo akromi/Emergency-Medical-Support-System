@@ -16,10 +16,13 @@ export interface Deployment {
   kind: DeploymentKind
   /** Operating organization / program, e.g. "Red Cross — Sofala". */
   org: string
+  /** Disaster/MCI profile: a shared-device mode that makes encryption mandatory
+   *  and surfaces the command roll-up. Off by default. */
+  mci: boolean
 }
 
 const KEY = 'tl.deployment'
-const blank = (): Deployment => ({ operation: '', kind: '', org: '' })
+const blank = (): Deployment => ({ operation: '', kind: '', org: '', mci: false })
 
 function load(): Deployment {
   try {
