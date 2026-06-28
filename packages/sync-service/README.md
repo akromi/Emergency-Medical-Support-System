@@ -85,6 +85,11 @@ The service collects in-memory, **per-tenant** counters — `syncRequests`,
                           "responses": { "2xx": 12, "4xx": 0, "5xx": 0 } } } }
 ```
 
+The same counters are exposed in **Prometheus** text exposition format at
+**`GET /admin/metrics/prometheus`** (admin-gated — point a scraper's
+`bearer_token` at it), as `triagelink_*_total` counters labelled by `tenant`
+(and `status` for responses) — so they plug straight into Grafana / Alertmanager.
+
 Counters are per-instance and reset on restart (a scaled deployment scrapes and
 sums each instance). Set **`LOG_REQUESTS=true`** to also emit a structured JSON
 access-log line per response (method, path, tenant, status, latency-ms). Covered

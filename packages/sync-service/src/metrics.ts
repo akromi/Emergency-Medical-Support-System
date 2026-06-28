@@ -57,3 +57,32 @@ export class Metrics {
   /** Test-only reset. */
   reset(): void { this.byTenant.clear() }
 }
+
+/** Content-type for the Prometheus text exposition format. */
+export const PROMETHEUS_CONTENT_TYPE = 'text/plain; version=0.0.4; charset=utf-8'
+
+const escapeLabel = (v: string): string => v.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n')
+
+/** Render a metrics snapshot in Prometheus text exposition format (counters with
+ *  a `tenant` label) so the per-tenant counters can be scraped by Prometheus. */
+export function renderPrometheus(snap: { tenants: Record<string, TenantMetrics> }): string {
+  const lines: string[] = []
+  const counter = (name: string, help: string, rows: Array<{ labels: Record<string, string>; value: number }>) => {
+    lines.push(`# HELP ${name} ${help}`)
+    lines.push(`# TYPE ${name} counter`)
+    for (const { labels, value } of rows) {
+      const lbl = Object.entries(labels).map(([k, v]) => `${k}="${escapeLabel(v)}"`).join(',')
+      lines.push(`${name}{${lbl}} ${value}`)
+    }
+  }
+  const tenants = Object.entries(snap.tenants)
+  counter('triagelink_sync_requests_total', 'Total POST /sync requests.',
+    tenants.map(([t, m]) => ({ labels: { tenant: t }, value: m.syncRequests })))
+  counter('triagelink_ops_ingested_total', 'Total ops ingested (new, non-duplicate).',
+    tenants.map(([t, m]) => ({ labels: { tenant: t }, value: m.opsIngested })))
+  counter('triagelink_conflicts_total', 'Total conflicts resolved.',
+    tenants.map(([t, m]) => ({ labels: { tenant: t }, value: m.conflicts })))
+  counter('triagelink_responses_total', 'Total responses by status class.',
+    tenants.flatMap(([t, m]) => (['2xx', '4xx', '5xx'] as const).map((s) => ({ labels: { tenant: t, status: s }, value: m.responses[s] }))))
+  return lines.join('\n') + '\n'
+}
