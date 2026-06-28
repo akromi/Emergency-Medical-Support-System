@@ -6,7 +6,7 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, 'market/**' ]
   schedule:
     # Weekly, so newly-published query packs catch latent issues.
     - cron: '27 4 * * 1'
