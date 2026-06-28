@@ -7,7 +7,7 @@
 // gains a real actor.
 import type { Queryable } from './ops-store.js'
 
-export type AdminAction = 'tenant.create' | 'tenant.status' | 'key.issue' | 'key.revoke'
+export type AdminAction = 'tenant.create' | 'tenant.status' | 'key.issue' | 'key.revoke' | 'retention.run'
 
 export interface AdminAuditEntry {
   id?: number
