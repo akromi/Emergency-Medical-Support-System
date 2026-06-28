@@ -8,6 +8,10 @@
 
 > ⚠️ **Prototype — not a medical device and not for clinical use.** See _Regulatory_ below.
 
+> 📊 **Capability overview deck:** [`docs/marketing/`](docs/marketing/) — a
+> self-contained slide deck (HTML + PDF) covering the PWA, the encryption & audit
+> layer, the multi-tenant backend, and the market flavors.
+
 ## Why these technologies (portability first)
 
 A PWA is the most portable target available: it runs on any device with a modern
