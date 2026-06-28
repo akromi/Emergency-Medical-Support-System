@@ -2,7 +2,10 @@
 // Run with a TypeScript ESM loader (e.g. `tsx src/server.ts`) or compile first.
 import { Pool } from 'pg'
 import type { EhrGateway } from '@triage-link/core'
-import { MockGateway, OneIdClient, OntarioHealthGateway, mtlsDispatcherFromEnv } from '@triage-link/ehr-gateway'
+import { MockGateway, OneIdClient, OntarioHealthGateway } from '@triage-link/ehr-gateway'
+// Import the mTLS transport from its module directly, NOT via the package barrel:
+// it pulls in `undici` (Node-only) and the barrel is also imported by the browser PWA.
+import { mtlsDispatcherFromEnv } from '@triage-link/ehr-gateway/src/mtls.js'
 import { buildApp, type SecurityOptions } from './app.js'
 import { OpStore, migrate } from './ops-store.js'
 import { EhrAuditStore, migrateEhrAudit } from './ehr-audit-store.js'
