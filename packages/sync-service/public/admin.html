@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TRIAGE-LINK · Sync Admin</title>
+<style>
+  :root {
+    --bg:#0c1117; --panel:#141b24; --panel2:#1b2530; --line:#243140; --raised:#22303d;
+    --txt:#e6edf3; --dim:#9fb0c0; --faint:#6b7d8f; --ekg:#3fb950; --red:#e5484d; --amber:#e2a33b; --blue:#4c8dff;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif; }
+  header { display:flex; align-items:center; gap:14px; padding:14px 22px; border-bottom:1px solid var(--line); background:var(--panel); position:sticky; top:0; }
+  header h1 { font-size:15px; margin:0; letter-spacing:.4px; font-weight:700; }
+  header .tag { font-size:11px; color:var(--faint); border:1px solid var(--line); border-radius:6px; padding:2px 7px; text-transform:uppercase; letter-spacing:.6px; }
+  header .sp { flex:1; }
+  header input { background:var(--panel2); border:1px solid var(--line); color:var(--txt); border-radius:7px; padding:6px 9px; font:inherit; width:200px; }
+  button { background:var(--panel2); border:1px solid var(--line); color:var(--txt); border-radius:7px; padding:6px 11px; font:inherit; cursor:pointer; }
+  button:hover { background:var(--raised); border-color:var(--blue); }
+  button.p { background:var(--ekg); color:#06210f; border-color:var(--ekg); font-weight:600; }
+  main { max-width:1100px; margin:0 auto; padding:22px; display:grid; gap:18px; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:11px; overflow:hidden; }
+  .panel > h2 { font-size:12px; text-transform:uppercase; letter-spacing:.8px; color:var(--dim); margin:0; padding:13px 16px; border-bottom:1px solid var(--line); background:var(--panel2); }
+  .panel .body { padding:14px 16px; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+  .card { background:var(--panel2); border:1px solid var(--line); border-radius:9px; padding:11px 13px; }
+  .card .k { font-size:11px; color:var(--faint); text-transform:uppercase; letter-spacing:.5px; }
+  .card .v { font-size:22px; font-weight:700; margin-top:3px; }
+  .card .t { font-size:11px; color:var(--blue); margin-top:2px; }
+  table { width:100%; border-collapse:collapse; }
+  th,td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); font-size:13px; }
+  th { color:var(--faint); font-size:11px; text-transform:uppercase; letter-spacing:.5px; font-weight:600; }
+  td.mono, .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; }
+  .pill { font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); }
+  .pill.active { color:var(--ekg); border-color:#1f4a2c; background:rgba(63,185,80,.1); }
+  .pill.disabled { color:var(--faint); }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .row input { background:var(--panel2); border:1px solid var(--line); color:var(--txt); border-radius:7px; padding:6px 9px; font:inherit; }
+  .muted { color:var(--faint); font-size:12.5px; }
+  .keylist { display:flex; flex-direction:column; gap:5px; }
+  .keylist .key { font-family:ui-monospace,monospace; font-size:12px; color:var(--amber); }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media (max-width:760px){ .grid2 { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>TRIAGE&#8209;LINK</h1><span class="tag">Sync Admin</span>
+  <span class="sp"></span>
+  <span id="status" class="muted">enter admin token</span>
+  <input id="tok" type="password" placeholder="admin token / JWT" autocomplete="off" />
+  <button class="p" onclick="loadAll()">Connect</button>
+  <button onclick="lock()" title="Clear the token from this session">Lock</button>
+</header>
+<main>
+  <section class="panel">
+    <h2>Per-tenant metrics</h2>
+    <div class="body"><div id="metrics" class="cards"></div></div>
+  </section>
+
+  <div class="grid2">
+    <section class="panel">
+      <h2>Tenants</h2>
+      <div class="body">
+        <table><thead><tr><th>ID</th><th>Name</th><th>Status</th><th></th></tr></thead>
+          <tbody id="tenants"></tbody></table>
+        <div class="row" style="margin-top:12px">
+          <input id="tid" placeholder="new-tenant-id" />
+          <input id="tname" placeholder="Display name" />
+          <button onclick="createTenant()">+ Create tenant</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>API keys <span class="muted" id="keysFor"></span></h2>
+      <div class="body">
+        <div id="keys" class="keylist"><div class="muted">Select a tenant&rsquo;s &ldquo;Keys&rdquo; to view.</div></div>
+        <div class="row" style="margin-top:12px">
+          <button id="issueBtn" onclick="issueKey()" disabled>Issue new key</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h2>Audit retention</h2>
+    <div class="body">
+      <div class="row">
+        <span class="muted">Prune audit older than</span>
+        <input id="days" value="30" style="width:60px" /> <span class="muted">days, across all tenants</span>
+        <button onclick="runRetention()">Run retention</button>
+        <span id="retOut" class="muted"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Admin action audit</h2>
+    <div class="body"><table><thead><tr><th>When</th><th>Action</th><th>Tenant</th><th>Actor</th></tr></thead>
+      <tbody id="adminAudit"></tbody></table></div>
+  </section>
+</main>
+<script>
+  const tok = () => document.getElementById('tok').value.trim()
+  const hdr = () => ({ 'authorization': 'Bearer ' + tok(), 'content-type': 'application/json' })
+  let selected = null
+  const setStatus = (txt, ok) => {
+    const el = document.getElementById('status')
+    el.textContent = txt; el.style.color = ok === true ? 'var(--ekg)' : ok === false ? 'var(--red)' : 'var(--faint)'
+  }
+  // One fetch wrapper that flags the auth state (401 → locked-out).
+  async function api(path, opts={}) {
+    const res = await fetch(path, { ...opts, headers: { ...hdr(), ...(opts.headers||{}) } })
+    if (res.status === 401) setStatus('unauthorized — check token', false)
+    return res
+  }
+  function lock() {
+    try { sessionStorage.removeItem('tl.admin.token') } catch {}
+    document.getElementById('tok').value = ''
+    setStatus('locked — enter admin token', null)
+  }
+
+  async function loadMetrics() {
+    const el = document.getElementById('metrics')
+    try {
+      const { tenants } = await (await api('/admin/metrics')).json()
+      const ids = Object.keys(tenants)
+      if (!ids.length) { el.innerHTML = '<div class="muted">No data-plane traffic yet.</div>'; return }
+      el.innerHTML = ids.map(id => {
+        const m = tenants[id]
+        return `<div class="card"><div class="k">tenant</div><div class="v mono" style="font-size:15px">${id}</div>
+          <div class="t">${m.syncRequests} syncs &middot; ${m.opsIngested} ops</div>
+          <div class="muted" style="margin-top:6px">conflicts ${m.conflicts} &middot; quota&times; ${m.quotaRejections}</div>
+          <div class="muted">2xx ${m.responses['2xx']} &middot; 4xx ${m.responses['4xx']} &middot; 5xx ${m.responses['5xx']}</div></div>`
+      }).join('')
+    } catch(e){ el.innerHTML = '<div class="muted">'+e+'</div>' }
+  }
+  async function loadTenants() {
+    const tb = document.getElementById('tenants')
+    const { tenants } = await (await api('/admin/tenants')).json()
+    tb.innerHTML = (tenants||[]).map(t => `<tr>
+      <td class="mono">${t.id}</td><td>${t.name}</td>
+      <td><span class="pill ${t.status}">${t.status}</span></td>
+      <td class="row">
+        <button onclick="toggle('${t.id}','${t.status==='active'?'disabled':'active'}')">${t.status==='active'?'Disable':'Enable'}</button>
+        <button onclick="viewKeys('${t.id}')">Keys</button>
+      </td></tr>`).join('') || '<tr><td colspan=4 class="muted">No tenants yet.</td></tr>'
+  }
+  async function loadAudit() {
+    const tb = document.getElementById('adminAudit')
+    try {
+      const { entries } = await (await api('/admin/audit?limit=8')).json()
+      tb.innerHTML = (entries||[]).map(e => `<tr><td class="muted mono">${(e.createdAt||'').slice(0,19).replace('T',' ')}</td>
+        <td>${e.action}</td><td class="mono">${e.tenantId??'&mdash;'}</td><td class="muted">${e.actor??'token'}</td></tr>`).join('')
+        || '<tr><td colspan=4 class="muted">No admin actions recorded.</td></tr>'
+    } catch(e){ tb.innerHTML = '<tr><td colspan=4 class="muted">'+e+'</td></tr>' }
+  }
+  async function viewKeys(id) {
+    selected = id
+    document.getElementById('keysFor').textContent = '· ' + id
+    document.getElementById('issueBtn').disabled = false
+    const box = document.getElementById('keys')
+    const { keys } = await (await api('/admin/tenants/'+id+'/keys')).json()
+    box.innerHTML = (keys||[]).map(k => `<div class="key">#${k.id} &middot; ${k.label||'(no label)'} &middot; <span class="muted">${(k.createdAt||'').slice(0,10)}</span></div>`).join('')
+      || '<div class="muted">No keys issued.</div>'
+  }
+  async function issueKey() {
+    if (!selected) return
+    const r = await api('/admin/tenants/'+selected+'/keys', { method:'POST', body: JSON.stringify({ label: 'console-'+Date.now() }) })
+    const j = await r.json()
+    if (j.token) alert('New key (shown once):\n\n'+j.token)
+    viewKeys(selected); loadAudit()
+  }
+  async function createTenant() {
+    const id = document.getElementById('tid').value.trim(), name = document.getElementById('tname').value.trim()
+    if (!id || !name) return
+    await api('/admin/tenants', { method:'POST', body: JSON.stringify({ id, name }) })
+    document.getElementById('tid').value=''; document.getElementById('tname').value=''
+    loadTenants(); loadAudit()
+  }
+  async function toggle(id, status) {
+    await api('/admin/tenants/'+id, { method:'PATCH', body: JSON.stringify({ status }) })
+    loadTenants(); loadAudit()
+  }
+  async function runRetention() {
+    const days = Number(document.getElementById('days').value)||30
+    const r = await api('/admin/retention', { method:'POST', body: JSON.stringify({ auditMaxAgeMs: days*86400000 }) })
+    const j = await r.json()
+    document.getElementById('retOut').textContent = r.ok ? ('pruned '+j.total+' entries') : (j.message||'error')
+    loadAudit()
+  }
+  async function loadAll(){
+    const t = tok()
+    if (!t) { setStatus('enter admin token', null); return }
+    try { sessionStorage.setItem('tl.admin.token', t) } catch {}
+    // Validate against a cheap admin call before painting the rest.
+    const probe = await api('/admin/tenants')
+    if (probe.status === 401) return
+    setStatus('connected', true)
+    loadMetrics(); loadTenants(); loadAudit()
+  }
+  // Token source priority: the session, then a #token= hash (so a dev link can
+  // prefill without the token ever hitting the server/logs), else empty.
+  function initToken() {
+    let t = ''
+    try { t = sessionStorage.getItem('tl.admin.token') || '' } catch {}
+    const m = location.hash.match(/token=([^&]+)/)
+    if (!t && m) { t = decodeURIComponent(m[1]); history.replaceState(null, '', location.pathname) }
+    if (t) { document.getElementById('tok').value = t; loadAll() }
+  }
+  window.addEventListener('DOMContentLoaded', initToken)
+</script>
+</body>
+</html>
