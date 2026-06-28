@@ -2,7 +2,7 @@
 // Run with a TypeScript ESM loader (e.g. `tsx src/server.ts`) or compile first.
 import { Pool } from 'pg'
 import type { EhrGateway } from '@triage-link/core'
-import { MockGateway, OneIdClient, OntarioHealthGateway } from '@triage-link/ehr-gateway'
+import { MockGateway, OneIdClient, OntarioHealthGateway, mtlsDispatcherFromEnv } from '@triage-link/ehr-gateway'
 import { buildApp, type SecurityOptions } from './app.js'
 import { OpStore, migrate } from './ops-store.js'
 import { EhrAuditStore, migrateEhrAudit } from './ehr-audit-store.js'
@@ -37,16 +37,28 @@ function buildEhrGateway(audit: EhrAuditStore): EhrGateway | undefined {
   const fullyConfigured = present.length === Object.keys(required).length
 
   if (fullyConfigured) {
+    // mTLS client certificate for the ONE Access Gateway (token + FHIR both go
+    // through it). Built from env (ONE_ID_CLIENT_CERT[_FILE] / _KEY[_FILE] / CA);
+    // undefined when no cert is configured. Fails closed on partial config.
+    const dispatcher = mtlsDispatcherFromEnv()
+    if (dispatcher) {
+      // eslint-disable-next-line no-console
+      console.log('ONE ID / Ontario Health: mTLS client certificate configured.')
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn('ONE ID / Ontario Health: no mTLS client certificate configured (ONE_ID_CLIENT_CERT[_FILE]/_KEY[_FILE]). The ONE Access Gateway requires one in production.')
+    }
     const oneId = new OneIdClient({
       tokenUrl: ONE_ID_TOKEN_URL!,
       clientId: ONE_ID_CLIENT_ID!,
       clientSecret: ONE_ID_CLIENT_SECRET!,
       scope: ONE_ID_SCOPE,
-      // dispatcher: <undici Agent with the mTLS client cert> — supply in deploy.
+      dispatcher,
     })
     return new OntarioHealthGateway({
       fhirBaseUrl: OH_FHIR_BASE_URL!,
       oneId,
+      dispatcher,
       requestingAgentId: OH_AGENT_ID ?? 'triage-link-service',
       onAudit: (event) => {
         // Durably persist every EHR access under the in-flight request's tenant
