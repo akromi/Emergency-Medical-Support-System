@@ -303,6 +303,14 @@ export function buildApp(
   app.register(async (app) => {
   app.get('/health', { schema: { tags: ['sync'], summary: 'Liveness probe' } }, async () => ({ ok: true }))
 
+  // Readiness probe (distinct from liveness): 200 only when the database answers,
+  // else 503 so an orchestrator stops routing traffic to an instance that can't
+  // serve. Unauthenticated, like /health.
+  app.get('/ready', { schema: { tags: ['sync'], summary: 'Readiness probe (DB connectivity)' } }, async (_req, reply) => {
+    const ready = await store.ping()
+    return reply.code(ready ? 200 : 503).send({ ready })
+  })
+
   // Provincial EHR integration is optional: only mounted when a gateway is wired.
   if (ehr) registerEhrRoutes(app, ehr)
   if (ehrAudit) registerEhrAuditRoute(app, ehrAudit)

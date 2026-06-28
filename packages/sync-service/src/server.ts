@@ -172,6 +172,28 @@ async function main(): Promise<void> {
   await app.listen({ port, host: '0.0.0.0' })
   // eslint-disable-next-line no-console
   console.log(`sync-service listening on :${port}`)
+
+  // Graceful shutdown: stop accepting requests, drain in-flight ones, then close
+  // the DB pool before exiting, so a rolling deploy / scale-down doesn't drop
+  // connections or leave half-finished writes.
+  let shuttingDown = false
+  const shutdown = async (signal: string) => {
+    if (shuttingDown) return
+    shuttingDown = true
+    // eslint-disable-next-line no-console
+    console.log(`${signal} received — shutting down`)
+    try {
+      await app.close()
+      await pool.end()
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('error during shutdown', err)
+    } finally {
+      process.exit(0)
+    }
+  }
+  process.on('SIGTERM', () => void shutdown('SIGTERM'))
+  process.on('SIGINT', () => void shutdown('SIGINT'))
 }
 
 main().catch((err) => {
