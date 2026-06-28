@@ -58,8 +58,13 @@ This market is served by the **offline-first core**, not the hosted backend:
   self-describing; and a **date-range filter** scopes the CSV to just the
   casualties logged in a window (last 24 h / 7 / 30 days, or custom). Full
   backups stay whole (safety net).
-- Packaging for **fully air-gapped** install (PWA + optional self-hosted sync on a
-  field laptop), and donor-friendly **retention** presets.
+- Packaging for **fully air-gapped** install *(done)* — a Docker Compose bundle
+  (`deploy/airgapped/`) runs the whole stack offline on a field laptop: **one
+  container serves the PWA and the sync API from the same origin**, backed by a
+  local Postgres with a persistent volume. `pack.sh` saves the images to a
+  tarball for sneakernet transfer; `docker compose up` brings it online with no
+  internet. The sync-service gained an opt-in `STATIC_DIR` to serve the built PWA
+  same-origin (default-off → the hosted backend is unchanged).
 - Lightweight optional sync to the multi-tenant backend **only** where a program
   wants cross-team aggregation — never required.
 

@@ -1,0 +1,14 @@
+# Keep the Docker build context small + reproducible: deps and build outputs are
+# (re)generated inside the image, never copied from the host.
+node_modules
+**/node_modules
+dist
+**/dist
+.git
+html
+playwright-report
+test-results
+coverage
+*.log
+deploy/airgapped/*.tar
+deploy/airgapped/.env

@@ -9,6 +9,8 @@ import { timingSafeEqual, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import swagger from '@fastify/swagger'
 import swaggerUi from '@fastify/swagger-ui'
+import fastifyStatic from '@fastify/static'
+import { resolve as resolvePath } from 'node:path'
 import { resolve, type Op, type EhrGateway } from '@triage-link/core'
 import { OpStore, DEFAULT_TENANT } from './ops-store.js'
 import { registerEhrRoutes, registerEhrAuditRoute } from './ehr-routes.js'
@@ -202,7 +204,7 @@ const RECORD_DETAIL_SCHEMA = {
 } as const
 
 export function buildApp(
-  { store, ehr, ehrAudit, tenantStore, adminAuditStore, oidcVerifier, metrics, onAccessLog, docs = true, security = {} }: {
+  { store, ehr, ehrAudit, tenantStore, adminAuditStore, oidcVerifier, metrics, onAccessLog, docs = true, staticDir, security = {} }: {
     store: OpStore
     ehr?: EhrGateway
     ehrAudit?: EhrAuditStore
@@ -224,6 +226,12 @@ export function buildApp(
     onAccessLog?: (entry: AccessLogEntry) => void
     /** Serve OpenAPI + Swagger UI at /docs (default true). */
     docs?: boolean
+    /** Absolute path to a built PWA (`/dist`) to serve from this same origin.
+     *  When set, the service serves the web app at `/` (with SPA fallback) so a
+     *  single offline process serves both the app and the API — the air-gapped
+     *  field-laptop deployment. Default unset → API-only (hosted backend is
+     *  unchanged). */
+    staticDir?: string
     /** Transport/access hardening (see SecurityOptions). */
     security?: SecurityOptions
   },
@@ -266,6 +274,15 @@ export function buildApp(
 
   // Abuse / DoS guard — per-IP request budget.
   app.register(rateLimit, { max: security.rateLimitMax ?? 300, timeWindow: '1 minute' })
+
+  // Optional: serve the built PWA from this same origin (air-gapped single-process
+  // deployment). Default unset → API-only, so the hosted multi-tenant backend is
+  // unchanged. `wildcard: false` serves real files but lets unmatched GETs fall
+  // through to the not-found handler, which does the SPA fallback to index.html.
+  const staticRoot = staticDir ? resolvePath(staticDir) : null
+  if (staticRoot) {
+    app.register(fastifyStatic, { root: staticRoot, prefix: '/', wildcard: false, index: ['index.html'] })
+  }
 
   // Every request carries a tenant; it stays DEFAULT_TENANT unless authentication
   // resolves a specific one. Decorated unconditionally so handlers can always
@@ -425,7 +442,18 @@ export function buildApp(
     })
   })
 
+  // API path prefixes that must 404 as JSON (never fall back to the SPA shell),
+  // so a mistyped/unauthenticated API call gets a real error, not index.html.
+  const API_PREFIXES = ['/sync', '/admin', '/ehr', '/health', '/ready', '/metrics', '/docs', '/console']
   app.setNotFoundHandler((req, reply) => {
+    // When the PWA is served from this origin, fall back unknown browser GETs to
+    // the app shell (single-page app) — but only for non-API paths.
+    if (staticRoot && (req.method === 'GET' || req.method === 'HEAD')) {
+      const path = req.url.split('?')[0]
+      if (!API_PREFIXES.some((p) => path === p || path.startsWith(p + '/'))) {
+        return reply.sendFile('index.html')
+      }
+    }
     reply.code(404).send({
       error: 'Not Found',
       message: `Route ${req.method} ${req.url.split('?')[0]} not found`,
