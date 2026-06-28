@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import {
   type CasualtyRecord, type InjuryTypeKey, type TriageCategory,
   type VitalSign, type Treatment, type TreatmentPlace, type Handover,
@@ -22,6 +22,7 @@ import { Tip, OfflineBanner, InstallPrompt, useDismissed } from './components/hi
 import { Tutorial } from './components/Tutorial'
 import { DeploymentBar } from './components/DeploymentBar'
 import { getDeployment } from './db/deployment'
+import { getRetention, setRetention, subscribeRetention, findExpired, RETENTION_PRESETS } from './db/retention'
 import { Elapsed } from './components/Elapsed'
 import { VitalsTrend } from './components/VitalsTrend'
 import { EhrTestConsole } from './components/EhrTestConsole'
@@ -83,6 +84,7 @@ export function App() {
   const saveTimer = useRef<number | undefined>(undefined)
   const vaultState = useVaultState()
   const { active: activeOperator } = useOperators()
+  const retention = useSyncExternalStore(subscribeRetention, getRetention)
 
   useEffect(() => {
     initVault().then(() => {
@@ -226,6 +228,20 @@ export function App() {
     await recordRepo.remove(id)
     setSaved(await recordRepo.list())
     if (id === record.id) newCase()
+  }
+
+  // Enforce the data-retention window: purge records past it. Operator-triggered
+  // and confirmed (never a silent timer), gated by step-up like any other delete.
+  async function purgeExpired() {
+    const victims = findExpired(saved, retention.days, Date.now())
+    if (victims.length === 0) return
+    if (!(await guard('record.delete'))) return
+    if (!window.confirm(t('retention.confirm', { n: victims.length, days: retention.days }))) return
+    for (const r of victims) await recordRepo.remove(r.id)
+    setSaved(await recordRepo.list())
+    audit('record.purge', { detail: `retention:${retention.days}d:${victims.length}` })
+    flashBackup(t('retention.purged', { n: victims.length }))
+    if (victims.some((v) => v.id === record.id)) newCase()
   }
 
   // ---- backup / restore (all records) ----
@@ -395,6 +411,7 @@ export function App() {
   const triage = record.incident.triage
   const tbsa = estimateBurnTBSA(record.injuries, record.incident.ageBand)
   const dobAge = ageFromDob(record.tombstone.dob, Date.now())
+  const expiredCount = findExpired(saved, retention.days, Date.now()).length
 
   return (
     <>
@@ -657,6 +674,16 @@ export function App() {
               </span>
               <button type="button" className="minibtn" onClick={exportRecordsCsv} title="Export a roster CSV (identity + incident fields) for analytics or QA">{t('saved.csv')}</button>
               <button type="button" className="minibtn" onClick={pickCsvFile} title="Import a roster CSV to create casualty records (onboard a patient list)">{t('saved.csvin')}</button>
+              <span className="retention" data-tour="retention">
+                <select value={retention.days} onChange={(e) => setRetention(Number(e.target.value))} aria-label={t('retention.label')} title={t('retention.help')}>
+                  <option value={0}>{t('retention.off')}</option>
+                  {RETENTION_PRESETS.map((d) => <option key={d} value={d}>{t('retention.days', { n: d })}</option>)}
+                </select>
+                {expiredCount > 0 && (
+                  <button type="button" className="minibtn danger" onClick={purgeExpired}
+                    title={t('retention.help')}>{t('retention.purge', { n: expiredCount })}</button>
+                )}
+              </span>
               <span className="count">{saved.length}</span>
             </div>
             <div className="panel-b">

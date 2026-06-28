@@ -58,8 +58,13 @@ This market is served by the **offline-first core**, not the hosted backend:
   self-describing; and a **date-range filter** scopes the CSV to just the
   casualties logged in a window (last 24 h / 7 / 30 days, or custom). Full
   backups stay whole (safety net).
+- Donor-friendly **retention presets** *(done)* — a device-wide data-retention
+  window (off / 30 / 90 / 180 / 365 days) in the saved-casualties header. Records
+  first documented longer ago than the window are flagged with a count, and an
+  operator **purges them in one confirmed, step-up-gated step** — never a silent
+  background delete. Off by default (`src/db/retention.ts`).
 - Packaging for **fully air-gapped** install (PWA + optional self-hosted sync on a
-  field laptop), and donor-friendly **retention** presets.
+  field laptop).
 - Lightweight optional sync to the multi-tenant backend **only** where a program
   wants cross-team aggregation — never required.
 
