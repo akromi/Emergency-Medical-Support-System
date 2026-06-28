@@ -28,7 +28,7 @@ import { EhrTestConsole } from './components/EhrTestConsole'
 import { PcrVerify } from './components/PcrVerify'
 import { contributeHandover, EhrUnavailableError } from './ehr/client'
 import { LockScreen, useVaultState } from './components/VaultLock'
-import { initVault, enableVault, disableVault, lock as lockVault, noteActivity, isRequired, setVaultPolicy } from './db/vault'
+import { initVault, enableVault, disableVault, lock as lockVault, noteActivity, isRequired, setVaultPolicy, setAutoLockMs, DEFAULT_AUTOLOCK_MS } from './db/vault'
 import { audit } from './db/audit'
 import { requireStepUp } from './db/stepup'
 import { AuditLog } from './components/AuditLog'
@@ -88,7 +88,13 @@ export function App() {
     initVault().then(() => {
       // Re-assert the MCI profile's mandatory-encryption policy after a reload:
       // the deployment flag (localStorage) is the source of truth for the mode.
-      if (getDeployment().mci && !isRequired()) void setVaultPolicy(true)
+      // MCI also tightens the kiosk idle auto-lock (shared-device default).
+      if (getDeployment().mci) {
+        if (!isRequired()) void setVaultPolicy(true)
+        setAutoLockMs(2 * 60_000)
+      } else {
+        setAutoLockMs(DEFAULT_AUTOLOCK_MS)
+      }
     })
     initOperators()
   }, [])
@@ -438,7 +444,7 @@ export function App() {
 
       {/* Deployment context — the operation/site this device documents (offline,
           device-wide). Humanitarian/MCI coordination + donor-report provenance. */}
-      <DeploymentBar onCommand={() => setShowBoard(true)} />
+      <DeploymentBar onCommand={() => setShowBoard(true)} onOperators={() => setShowOperators(true)} />
 
       {/* Prominent, always-visible triage tag (acuity channel, distinct from
           injury-type marker colours). Quick-set here; persists on the record. */}

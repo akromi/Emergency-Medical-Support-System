@@ -47,7 +47,11 @@ This market is served by the **offline-first core**, not the hosted backend:
   deployment bar that, in one toggle, makes **encryption mandatory** (via the
   vault required-policy: forces passphrase setup, can't be turned off while on)
   and surfaces a **Command** shortcut to the scene roll-up. Off by default;
-  re-asserted on reload. Next on this thread: kiosk/operator-required defaults.
+  re-asserted on reload. **Kiosk/operator-required defaults** *(done)*: in MCI
+  mode the bar prompts to **assign an on-duty operator** until one signs in (so
+  every record is attributed on a passed-around device), and the idle
+  **auto-lock tightens to 2 min** (from the 5-min default). Both revert when MCI
+  is off.
 - Donor-friendly **data-export** *(done)* — the deployment tag (operation /
   response type / organization) is stamped onto every CSV row and carried in the
   JSON backup, so an extract handed to a donor or coordination cell is
