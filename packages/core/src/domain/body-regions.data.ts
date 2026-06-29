@@ -10,9 +10,12 @@
 // listed before the larger boxes they overlap.
 import type { RegionGroup } from './body-model.js'
 
+// `rot` (optional, degrees, clockwise about the shape's centre) lets a box or
+// ellipse tilt to match angled features (eyes, ears, cheeks). Omitted/0 = axis
+// aligned, so existing data is unchanged.
 export type ShapeSpec =
-  | { kind: 'box'; x1: number; y1: number; x2: number; y2: number }
-  | { kind: 'ellipse'; cx: number; cy: number; rx: number; ry: number }
+  | { kind: 'box'; x1: number; y1: number; x2: number; y2: number; rot?: number }
+  | { kind: 'ellipse'; cx: number; cy: number; rx: number; ry: number; rot?: number }
   | { kind: 'quad'; cxTop: number; yTop: number; wTop: number; cxBot: number; yBot: number; wBot: number }
 
 /** A single region. `name` for view-specific head parts; `names` for shared

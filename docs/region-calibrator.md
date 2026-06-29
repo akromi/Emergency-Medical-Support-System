@@ -13,7 +13,11 @@ or the deployed URL on a tablet). The normal app is unaffected without the flag.
 
 1. Pick a region from the dropdown — the view **zooms to it** so the handles are
    big and easy to drag (toggle the *Zoom* button for the whole body).
-2. Drag the handles onto the figure — a **blue hollow ring** moves the whole
+2. Use the **Move / Width / Height / Rotate** buttons (with a 1- or 5-unit
+   **Step**) for precise, tap-based adjustment — the figure holds still while you
+   work. **Rotate** tilts boxes and ellipses (eyes/ears/cheeks) and angles
+   fingers; the buttons appear only for shapes that support it.
+3. Or drag the handles onto the figure — a **blue hollow ring** moves the whole
    region; **solid amber dots** reshape it:
    - **boxes** – four corner handles + a centre (move) handle;
    - **ellipses** (eye/ear) – centre + an east (radius-x) + a south (radius-y) handle;

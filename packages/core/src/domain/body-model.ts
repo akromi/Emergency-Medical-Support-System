@@ -87,11 +87,21 @@ interface SharedPart {
 
 const mirrorX = (pts: ReadonlyArray<Point>): Point[] => pts.map(([x, y]) => [r1(W - x), y] as Point)
 
+/** Rotate points by `deg` (clockwise) about (cx, cy). No-op when deg falsy. */
+function rotatePoints(pts: Point[], cx: number, cy: number, deg = 0): Point[] {
+  if (!deg) return pts
+  const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a)
+  return pts.map(([x, y]) => {
+    const dx = x - cx, dy = y - cy
+    return [r1(cx + dx * c - dy * s), r1(cy + dx * s + dy * c)] as Point
+  })
+}
+
 /** Turn a serialisable shape spec (from body-regions.data.ts) into polygon points. */
 function shapePoints(s: ShapeSpec): Point[] {
   switch (s.kind) {
-    case 'box': return box(s.x1, s.y1, s.x2, s.y2)
-    case 'ellipse': return ellipse(s.cx, s.cy, s.rx, s.ry)
+    case 'box': return rotatePoints(box(s.x1, s.y1, s.x2, s.y2), (s.x1 + s.x2) / 2, (s.y1 + s.y2) / 2, s.rot)
+    case 'ellipse': return rotatePoints(ellipse(s.cx, s.cy, s.rx, s.ry), s.cx, s.cy, s.rot)
     case 'quad': return quad(s.cxTop, s.yTop, s.wTop, s.cxBot, s.yBot, s.wBot)
   }
 }

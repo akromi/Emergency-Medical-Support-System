@@ -102,6 +102,17 @@ describe('data-driven region map', () => {
     expect(regionAt(226, 160, 'anterior')).toBe('R Eye')      // restored
   })
 
+  it('applies a box/ellipse rotation to the polygon', () => {
+    const d = cloneData()
+    const eye = d.head.anterior.find((s) => s.name === 'Eye')!
+    // The eye ellipse is wide & short (rx 13, ry 8). A point 10 below its centre
+    // is outside when flat, but inside once rotated 90° (vertical axis → 13).
+    expect(regionAt(226, 170, 'anterior')).not.toBe('R Eye')
+    if (eye.shape.kind === 'ellipse') eye.shape.rot = 90
+    applyRegionData(d)
+    expect(regionAt(226, 170, 'anterior')).toBe('R Eye')
+  })
+
   it('keeps burn-TBSA stable (calibration moves positions, not names/tbsa)', () => {
     const d = cloneData()
     const knee = d.left.find((e) => 'names' in e && e.names?.ant === 'Knee') as { shape: { kind: string; y1?: number; y2?: number } }

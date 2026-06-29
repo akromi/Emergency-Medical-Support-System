@@ -24,6 +24,19 @@ const LS_KEY = 'tl.regions.override'
 const r1 = (n: number) => Math.round(n * 10) / 10
 const clone = (d: BodyRegionData): BodyRegionData => JSON.parse(JSON.stringify(d))
 
+/** Rotate (x,y) by `deg` (clockwise) about (cx,cy). Used to keep handles on a
+ *  tilted box/ellipse and to inverse-map drags back into the shape's local frame. */
+function rotPt(x: number, y: number, cx: number, cy: number, deg = 0): { x: number; y: number } {
+  if (!deg) return { x, y }
+  const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a), dx = x - cx, dy = y - cy
+  return { x: cx + dx * c - dy * s, y: cy + dx * s + dy * c }
+}
+/** Centre + rotation of a box/ellipse shape (for handle rotation). */
+function shapeRot(s: { kind: string } & Record<string, number | undefined>): { cx: number; cy: number; rot: number } {
+  if (s.kind === 'box') return { cx: ((s.x1 as number) + (s.x2 as number)) / 2, cy: ((s.y1 as number) + (s.y2 as number)) / 2, rot: s.rot ?? 0 }
+  return { cx: s.cx as number, cy: s.cy as number, rot: s.rot ?? 0 } // ellipse
+}
+
 // ---- Editable address into the data ---------------------------------------
 type Addr =
   | { k: 'head'; view: BodyView; i: number }
@@ -81,15 +94,22 @@ function handlesFor(spec: RegionSpec | FingerSpec | ToeSpec): Handle[] {
     ]
   }
   const s = (spec as RegionSpec).shape
-  if (s.kind === 'box') return [
-    { id: 'c', x: r1((s.x1 + s.x2) / 2), y: r1((s.y1 + s.y2) / 2), role: 'move' },
-    { id: 'nw', x: s.x1, y: s.y1, role: 'pt' }, { id: 'ne', x: s.x2, y: s.y1, role: 'pt' },
-    { id: 'se', x: s.x2, y: s.y2, role: 'pt' }, { id: 'sw', x: s.x1, y: s.y2, role: 'pt' },
-  ]
-  if (s.kind === 'ellipse') return [
-    { id: 'c', x: s.cx, y: s.cy, role: 'move' },
-    { id: 'e', x: r1(s.cx + s.rx), y: s.cy, role: 'pt' }, { id: 's', x: s.cx, y: r1(s.cy + s.ry), role: 'pt' },
-  ]
+  if (s.kind === 'box') {
+    const cx = (s.x1 + s.x2) / 2, cy = (s.y1 + s.y2) / 2, rot = s.rot ?? 0
+    const P = (id: string, x: number, y: number): Handle => { const p = rotPt(x, y, cx, cy, rot); return { id, x: r1(p.x), y: r1(p.y), role: 'pt' } }
+    return [
+      { id: 'c', x: r1(cx), y: r1(cy), role: 'move' },
+      P('nw', s.x1, s.y1), P('ne', s.x2, s.y1), P('se', s.x2, s.y2), P('sw', s.x1, s.y2),
+    ]
+  }
+  if (s.kind === 'ellipse') {
+    const rot = s.rot ?? 0
+    const P = (id: string, x: number, y: number): Handle => { const p = rotPt(x, y, s.cx, s.cy, rot); return { id, x: r1(p.x), y: r1(p.y), role: 'pt' } }
+    return [
+      { id: 'c', x: s.cx, y: s.cy, role: 'move' },
+      P('e', s.cx + s.rx, s.cy), P('s', s.cx, s.cy + s.ry),
+    ]
+  }
   // quad
   return [
     { id: 'c', x: r1((s.cxTop + s.cxBot) / 2), y: r1((s.yTop + s.yBot) / 2), role: 'move' },
@@ -119,6 +139,13 @@ function dragHandle(spec: RegionSpec | FingerSpec | ToeSpec, id: string, px: num
     return
   }
   const s = (spec as RegionSpec).shape
+  // For a tilted box/ellipse, map the pointer back into the shape's local
+  // (un-rotated) frame so the existing reshape maths apply. The centre/move
+  // handle is rotation-invariant, so leave it in world space.
+  if ((s.kind === 'box' || s.kind === 'ellipse') && (s.rot ?? 0) && id !== 'c') {
+    const { cx, cy, rot } = shapeRot(s as never)
+    const p = rotPt(px, py, cx, cy, -rot); px = p.x; py = p.y
+  }
   if (s.kind === 'box') {
     if (id === 'c') { const dx = px - prev.x, dy = py - prev.y; s.x1 = r1(s.x1 + dx); s.x2 = r1(s.x2 + dx); s.y1 = r1(s.y1 + dy); s.y2 = r1(s.y2 + dy); return }
     if (id.includes('w')) s.x1 = r1(Math.min(px, s.x2 - MIN)); if (id.includes('e')) s.x2 = r1(Math.max(px, s.x1 + MIN))
@@ -201,6 +228,21 @@ function resizeSpec(spec: RegionSpec | FingerSpec | ToeSpec, dw: number, dh: num
     s.yTop = r1(s.yTop - dh / 2); s.yBot = r1(s.yBot + dh / 2)
     if (s.yBot - s.yTop < MIN) { const c = (s.yTop + s.yBot) / 2; s.yTop = r1(c - MIN / 2); s.yBot = r1(c + MIN / 2) }
   }
+}
+
+/** Rotate by `d` degrees: fingers via their angle, boxes/ellipses via `rot`. */
+function rotateSpec(spec: RegionSpec | FingerSpec | ToeSpec, d: number): void {
+  if ('lens' in spec) { spec.ang = r1(spec.ang + d); return }
+  if ('cx' in spec && 'len' in spec) return // toe: no rotation
+  const s = (spec as RegionSpec).shape
+  if (s.kind === 'box' || s.kind === 'ellipse') s.rot = r1(((s.rot ?? 0) + d) % 360)
+}
+/** Whether the selected spec can be rotated (fingers, boxes, ellipses). */
+function rotatable(spec: RegionSpec | FingerSpec | ToeSpec): boolean {
+  if ('lens' in spec) return true
+  if ('cx' in spec && 'len' in spec) return false
+  const k = (spec as RegionSpec).shape.kind
+  return k === 'box' || k === 'ellipse'
 }
 
 // ---- Component -------------------------------------------------------------
@@ -326,7 +368,7 @@ export function RegionCalibrator() {
         Pick a region — the view zooms to it (toggle <em>Zoom</em> for the whole body). Drag the
         <span style={{ color: '#3b82f6', fontWeight: 700 }}> blue ring</span> to move the whole region,
         the <span style={{ color: '#f59e0b', fontWeight: 700 }}>amber dots</span> to reshape it — or use the
-        <strong> Move / Width / Height</strong> buttons below for precise taps (the figure stays put while you
+        <strong> Move / Width / Height / Rotate</strong> buttons below for precise taps (the figure stays put while you
         adjust). Edit the image-LEFT / centre / head regions; the right side mirrors automatically.
         Selected: <strong>{sel ? specs.find((s) => addrEq(s.addr, sel))?.label : 'none'}</strong>.
       </div>
@@ -343,10 +385,10 @@ export function RegionCalibrator() {
           <span className="cn-lbl">{'lens' in selSpec ? 'Length' : 'Height'}</span>
           <button type="button" onClick={() => edit((s) => resizeSpec(s, 0, -step))} aria-label="shorter">−</button>
           <button type="button" onClick={() => edit((s) => resizeSpec(s, 0, step))} aria-label="taller">+</button>
-          {'lens' in selSpec && (<>
+          {rotatable(selSpec) && (<>
             <span className="cn-lbl">Rotate</span>
-            <button type="button" onClick={() => edit((s) => { (s as FingerSpec).ang = r1((s as FingerSpec).ang - step) })} aria-label="rotate left">↺</button>
-            <button type="button" onClick={() => edit((s) => { (s as FingerSpec).ang = r1((s as FingerSpec).ang + step) })} aria-label="rotate right">↻</button>
+            <button type="button" onClick={() => edit((s) => rotateSpec(s, -step))} aria-label="rotate left">↺</button>
+            <button type="button" onClick={() => edit((s) => rotateSpec(s, step))} aria-label="rotate right">↻</button>
           </>)}
           <span className="cn-sep" />
           <span className="cn-lbl">Step</span>
