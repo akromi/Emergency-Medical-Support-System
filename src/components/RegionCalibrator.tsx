@@ -142,11 +142,51 @@ function dragHandle(spec: RegionSpec | FingerSpec | ToeSpec, id: string, px: num
 // ---- Component -------------------------------------------------------------
 // Shape-guard the persisted edits: only accept a well-formed BodyRegionData, so
 // a stale/garbage localStorage value can never reach buildRegions and throw.
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+
+function isShapeSpec(s: unknown): boolean {
+  if (!s || typeof s !== 'object') return false
+  const o = s as Record<string, unknown>
+  switch (o.kind) {
+    case 'box': return [o.x1, o.y1, o.x2, o.y2].every(isNum)
+    case 'ellipse': return [o.cx, o.cy, o.rx, o.ry].every(isNum)
+    case 'quad': return [o.cxTop, o.yTop, o.wTop, o.cxBot, o.yBot, o.wBot].every(isNum)
+    default: return false
+  }
+}
+
+function isRegionSpec(s: unknown): boolean {
+  return !!s && typeof s === 'object' && isShapeSpec((s as RegionSpec).shape)
+}
+
+function isFingerSpec(s: unknown): boolean {
+  if (!s || typeof s !== 'object') return false
+  const o = s as FingerSpec
+  return typeof o.label === 'string' && isNum(o.rootX) && isNum(o.rootY) && isNum(o.ang) && isNum(o.w)
+    && Array.isArray(o.lens) && o.lens.length === 3 && o.lens.every(isNum)
+    && Array.isArray(o.tbsa) && o.tbsa.length === 3 && o.tbsa.every(isNum)
+}
+
+function isToeSpec(s: unknown): boolean {
+  if (!s || typeof s !== 'object') return false
+  const o = s as ToeSpec
+  return typeof o.label === 'string' && isNum(o.cx) && isNum(o.w) && isNum(o.len) && isNum(o.yTop)
+}
+
+function isLeftEntry(e: unknown): boolean {
+  if (!e || typeof e !== 'object') return false
+  if ('fingers' in e) return Array.isArray((e as { fingers: unknown }).fingers) && (e as { fingers: unknown[] }).fingers.every(isFingerSpec)
+  if ('toes' in e) return Array.isArray((e as { toes: unknown }).toes) && (e as { toes: unknown[] }).toes.every(isToeSpec)
+  return isRegionSpec(e)
+}
+
 function isRegionData(d: unknown): d is BodyRegionData {
   const o = d as BodyRegionData | null
   return !!o && typeof o === 'object'
-    && !!o.head && Array.isArray(o.head.anterior) && Array.isArray(o.head.posterior)
-    && Array.isArray(o.central) && Array.isArray(o.left)
+    && !!o.head && Array.isArray(o.head.anterior) && o.head.anterior.every(isRegionSpec)
+    && Array.isArray(o.head.posterior) && o.head.posterior.every(isRegionSpec)
+    && Array.isArray(o.central) && o.central.every(isRegionSpec)
+    && Array.isArray(o.left) && o.left.every(isLeftEntry)
 }
 
 function loadSaved(): BodyRegionData | null {
