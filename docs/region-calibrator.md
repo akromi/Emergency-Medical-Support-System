@@ -11,8 +11,10 @@ or the deployed URL on a tablet). The normal app is unaffected without the flag.
 
 ## Use it
 
-1. Pick a region from the dropdown (or it shows all regions overlaid in red).
-2. Drag the round handles onto the figure:
+1. Pick a region from the dropdown — the view **zooms to it** so the handles are
+   big and easy to drag (toggle the *Zoom* button for the whole body).
+2. Drag the handles onto the figure — a **blue hollow ring** moves the whole
+   region; **solid amber dots** reshape it:
    - **boxes** – four corner handles + a centre (move) handle;
    - **ellipses** (eye/ear) – centre + an east (radius-x) + a south (radius-y) handle;
    - **quads** (limb segments) – four corner handles + centre;
