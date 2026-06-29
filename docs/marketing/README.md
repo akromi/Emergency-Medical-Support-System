@@ -1,17 +1,18 @@
-# TRIAGE-LINK — capability overview deck
+# TRIAGE-LINK — capability overview deck (Humanitarian / NGO flavor)
 
-A 20-slide presentation of the whole system: the offline-first PWA, the
-encryption & audit layer, the multi-tenant backend + admin security, and the
-three market flavors (Humanitarian / NGO · Ontario EMS / regulated · productized
-backend).
+A 26-slide presentation of the whole system tailored to the **Humanitarian / NGO**
+line: the offline-first PWA, the encryption & audit layer, the multi-tenant backend
++ admin security, and the deployment / MCI / retention / air-gap story.
 
 ## Files
 
 | File | What it is |
 |---|---|
 | `triage-link-overview.html` | **Canonical deck** — brand-themed, keyboard-navigable. Open in any browser; `←` / `→` (or space) to navigate; auto-scales to the window. References the screenshots in `img/`, so keep that folder alongside it. |
-| `triage-link-overview.pdf` | Self-contained handout (22 pages, screenshots baked in) — produced from the HTML via the bundled Chromium. The single file to email/share. |
-| `img/app-*.png` | Real screenshots of the running PWA (record · summary card · triage board). |
+| `triage-link-overview.pdf` | Self-contained handout (26 pages, screenshots baked in) — produced from the HTML via the bundled Chromium. The single file to email/share. |
+| `playback-script.md` | **Presenter script** (Humanitarian cut) — per-slide narration, talking points, transitions, timing, a 7-minute NGO/donor short path, and a live-demo click track. |
+| `img/app-*.png` | Real screenshots of the running PWA: record · summary card · triage board · guided tour · vault lock · operators · audit log. |
+| `img/hum-*.png` | Humanitarian-specific shots: deployment context bar (with MCI mode) · donor export + retention window. |
 
 Both decks are generated — edit the source script, don't hand-edit the outputs.
 
