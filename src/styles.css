@@ -634,6 +634,8 @@ input::placeholder { color:var(--txt-faint); }
 .calib-hint { padding:7px 12px; font-size:11.5px; line-height:1.5; color:var(--txt-dim); border-bottom:1px solid var(--line); }
 .calib-svg { flex:1; min-height:0; width:100%; background:#0a0e16; touch-action:none; }
 .calib-poly { fill:rgba(255,90,90,0.06); stroke:rgba(255,90,90,0.85); stroke-width:0.6; vector-effect:non-scaling-stroke; }
-.calib-h { fill:#34d399; stroke:#04110b; stroke-width:1; cursor:grab; }
-.calib-h.move { fill:#60a5fa; }
+/* Reshape points: solid AMBER dots. Move handle: hollow BLUE ring (bigger).
+   Distinct in both hue (colourblind-safe orange/blue) and shape (solid vs ring). */
+.calib-h { fill:#f59e0b; stroke:#1a1205; stroke-width:1.5; vector-effect:non-scaling-stroke; cursor:grab; pointer-events:all; }
+.calib-h.move { fill:transparent; stroke:#3b82f6; stroke-width:3.5; }
 .calib-h:active { cursor:grabbing; }
