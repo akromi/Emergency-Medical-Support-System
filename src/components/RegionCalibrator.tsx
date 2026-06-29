@@ -188,7 +188,13 @@ function resizeSpec(spec: RegionSpec | FingerSpec | ToeSpec, dw: number, dh: num
     }
     return
   }
-  if ('cx' in spec && 'len' in spec) { spec.w = r1(Math.max(MIN, spec.w + dw)); spec.len = r1(Math.max(MIN, spec.len + dh)); return }
+  if ('cx' in spec && 'len' in spec) {
+    spec.w = r1(Math.max(MIN, spec.w + dw))
+    spec.yTop = r1(spec.yTop - dh / 2)
+    spec.len = r1(spec.len + dh)
+    if (spec.len < MIN) { const c = spec.yTop + spec.len / 2; spec.len = MIN; spec.yTop = r1(c - MIN / 2) }
+    return
+  }
   const s = (spec as RegionSpec).shape
   if (s.kind === 'box') {
     s.x1 = r1(s.x1 - dw / 2); s.x2 = r1(s.x2 + dw / 2); s.y1 = r1(s.y1 - dh / 2); s.y2 = r1(s.y2 + dh / 2)
