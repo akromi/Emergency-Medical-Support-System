@@ -169,6 +169,15 @@ export function RegionCalibrator() {
     setDrag((dr) => dr && { ...dr, prev: { ...dr.prev, x: p.x, y: p.y } })
   }
 
+  // Head specs are view-specific (their index means a different region per
+  // view), so a head selection must be dropped when the view changes — otherwise
+  // its handles/drags would edit the OTHER view's head spec. Shared regions
+  // (centre/left/finger/toe) are view-independent and stay selected.
+  function toggleView() {
+    setView((v) => (v === 'anterior' ? 'posterior' : 'anterior'))
+    setSel((s) => (s && s.k === 'head' ? null : s))
+  }
+
   function save() {
     try { localStorage.setItem(LS_KEY, JSON.stringify(data)); setSavedAt(new Date().toLocaleTimeString()) } catch { /* ignore */ }
   }
@@ -186,7 +195,7 @@ export function RegionCalibrator() {
     <div className="calib">
       <div className="calib-bar">
         <strong>Region calibrator</strong>
-        <button type="button" onClick={() => setView(view === 'anterior' ? 'posterior' : 'anterior')}>View: {view}</button>
+        <button type="button" onClick={toggleView}>View: {view}</button>
         <select value={sel ? specs.findIndex((s) => addrEq(s.addr, sel)) : -1}
           onChange={(e) => setSel(Number(e.target.value) >= 0 ? specs[Number(e.target.value)].addr : null)}>
           <option value={-1}>— pick a region —</option>
