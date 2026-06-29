@@ -161,6 +161,42 @@ function specBBox(spec: RegionSpec | FingerSpec | ToeSpec, mirror = false): { x:
   return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 }
 }
 
+// ---- Button-driven move / resize (precise, touch-friendly) ----------------
+const MIN = 2
+
+/** Move the whole region by (dx, dy). Mutates spec in place. */
+function nudgeSpec(spec: RegionSpec | FingerSpec | ToeSpec, dx: number, dy: number): void {
+  if ('lens' in spec) { spec.rootX = r1(spec.rootX + dx); spec.rootY = r1(spec.rootY + dy); return }
+  if ('cx' in spec && 'len' in spec) { spec.cx = r1(spec.cx + dx); spec.yTop = r1(spec.yTop + dy); return }
+  const s = (spec as RegionSpec).shape
+  if (s.kind === 'box') { s.x1 = r1(s.x1 + dx); s.x2 = r1(s.x2 + dx); s.y1 = r1(s.y1 + dy); s.y2 = r1(s.y2 + dy) }
+  else if (s.kind === 'ellipse') { s.cx = r1(s.cx + dx); s.cy = r1(s.cy + dy) }
+  else { s.cxTop = r1(s.cxTop + dx); s.cxBot = r1(s.cxBot + dx); s.yTop = r1(s.yTop + dy); s.yBot = r1(s.yBot + dy) }
+}
+
+/** Grow/shrink about the centre: dw = width change, dh = height/length change. */
+function resizeSpec(spec: RegionSpec | FingerSpec | ToeSpec, dw: number, dh: number): void {
+  if ('lens' in spec) { // finger: dw = thickness, dh = length (scale the phalanges)
+    spec.w = r1(Math.max(MIN, spec.w + dw))
+    const sum = spec.lens[0] + spec.lens[1] + spec.lens[2] || 1
+    const k = Math.max(0.2, (sum + dh) / sum)
+    spec.lens = [r1(spec.lens[0] * k), r1(spec.lens[1] * k), r1(spec.lens[2] * k)] as [number, number, number]
+    return
+  }
+  if ('cx' in spec && 'len' in spec) { spec.w = r1(Math.max(MIN, spec.w + dw)); spec.len = r1(Math.max(MIN, spec.len + dh)); return }
+  const s = (spec as RegionSpec).shape
+  if (s.kind === 'box') {
+    s.x1 = r1(s.x1 - dw / 2); s.x2 = r1(s.x2 + dw / 2); s.y1 = r1(s.y1 - dh / 2); s.y2 = r1(s.y2 + dh / 2)
+    if (s.x2 - s.x1 < MIN) { const c = (s.x1 + s.x2) / 2; s.x1 = r1(c - MIN / 2); s.x2 = r1(c + MIN / 2) }
+    if (s.y2 - s.y1 < MIN) { const c = (s.y1 + s.y2) / 2; s.y1 = r1(c - MIN / 2); s.y2 = r1(c + MIN / 2) }
+  } else if (s.kind === 'ellipse') {
+    s.rx = r1(Math.max(MIN, s.rx + dw / 2)); s.ry = r1(Math.max(MIN, s.ry + dh / 2))
+  } else {
+    s.wTop = r1(Math.max(MIN, s.wTop + dw)); s.wBot = r1(Math.max(MIN, s.wBot + dw))
+    s.yTop = r1(s.yTop - dh / 2); s.yBot = r1(s.yBot + dh / 2)
+  }
+}
+
 // ---- Component -------------------------------------------------------------
 // Shape-guard the persisted edits: only accept a well-formed BodyRegionData, so
 // a stale/garbage localStorage value can never reach buildRegions and throw.
@@ -182,6 +218,8 @@ export function RegionCalibrator() {
   const [drag, setDrag] = useState<{ id: string; prev: Handle } | null>(null)
   const [savedAt, setSavedAt] = useState<string>('')
   const [zoom, setZoom] = useState<'region' | 'body'>('region')
+  const [step, setStep] = useState(1)        // nudge/resize amount per button tap
+  const [recenter, setRecenter] = useState(0) // bump to re-frame the viewport
   const svgRef = useRef<SVGSVGElement>(null)
 
   // Preview edits live WHILE the tool is mounted; restore the shipped default on
@@ -208,6 +246,12 @@ export function RegionCalibrator() {
     setDrag((dr) => dr && { ...dr, prev: { ...dr.prev, x: p.x, y: p.y } })
   }
 
+  // Apply a move/resize op from the button panel to the selected spec.
+  function edit(fn: (spec: RegionSpec | FingerSpec | ToeSpec) => void) {
+    if (!sel) return
+    setData((d) => { const nd = clone(d); fn(specShape(nd, sel)); return nd })
+  }
+
   // Head specs are view-specific (their index means a different region per
   // view), so a head selection must be dropped when the view changes — otherwise
   // its handles/drags would edit the OTHER view's head spec. Shared regions
@@ -231,11 +275,13 @@ export function RegionCalibrator() {
   }
 
   const img = FIGURE_IMAGE[view]
-  // Zoom the viewBox to the selected region so its handles are big and easy to
-  // grab; fall back to the whole body when nothing is selected or zoom is off.
-  const liveVb = (() => {
+  // Frame the viewport to the selected region (with padding) so its handles are
+  // big and easy to grab. Crucially this is computed ONLY when the selection /
+  // zoom / view changes (or Recenter), NOT on every edit — so the figure holds
+  // still while you drag or nudge the region instead of sliding under you.
+  const selKey = sel ? JSON.stringify(sel) : 'none'
+  const vb = useMemo(() => {
     if (zoom === 'region' && selSpec) {
-      // Paired head features (Eye/Ear/Cheek, side:'left') — show both sides.
       const mirror = sel?.k === 'head' && (selSpec as RegionSpec).side === 'left'
       const b = specBBox(selSpec, mirror)
       const P = Math.max(26, Math.max(b.w, b.h) * 0.7)
@@ -243,12 +289,8 @@ export function RegionCalibrator() {
       return { x, y, w: Math.min(VW, b.x + b.w + P) - x, h: Math.min(VH, b.y + b.h + P) - y }
     }
     return { x: 0, y: 0, w: VW, h: VH }
-  })()
-  // Freeze the viewport for the duration of a drag so the figure (and the
-  // pointer→user CTM) stays put while the region's bbox moves under the cursor —
-  // otherwise the zoom recentres every frame and dragging feels slippery.
-  const frozenVb = useRef(liveVb)
-  const vb = drag ? frozenVb.current : liveVb
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selKey, zoom, view, recenter])
   const hsz = Math.max(1.6, vb.w * 0.018) // ~constant on-screen handle size
 
   return (
@@ -272,10 +314,36 @@ export function RegionCalibrator() {
       <div className="calib-hint">
         Pick a region — the view zooms to it (toggle <em>Zoom</em> for the whole body). Drag the
         <span style={{ color: '#3b82f6', fontWeight: 700 }}> blue ring</span> to move the whole region,
-        the <span style={{ color: '#f59e0b', fontWeight: 700 }}>amber dots</span> to reshape it. Edit the
-        image-LEFT / centre / head regions; the right side mirrors automatically.
+        the <span style={{ color: '#f59e0b', fontWeight: 700 }}>amber dots</span> to reshape it — or use the
+        <strong> Move / Width / Height</strong> buttons below for precise taps (the figure stays put while you
+        adjust). Edit the image-LEFT / centre / head regions; the right side mirrors automatically.
         Selected: <strong>{sel ? specs.find((s) => addrEq(s.addr, sel))?.label : 'none'}</strong>.
       </div>
+      {sel && selSpec && (
+        <div className="calib-nudge">
+          <span className="cn-lbl">Move</span>
+          <button type="button" onClick={() => edit((s) => nudgeSpec(s, -step, 0))} aria-label="move left">←</button>
+          <button type="button" onClick={() => edit((s) => nudgeSpec(s, 0, -step))} aria-label="move up">↑</button>
+          <button type="button" onClick={() => edit((s) => nudgeSpec(s, 0, step))} aria-label="move down">↓</button>
+          <button type="button" onClick={() => edit((s) => nudgeSpec(s, step, 0))} aria-label="move right">→</button>
+          <span className="cn-lbl">{'lens' in selSpec ? 'Thick' : 'Width'}</span>
+          <button type="button" onClick={() => edit((s) => resizeSpec(s, -step, 0))} aria-label="narrower">−</button>
+          <button type="button" onClick={() => edit((s) => resizeSpec(s, step, 0))} aria-label="wider">+</button>
+          <span className="cn-lbl">{'lens' in selSpec ? 'Length' : 'Height'}</span>
+          <button type="button" onClick={() => edit((s) => resizeSpec(s, 0, -step))} aria-label="shorter">−</button>
+          <button type="button" onClick={() => edit((s) => resizeSpec(s, 0, step))} aria-label="taller">+</button>
+          {'lens' in selSpec && (<>
+            <span className="cn-lbl">Rotate</span>
+            <button type="button" onClick={() => edit((s) => { (s as FingerSpec).ang = r1((s as FingerSpec).ang - step) })} aria-label="rotate left">↺</button>
+            <button type="button" onClick={() => edit((s) => { (s as FingerSpec).ang = r1((s as FingerSpec).ang + step) })} aria-label="rotate right">↻</button>
+          </>)}
+          <span className="cn-sep" />
+          <span className="cn-lbl">Step</span>
+          <button type="button" className={step === 1 ? 'on' : ''} onClick={() => setStep(1)}>1</button>
+          <button type="button" className={step === 5 ? 'on' : ''} onClick={() => setStep(5)}>5</button>
+          <button type="button" onClick={() => setRecenter((r) => r + 1)}>Recenter</button>
+        </div>
+      )}
       <svg
         ref={svgRef}
         className="calib-svg"
@@ -293,7 +361,7 @@ export function RegionCalibrator() {
             key={h.id}
             className={`calib-h ${h.role}`}
             cx={h.x} cy={h.y} r={h.role === 'move' ? hsz * 1.4 : hsz}
-            onPointerDown={(e) => { e.stopPropagation(); (e.target as Element).setPointerCapture?.(e.pointerId); frozenVb.current = liveVb; setDrag({ id: h.id, prev: { ...h } }) }}
+            onPointerDown={(e) => { e.stopPropagation(); (e.target as Element).setPointerCapture?.(e.pointerId); setDrag({ id: h.id, prev: { ...h } }) }}
           />
         ))}
       </svg>
