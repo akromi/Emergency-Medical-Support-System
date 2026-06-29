@@ -1,8 +1,14 @@
 // In-app region calibrator (opened with ?calibrate=1). A developer/maintenance
 // tool — NOT part of the field casualty workflow, so it is intentionally
 // English-only and absent from the guided tour. It lets you drag the tap-region
-// handles until they sit perfectly on the figure, preview the result live in the
-// real chart, and export the corrected map (body-regions.data.ts JSON).
+// handles until they sit perfectly on the figure, preview the result live WITHIN
+// this tool, and export the corrected map (body-regions.data.ts JSON).
+//
+// Workshop-only: it never changes the live field chart. "Save" persists your
+// in-progress edits to localStorage so reopening the tool resumes them, and the
+// override is applied only while this tool is mounted; the normal app always
+// uses the shipped default. A calibration becomes the app default ONLY by
+// committing the exported numbers to body-regions.data.ts.
 //
 // It edits the serialisable BODY_REGION_DATA: you adjust the image-LEFT (and
 // centre/head) specs; the right side is mirrored automatically on every rebuild.
@@ -134,8 +140,17 @@ function dragHandle(spec: RegionSpec | FingerSpec | ToeSpec, id: string, px: num
 }
 
 // ---- Component -------------------------------------------------------------
+// Shape-guard the persisted edits: only accept a well-formed BodyRegionData, so
+// a stale/garbage localStorage value can never reach buildRegions and throw.
+function isRegionData(d: unknown): d is BodyRegionData {
+  const o = d as BodyRegionData | null
+  return !!o && typeof o === 'object'
+    && !!o.head && Array.isArray(o.head.anterior) && Array.isArray(o.head.posterior)
+    && Array.isArray(o.central) && Array.isArray(o.left)
+}
+
 function loadSaved(): BodyRegionData | null {
-  try { const raw = localStorage.getItem(LS_KEY); return raw ? JSON.parse(raw) as BodyRegionData : null } catch { return null }
+  try { const d = JSON.parse(localStorage.getItem(LS_KEY) ?? 'null'); return isRegionData(d) ? d : null } catch { return null }
 }
 
 export function RegionCalibrator() {
@@ -146,9 +161,10 @@ export function RegionCalibrator() {
   const [savedAt, setSavedAt] = useState<string>('')
   const svgRef = useRef<SVGSVGElement>(null)
 
-  // Live-preview edits in the real chart while the tool is open; restore on exit.
+  // Preview edits live WHILE the tool is mounted; restore the shipped default on
+  // exit so the override never leaks into the normal app.
   useEffect(() => { applyRegionData(data) }, [data])
-  useEffect(() => () => { applyRegionData(loadSaved()) }, [])
+  useEffect(() => () => { applyRegionData(null) }, [])
 
   const regions = useMemo(() => buildRegions(data, view), [data, view])
   const specs = useMemo(() => listSpecs(data, view), [data, view])
@@ -186,7 +202,10 @@ export function RegionCalibrator() {
     const url = URL.createObjectURL(blob); const a = document.createElement('a')
     a.href = url; a.download = 'body-regions.data.json'; a.click(); URL.revokeObjectURL(url)
   }
-  function reset() { const d = clone(BODY_REGION_DATA); setData(d); setSel(null) }
+  function reset() {
+    try { localStorage.removeItem(LS_KEY) } catch { /* ignore */ }
+    setData(clone(BODY_REGION_DATA)); setSel(null); setSavedAt('')
+  }
 
   const img = FIGURE_IMAGE[view]
   const hsz = 5 // handle radius in user units
@@ -204,7 +223,7 @@ export function RegionCalibrator() {
         <button type="button" onClick={save}>Save</button>
         <button type="button" onClick={exportJson}>Export JSON</button>
         <button type="button" onClick={reset}>Reset to built-in</button>
-        {savedAt && <span className="calib-note">saved {savedAt} — reload the app to use it</span>}
+        {savedAt && <span className="calib-note">saved {savedAt} — resumes here; Export &amp; commit to make it the app default</span>}
       </div>
       <div className="calib-hint">
         Drag the round handles onto the figure. Edit the image-LEFT / centre / head regions; the

@@ -21,12 +21,18 @@ or the deployed URL on a tablet). The normal app is unaffected without the flag.
 3. You edit the image-**left** / centre / head regions; the **right side mirrors
    automatically** on every change. Switch anterior/posterior with the *View* button.
 
-## Save it
+## Save / export
 
-- **Save** writes the edited map to `localStorage` (`tl.regions.override`). Reload
-  the app (without the flag) and the **live chart uses your calibration** on this
-  device — a per-device override.
+**Workshop-only:** the calibrator never changes the live field chart. The normal
+app always renders the shipped default — a saved calibration is *not* applied on
+startup. This keeps a field tablet from ever silently using non-default injury
+geometry.
+
+- **Save** persists your in-progress edits to `localStorage` so reopening
+  `?calibrate=1` resumes them. It only affects the calibrator (the live preview
+  is applied solely while the tool is mounted, and reset on exit).
 - **Export JSON** downloads `body-regions.data.json` — the full corrected map.
+- **Reset to built-in** clears the saved edits and returns to the shipped map.
 
 ## Make it the default for everyone
 
@@ -41,7 +47,6 @@ assertions may need updating to match the new positions.
 
 - `body-regions.data.ts` – the serialisable region map (the single place to edit).
 - `body-model.ts` – `buildRegions(data, view)` (pure, used for the live preview),
-  `applyRegionData(data | null)` (runtime override used by the tool and by app
-  startup to apply a saved calibration), and the usual `bodyRegions` / `zoneAt` /
-  `regionAt`.
+  `applyRegionData(data | null)` (runtime override used by the tool **only**, while
+  it is mounted), and the usual `bodyRegions` / `zoneAt` / `regionAt`.
 - `src/components/RegionCalibrator.tsx` – the `?calibrate=1` UI.
