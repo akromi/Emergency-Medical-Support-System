@@ -117,6 +117,11 @@ twocol_slide("PWA · Accessibility","Four languages, guided & spoken",
     "Guided tour",["Smart tour highlights each real control","Offline voice-over (SpeechSynthesis) in the active language","Action steps auto-advance once the user does them","Every user-visible feature is taught in the tour (enforced)"],
     accL="ekg",accR="blue")
 
+shot_slide("PWA · Screenshot","The guided tour, in the active language",
+    "app-tour.png",
+    "A 15-step smart tour spotlights each real control with offline voice-over — now covering operators, the vault, backup & restore and language packs, not just the capture flow. The body-chart step auto-advances once a marker is dropped.",
+    accent="blue")
+
 bullets_slide("PWA · Platform","Installable, offline, durable",[
     "Installable PWA (service worker + Workbox precache) — launches and runs with no network.",
     "All data in IndexedDB via Dexie; records, op-log, photos, audit chain persist locally.",
@@ -137,10 +142,20 @@ twocol_slide("Security · At rest","Opt-in encryption vault",
     "Safety posture",["DEFAULT-OFF: with no vault, behavior is byte-for-byte unchanged","Mixed plaintext/encrypted rows read correctly through a toggle","Sealed records unreadable (get/list skip them) while locked","Crash-safe enable/disable — data is never orphaned"],
     accent="amber",accL="amber",accR="ekg")
 
+shot_slide("Security · Screenshot","Locked — PHI sealed behind a passphrase",
+    "app-vault.png",
+    "With the vault on, an idle device auto-locks to this screen: records, the op-log and wound photos are AES-256-GCM encrypted at rest and unreadable until the passphrase is re-entered. The key never leaves memory.",
+    accent="amber")
+
 twocol_slide("Security · Access","Operators, RBAC-lite & tamper-evident audit",
     "Shared-device access",["Local operator roster (field / lead / admin)","Records & audit entries attributed to the on-duty operator","Step-up PIN re-auth gates sensitive actions (delete, export…)","Empty roster = open (community default); adding operators opts in"],
     "Audit log",["Append-only, hash-chained entries (SHA-256 per entry)","Tampering/deletion breaks the chain — detectable offline","No update/delete API; reviewable even while the vault is locked","Covers create / view / delete / export / vault / step-up"],
     accent="amber",accL="amber",accR="amber")
+
+duo_shot("Security · Screenshot","Operator attribution & the hash-chained log",
+    "app-operators.png","Operator roster — records & actions attributed to the on-duty operator; a PIN gates sensitive actions.",
+    "app-audit.png","Append-only, hash-chained audit — “Verify chain” detects any tampering, offline.",
+    accent="amber")
 
 twocol_slide("Data portability","Backup, restore & export",
     "Backup / restore",["Full JSON backup of every record (plain or encrypted)","Restore by merge (keep newer of duplicates) or replace","Encrypted backup keeps PHI unreadable without the passphrase"],
