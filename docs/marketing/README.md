@@ -1,6 +1,6 @@
 # TRIAGE-LINK — capability overview deck
 
-A 20-slide presentation of the whole system: the offline-first PWA, the
+A 26-slide presentation of the whole system: the offline-first PWA, the
 encryption & audit layer, the multi-tenant backend + admin security, and the
 three market flavors (Humanitarian / NGO · Ontario EMS / regulated · productized
 backend).
@@ -10,8 +10,9 @@ backend).
 | File | What it is |
 |---|---|
 | `triage-link-overview.html` | **Canonical deck** — brand-themed, keyboard-navigable. Open in any browser; `←` / `→` (or space) to navigate; auto-scales to the window. References the screenshots in `img/`, so keep that folder alongside it. |
-| `triage-link-overview.pdf` | Self-contained handout (22 pages, screenshots baked in) — produced from the HTML via the bundled Chromium. The single file to email/share. |
-| `img/app-*.png` | Real screenshots of the running PWA (record · summary card · triage board). |
+| `triage-link-overview.pdf` | Self-contained handout (26 pages, screenshots baked in) — produced from the HTML via the bundled Chromium. The single file to email/share. |
+| `playback-script.md` | **Presenter script** — per-slide narration, talking points, transitions, timing, a 7-minute short path, and a live-demo click track. Mirrors the slide order. |
+| `img/app-*.png` | Real screenshots of the running PWA: record · summary card · triage board · guided tour · vault lock · operators · audit log · NEMSIS conformance. |
 
 Both decks are generated — edit the source script, don't hand-edit the outputs.
 
@@ -39,9 +40,14 @@ PWA and drive it with Playwright:
 
 ```bash
 npm run build && npm run preview -- --port 4178 --strictPort &
-# then a short Playwright script: populate a record (pick an injury type, drop a
-# marker, set triage, record a vital) and screenshot the record, the Summary
-# card (.summary-sheet), and the Triage Board (.board) into docs/marketing/img/.
+# then a short Playwright script (executablePath '/opt/pw-browsers/chromium'):
+#  - populate a record (name; record two vital sets so the trend renders)
+#  - record / summary (.summary-sheet) / board (.board)
+#  - guided tour (click ❔ Tour, advance to the body-chart step)
+#  - vault lock (⋯ menu → Encrypt data, then Lock now → .vault-lock)
+#  - operators (.op-overlay) and audit log (.audit-overlay)
+# The NEMSIS conformance shot (app-conformance.png) comes from the
+# market/ontario-ems build (⋯ menu → Conformance → .summary-overlay).
 ```
 
 ## Optional: editable PowerPoint
