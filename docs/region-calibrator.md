@@ -27,6 +27,9 @@ or the deployed URL on a tablet). The normal app is unaffected without the flag.
 3. You edit the image-**left** / centre / head regions; the **right side mirrors
    automatically** on every change. Switch anterior/posterior with the *View* button.
 
+**Undo** (toolbar button or **Ctrl/⌘+Z**) steps back one edit at a time — each
+button tap is one step, and a whole handle drag is one step.
+
 ## Save / export
 
 **Workshop-only:** the calibrator never changes the live field chart. The normal

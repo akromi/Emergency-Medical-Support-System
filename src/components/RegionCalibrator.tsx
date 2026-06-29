@@ -276,12 +276,33 @@ export function RegionCalibrator() {
   const [zoom, setZoom] = useState<'region' | 'body'>('region')
   const [step, setStep] = useState(1)        // nudge/resize amount per button tap
   const [recenter, setRecenter] = useState(0) // bump to re-frame the viewport
+  const [history, setHistory] = useState<BodyRegionData[]>([]) // undo stack (one entry per discrete edit)
   const svgRef = useRef<SVGSVGElement>(null)
+
+  // Snapshot the current map onto the undo stack BEFORE a discrete edit (a button
+  // tap, or the start of a drag — not every pointermove). Capped so it can't grow
+  // without bound.
+  const pushHistory = () => setHistory((h) => [...h, clone(data)].slice(-60))
+  function undo() {
+    if (!history.length) return
+    setData(history[history.length - 1])
+    setHistory(history.slice(0, -1))
+  }
 
   // Preview edits live WHILE the tool is mounted; restore the shipped default on
   // exit so the override never leaks into the normal app.
   useEffect(() => { applyRegionData(data) }, [data])
   useEffect(() => () => { applyRegionData(null) }, [])
+
+  // Ctrl/⌘+Z → undo one step.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); undo() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history])
 
   const regions = useMemo(() => buildRegions(data, view), [data, view])
   const specs = useMemo(() => listSpecs(data, view), [data, view])
@@ -305,6 +326,7 @@ export function RegionCalibrator() {
   // Apply a move/resize op from the button panel to the selected spec.
   function edit(fn: (spec: RegionSpec | FingerSpec | ToeSpec) => void) {
     if (!sel) return
+    pushHistory()
     setData((d) => { const nd = clone(d); fn(specShape(nd, sel)); return nd })
   }
 
@@ -327,6 +349,7 @@ export function RegionCalibrator() {
   }
   function reset() {
     try { localStorage.removeItem(LS_KEY) } catch { /* ignore */ }
+    pushHistory()
     setData(clone(BODY_REGION_DATA)); setSel(null); setSavedAt('')
   }
 
@@ -367,6 +390,7 @@ export function RegionCalibrator() {
           <option value={-1}>— pick a region —</option>
           {specs.map((s, i) => <option key={i} value={i}>{s.label}</option>)}
         </select>
+        <button type="button" onClick={undo} disabled={!history.length} title="Undo (Ctrl/⌘+Z)">↶ Undo</button>
         <button type="button" onClick={save}>Save</button>
         <button type="button" onClick={exportJson}>Export JSON</button>
         <button type="button" onClick={reset}>Reset to built-in</button>
@@ -422,7 +446,7 @@ export function RegionCalibrator() {
             key={h.id}
             className={`calib-h ${h.role}`}
             cx={h.x} cy={h.y} r={h.role === 'move' ? hsz * 1.4 : hsz}
-            onPointerDown={(e) => { e.stopPropagation(); (e.target as Element).setPointerCapture?.(e.pointerId); frozenVb.current = framedVb; setDrag({ id: h.id, prev: { ...h } }) }}
+            onPointerDown={(e) => { e.stopPropagation(); (e.target as Element).setPointerCapture?.(e.pointerId); pushHistory(); frozenVb.current = framedVb; setDrag({ id: h.id, prev: { ...h } }) }}
           />
         ))}
       </svg>
