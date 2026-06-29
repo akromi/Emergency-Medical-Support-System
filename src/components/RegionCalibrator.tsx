@@ -156,6 +156,10 @@ function specBBox(spec: RegionSpec | FingerSpec | ToeSpec): { x: number; y: numb
     else { const xs = [s.cxTop - s.wTop / 2, s.cxTop + s.wTop / 2, s.cxBot - s.wBot / 2, s.cxBot + s.wBot / 2]; x1 = Math.min(...xs); x2 = Math.max(...xs); y1 = Math.min(s.yTop, s.yBot); y2 = Math.max(s.yTop, s.yBot) }
   }
   // Mirror-aware: a left feature near the centre line — widen to show both sides.
+  if ('side' in spec && spec.side === 'left' && x2 > VW / 2 - 20) {
+    x1 = Math.min(x1, VW - x2)
+    x2 = Math.max(x2, VW - x1)
+  }
   return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 }
 }
 
@@ -251,7 +255,11 @@ export function RegionCalibrator() {
           Zoom: {zoom === 'region' ? 'region' : 'whole body'}
         </button>
         <select value={sel ? specs.findIndex((s) => addrEq(s.addr, sel)) : -1}
-          onChange={(e) => setSel(Number(e.target.value) >= 0 ? specs[Number(e.target.value)].addr : null)}>
+          onChange={(e) => {
+            const i = Number(e.target.value)
+            setSel(i >= 0 ? specs[i].addr : null)
+            if (i >= 0) setZoom('region')
+          }}>
           <option value={-1}>— pick a region —</option>
           {specs.map((s, i) => <option key={i} value={i}>{s.label}</option>)}
         </select>
