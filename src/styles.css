@@ -639,3 +639,16 @@ input::placeholder { color:var(--txt-faint); }
 .calib-h { fill:#f59e0b; stroke:#1a1205; stroke-width:1.5; vector-effect:non-scaling-stroke; cursor:grab; pointer-events:all; }
 .calib-h.move { fill:transparent; stroke:#3b82f6; stroke-width:3.5; }
 .calib-h:active { cursor:grabbing; }
+
+/* Touch-friendly move/resize panel for the selected region. */
+.calib-nudge { display:flex; flex-wrap:wrap; align-items:center; gap:5px; padding:7px 12px;
+  border-bottom:1px solid var(--line); background:var(--panel-2); }
+.calib-nudge .cn-lbl { font-size:11px; font-weight:700; letter-spacing:.04em; color:var(--txt-dim);
+  margin-inline-start:8px; text-transform:uppercase; }
+.calib-nudge .cn-lbl:first-child { margin-inline-start:0; }
+.calib-nudge .cn-sep { flex:1; }
+.calib-nudge button { min-width:38px; min-height:34px; padding:4px 10px; font-size:16px; line-height:1;
+  border:1px solid var(--line); background:var(--panel); color:var(--txt); border-radius:8px; cursor:pointer; }
+.calib-nudge button:hover { border-color:var(--ekg); }
+.calib-nudge button:active { background:var(--raised); }
+.calib-nudge button.on { background:#163040; border-color:#3f9bd6; color:#bfe2fb; }
