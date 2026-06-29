@@ -180,9 +180,17 @@ function specBBox(spec: RegionSpec | FingerSpec | ToeSpec, mirror = false): { x:
     x1 = spec.cx - spec.w / 2; x2 = spec.cx + spec.w / 2; y1 = spec.yTop; y2 = spec.yTop + spec.len
   } else {
     const s = (spec as RegionSpec).shape
-    if (s.kind === 'box') { x1 = s.x1; y1 = s.y1; x2 = s.x2; y2 = s.y2 }
-    else if (s.kind === 'ellipse') { x1 = s.cx - s.rx; y1 = s.cy - s.ry; x2 = s.cx + s.rx; y2 = s.cy + s.ry }
-    else { const xs = [s.cxTop - s.wTop / 2, s.cxTop + s.wTop / 2, s.cxBot - s.wBot / 2, s.cxBot + s.wBot / 2]; x1 = Math.min(...xs); x2 = Math.max(...xs); y1 = Math.min(s.yTop, s.yBot); y2 = Math.max(s.yTop, s.yBot) }
+    if (s.kind === 'box') {
+      if (s.rot) { // rotated rectangle: bound its four turned corners
+        const cx = (s.x1 + s.x2) / 2, cy = (s.y1 + s.y2) / 2
+        const cs = ([[s.x1, s.y1], [s.x2, s.y1], [s.x2, s.y2], [s.x1, s.y2]] as const).map(([x, y]) => rotPt(x, y, cx, cy, s.rot))
+        x1 = Math.min(...cs.map((p) => p.x)); x2 = Math.max(...cs.map((p) => p.x)); y1 = Math.min(...cs.map((p) => p.y)); y2 = Math.max(...cs.map((p) => p.y))
+      } else { x1 = s.x1; y1 = s.y1; x2 = s.x2; y2 = s.y2 }
+    } else if (s.kind === 'ellipse') {
+      const a = (s.rot ?? 0) * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a)
+      const hw = Math.hypot(s.rx * c, s.ry * sn), hh = Math.hypot(s.rx * sn, s.ry * c) // rotated ellipse extent
+      x1 = s.cx - hw; y1 = s.cy - hh; x2 = s.cx + hw; y2 = s.cy + hh
+    } else { const xs = [s.cxTop - s.wTop / 2, s.cxTop + s.wTop / 2, s.cxBot - s.wBot / 2, s.cxBot + s.wBot / 2]; x1 = Math.min(...xs); x2 = Math.max(...xs); y1 = Math.min(s.yTop, s.yBot); y2 = Math.max(s.yTop, s.yBot) }
   }
   if (mirror) { const mx1 = VW - x2, mx2 = VW - x1; x1 = Math.min(x1, mx1); x2 = Math.max(x2, mx2) }
   return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 }
