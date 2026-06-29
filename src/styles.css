@@ -637,5 +637,5 @@ input::placeholder { color:var(--txt-faint); }
 /* Reshape points: solid AMBER dots. Move handle: hollow BLUE ring (bigger).
    Distinct in both hue (colourblind-safe orange/blue) and shape (solid vs ring). */
 .calib-h { fill:#f59e0b; stroke:#1a1205; stroke-width:1.5; vector-effect:non-scaling-stroke; cursor:grab; pointer-events:all; }
-.calib-h.move { fill:none; stroke:#3b82f6; stroke-width:3.5; }
+.calib-h.move { fill:transparent; stroke:#3b82f6; stroke-width:3.5; }
 .calib-h:active { cursor:grabbing; }
