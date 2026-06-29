@@ -634,8 +634,10 @@ input::placeholder { color:var(--txt-faint); }
 .calib-hint { padding:7px 12px; font-size:11.5px; line-height:1.5; color:var(--txt-dim); border-bottom:1px solid var(--line); }
 .calib-svg { flex:1; min-height:0; width:100%; background:#0a0e16; touch-action:none; }
 .calib-poly { fill:rgba(255,90,90,0.06); stroke:rgba(255,90,90,0.85); stroke-width:0.6; vector-effect:non-scaling-stroke; }
-/* Reshape points: solid AMBER dots. Move handle: hollow BLUE ring (bigger).
-   Distinct in both hue (colourblind-safe orange/blue) and shape (solid vs ring). */
+/* Reshape points: solid AMBER dots. Move handle: BLUE ring with a faint fill
+   (bigger). Distinct in both hue (colourblind-safe orange/blue) and shape. The
+   move handle keeps a translucent fill (not fill:none) so its whole interior is
+   a hit target — it sits at the region centre and must be easy to grab. */
 .calib-h { fill:#f59e0b; stroke:#1a1205; stroke-width:1.5; vector-effect:non-scaling-stroke; cursor:grab; pointer-events:all; }
-.calib-h.move { fill:none; stroke:#3b82f6; stroke-width:3.5; }
+.calib-h.move { fill:rgba(59,130,246,0.22); stroke:#3b82f6; stroke-width:3.5; }
 .calib-h:active { cursor:grabbing; }
