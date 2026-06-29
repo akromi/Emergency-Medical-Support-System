@@ -163,6 +163,7 @@ function specBBox(spec: RegionSpec | FingerSpec | ToeSpec, mirror = false): { x:
 
 // ---- Button-driven move / resize (precise, touch-friendly) ----------------
 const MIN = 2
+const MIN_FINGER = 6 // a finger's three phalanges never shrink below this total
 
 /** Move the whole region by (dx, dy). Mutates spec in place. */
 function nudgeSpec(spec: RegionSpec | FingerSpec | ToeSpec, dx: number, dy: number): void {
@@ -178,9 +179,11 @@ function nudgeSpec(spec: RegionSpec | FingerSpec | ToeSpec, dx: number, dy: numb
 function resizeSpec(spec: RegionSpec | FingerSpec | ToeSpec, dw: number, dh: number): void {
   if ('lens' in spec) { // finger: dw = thickness, dh = length (scale the phalanges)
     spec.w = r1(Math.max(MIN, spec.w + dw))
-    const sum = spec.lens[0] + spec.lens[1] + spec.lens[2] || 1
-    const k = Math.max(0.2, (sum + dh) / sum)
-    spec.lens = [r1(spec.lens[0] * k), r1(spec.lens[1] * k), r1(spec.lens[2] * k)] as [number, number, number]
+    const sum = spec.lens[0] + spec.lens[1] + spec.lens[2]
+    const target = Math.max(MIN_FINGER, sum + dh) // never collapse below a usable length
+    spec.lens = sum <= 0.3
+      ? [r1(target / 3), r1(target / 3), r1(target / 3)] // recover a degenerate finger
+      : [r1(spec.lens[0] * target / sum), r1(spec.lens[1] * target / sum), r1(spec.lens[2] * target / sum)] as [number, number, number]
     return
   }
   if ('cx' in spec && 'len' in spec) { spec.w = r1(Math.max(MIN, spec.w + dw)); spec.len = r1(Math.max(MIN, spec.len + dh)); return }
@@ -194,6 +197,7 @@ function resizeSpec(spec: RegionSpec | FingerSpec | ToeSpec, dw: number, dh: num
   } else {
     s.wTop = r1(Math.max(MIN, s.wTop + dw)); s.wBot = r1(Math.max(MIN, s.wBot + dw))
     s.yTop = r1(s.yTop - dh / 2); s.yBot = r1(s.yBot + dh / 2)
+    if (s.yBot - s.yTop < MIN) { const c = (s.yTop + s.yBot) / 2; s.yTop = r1(c - MIN / 2); s.yBot = r1(c + MIN / 2) }
   }
 }
 
@@ -280,7 +284,7 @@ export function RegionCalibrator() {
   // zoom / view changes (or Recenter), NOT on every edit — so the figure holds
   // still while you drag or nudge the region instead of sliding under you.
   const selKey = sel ? JSON.stringify(sel) : 'none'
-  const vb = useMemo(() => {
+  const framedVb = useMemo(() => {
     if (zoom === 'region' && selSpec) {
       const mirror = sel?.k === 'head' && (selSpec as RegionSpec).side === 'left'
       const b = specBBox(selSpec, mirror)
@@ -291,6 +295,11 @@ export function RegionCalibrator() {
     return { x: 0, y: 0, w: VW, h: VH }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selKey, zoom, view, recenter])
+  // Snapshot the frame at pointer-down and hold it for the WHOLE drag, so even a
+  // mid-drag zoom/view/recenter change can't shift the SVG transform under the
+  // pointer. (Button nudges don't change the frame deps, so they stay steady too.)
+  const frozenVb = useRef(framedVb)
+  const vb = drag ? frozenVb.current : framedVb
   const hsz = Math.max(1.6, vb.w * 0.018) // ~constant on-screen handle size
 
   return (
@@ -361,7 +370,7 @@ export function RegionCalibrator() {
             key={h.id}
             className={`calib-h ${h.role}`}
             cx={h.x} cy={h.y} r={h.role === 'move' ? hsz * 1.4 : hsz}
-            onPointerDown={(e) => { e.stopPropagation(); (e.target as Element).setPointerCapture?.(e.pointerId); setDrag({ id: h.id, prev: { ...h } }) }}
+            onPointerDown={(e) => { e.stopPropagation(); (e.target as Element).setPointerCapture?.(e.pointerId); frozenVb.current = framedVb; setDrag({ id: h.id, prev: { ...h } }) }}
           />
         ))}
       </svg>
