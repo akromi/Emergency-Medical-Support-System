@@ -179,11 +179,13 @@ function nudgeSpec(spec: RegionSpec | FingerSpec | ToeSpec, dx: number, dy: numb
 function resizeSpec(spec: RegionSpec | FingerSpec | ToeSpec, dw: number, dh: number): void {
   if ('lens' in spec) { // finger: dw = thickness, dh = length (scale the phalanges)
     spec.w = r1(Math.max(MIN, spec.w + dw))
-    const sum = spec.lens[0] + spec.lens[1] + spec.lens[2]
-    const target = Math.max(MIN_FINGER, sum + dh) // never collapse below a usable length
-    spec.lens = sum <= 0.3
-      ? [r1(target / 3), r1(target / 3), r1(target / 3)] // recover a degenerate finger
-      : [r1(spec.lens[0] * target / sum), r1(spec.lens[1] * target / sum), r1(spec.lens[2] * target / sum)] as [number, number, number]
+    if (dh !== 0) { // only rescale phalanges on a length change (Thick taps leave it alone)
+      const sum = spec.lens[0] + spec.lens[1] + spec.lens[2]
+      const target = Math.max(MIN_FINGER, sum + dh) // never collapse below a usable length
+      spec.lens = sum <= 0.3
+        ? [r1(target / 3), r1(target / 3), r1(target / 3)] // recover a degenerate finger
+        : [r1(spec.lens[0] * target / sum), r1(spec.lens[1] * target / sum), r1(spec.lens[2] * target / sum)] as [number, number, number]
+    }
     return
   }
   if ('cx' in spec && 'len' in spec) { spec.w = r1(Math.max(MIN, spec.w + dw)); spec.len = r1(Math.max(MIN, spec.len + dh)); return }
