@@ -14,23 +14,35 @@ describe('regionAt — anatomical hit-testing', () => {
     }
   })
 
+  // Coordinates below are fitted to public/figure/{anterior,posterior}.png:
+  // facial features sit higher and the ear is reachable (it used to fall through
+  // to Cheek/Head). See body-model.ts headRegions().
   it('resolves facial features (anterior only)', () => {
-    expect(regionAt(240, 158, 'anterior')).toBe('Forehead')
-    expect(regionAt(240, 195, 'anterior')).toBe('Nose')
-    expect(regionAt(223, 172, 'anterior')).toBe('R Eye') // image-left eye -> patient R
-    expect(regionAt(257, 172, 'anterior')).toBe('L Eye')
+    expect(regionAt(240, 147, 'anterior')).toBe('Forehead')
+    expect(regionAt(240, 168, 'anterior')).toBe('Nose')
+    expect(regionAt(240, 192, 'anterior')).toBe('Mouth')
+    expect(regionAt(240, 210, 'anterior')).toBe('Chin')
+    expect(regionAt(226, 160, 'anterior')).toBe('R Eye') // image-left eye -> patient R
+    expect(regionAt(254, 160, 'anterior')).toBe('L Eye')
+  })
+
+  it('resolves the ear at the side of the head (regression: was Cheek/Head)', () => {
+    expect(regionAt(201, 170, 'anterior')).toBe('R Ear')
+    expect(regionAt(279, 170, 'anterior')).toBe('L Ear')
+    expect(regionAt(200, 170, 'posterior')).toBe('L Ear')
   })
 
   it('resolves individual fingers and toes', () => {
-    expect(regionAt(59, 532, 'anterior')).toBe('R Index proximal')
-    expect(regionAt(47, 533, 'anterior')).toBe('R Middle proximal')
-    expect(regionAt(184, 914, 'anterior')).toBe('R Great toe')
+    expect(regionAt(37, 530, 'anterior')).toBe('R Index proximal')
+    expect(regionAt(46, 532, 'anterior')).toBe('R Middle proximal')
+    expect(regionAt(194, 914, 'anterior')).toBe('R Great toe')
     // Mirror across the midline -> patient's LEFT.
-    expect(regionAt(480 - 59, 532, 'anterior')).toBe('L Index proximal')
+    expect(regionAt(480 - 46, 532, 'anterior')).toBe('L Middle proximal')
   })
 
   it('resolves limb and trunk segments with anatomical sidedness', () => {
     expect(regionAt(210, 600, 'anterior')).toBe('R Thigh')
+    expect(regionAt(197, 745, 'anterior')).toBe('R Knee') // patella, not the thigh above it
     expect(regionAt(182, 800, 'anterior')).toBe('R Shin')
     expect(regionAt(240, 245, 'anterior')).toBe('Anterior neck')
     expect(regionAt(240, 420, 'anterior')).toBe('Upper abdomen')
