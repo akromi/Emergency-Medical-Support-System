@@ -46,6 +46,62 @@ npm run preview    # serve the production build locally
 `/dist` is a static bundle — deploy it to any static host (GitHub Pages, Netlify,
 S3, nginx). The service worker makes it work offline after the first load.
 
+## Testing
+
+```bash
+npm run typecheck      # type-check root + all workspaces
+npm run test:app       # PWA unit/integration tests (vitest + fake-indexeddb)
+npm run test:report    # the whole suite — every workspace + the app
+npm run test:e2e       # Playwright (Chromium) browser e2e — see playwright.config.ts
+```
+
+Run a single file or filter by name:
+
+```bash
+npx vitest run test/bundle-safety.test.ts     # one unit/integration file
+npx vitest run -t "vitals trend"              # by test name
+npx vitest                                    # watch mode
+
+npx playwright test e2e/journey-multicasualty.spec.ts   # one e2e spec
+npx playwright test --ui                                # interactive runner
+```
+
+The e2e webServer builds and serves the production bundle for you; first run
+`npx playwright install chromium` once to fetch the browser. What CI runs:
+`npm run typecheck && npm run test:report && npm run build && npm run test:e2e`.
+
+> Flavor-specific e2e (`e2e/ontario-conformance.spec.ts`,
+> `e2e/humanitarian-deployment.spec.ts`) live on the `market/ontario-ems` and
+> `market/humanitarian` branches — check those out to run them.
+
+### Running the tests on a phone or tablet (Android)
+
+These are Node.js / git commands (not PowerShell — that's just the Windows shell
+you'd type them into). Two ways to run them from Android:
+
+- **On-device with [Termux](https://f-droid.org/packages/com.termux/)** (install
+  from F-Droid). Good for the unit/integration tests; a Bluetooth keyboard helps.
+
+  ```bash
+  pkg install nodejs git
+  git clone <repo-url> && cd Emergency-Medical-Support-System
+  npm install
+  npm run test:app        # ✅ works in Termux
+  npm run test:report     # ✅ all workspaces
+  ```
+
+  `npm run test:e2e` will **not** work in Termux — Playwright has no supported
+  Android/ARM browser build, so it can't launch Chromium there.
+
+- **In the cloud (recommended, and the only way to run e2e from a phone).** Let a
+  hosted machine do the work and view results in the phone's browser:
+  - **GitHub Codespaces** — on github.com, *Code ▸ Codespaces ▸ Create*; it's full
+    VS Code + Linux in the browser, where `npx playwright install chromium &&
+    npm run test:e2e` runs including e2e.
+  - **Gitpod** — prefix the repo URL with `gitpod.io/#`.
+  - **Just open a PR** — every PR runs the entire suite (unit + e2e) on GitHub
+    Actions; read the green/red checks from the GitHub mobile app.
+
 ## Project structure
 
 A small npm-workspaces monorepo. Dependencies point inward — the UI and the
