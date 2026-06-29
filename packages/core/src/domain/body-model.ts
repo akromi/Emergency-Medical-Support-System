@@ -7,6 +7,7 @@
 // primitives so the ~150 regions stay consistent. Image-left parts are authored
 // once and mirrored to image-right.
 import type { BodyView, AgeBand } from './types.js'
+import { BODY_REGION_DATA, type ShapeSpec, type BodyRegionData } from './body-regions.data.js'
 
 export const BODY_VIEWBOX = { width: 480, height: 1040 } as const
 
@@ -86,36 +87,23 @@ interface SharedPart {
 
 const mirrorX = (pts: ReadonlyArray<Point>): Point[] => pts.map(([x, y]) => [r1(W - x), y] as Point)
 
-// ---- Head / face (view-specific) ------------------------------------------
-
-function headRegions(view: BodyView): BodyRegion[] {
-  const out: BodyRegion[] = []
-  if (view === 'anterior') {
-    // Fitted to public/figure/anterior.png (see scripts/fit notes). Fine
-    // features are listed BEFORE the larger Cheek/Forehead/Crown boxes so a tap
-    // in any overlap resolves to the finer feature (Eye/Ear beat Cheek, etc.).
-    // Paired features carry side:'left' (image-left) and are mirrored below.
-    out.push(
-      { name: 'Eye', side: 'left', group: 'face', tbsa: 0.3, points: ellipse(226, 160, 13, 8) },
-      { name: 'Ear', side: 'left', group: 'face', tbsa: 0.4, points: ellipse(201, 170, 9, 18) },
-      { name: 'Nose', group: 'face', tbsa: 0.3, points: box(232, 156, 248, 183) },
-      { name: 'Mouth', group: 'face', tbsa: 0.3, points: box(224, 185, 256, 199) },
-      { name: 'Cheek', side: 'left', group: 'face', tbsa: 0.6, points: box(202, 166, 229, 200) },
-      { name: 'Chin', group: 'face', tbsa: 0.4, points: box(218, 199, 262, 222) },
-      { name: 'Forehead', group: 'face', tbsa: 1, points: box(200, 140, 280, 154) },
-      { name: 'Crown', group: 'head', tbsa: 1, points: box(202, 108, 278, 140) },
-    )
-  } else {
-    // Fitted to public/figure/posterior.png. Ear first (and raised to true ear
-    // level) so the head-edge overlap resolves to Ear, not the scalp/occiput.
-    out.push(
-      { name: 'Ear', side: 'left', group: 'face', tbsa: 0.4, points: ellipse(200, 170, 8, 17) },
-      { name: 'Posterior scalp', group: 'head', tbsa: 1.5, points: box(206, 113, 274, 162) },
-      { name: 'Occiput', group: 'head', tbsa: 2, points: box(204, 162, 276, 210) },
-      { name: 'Nape', group: 'neck', tbsa: 0.5, points: box(220, 210, 260, 233) },
-    )
+/** Turn a serialisable shape spec (from body-regions.data.ts) into polygon points. */
+function shapePoints(s: ShapeSpec): Point[] {
+  switch (s.kind) {
+    case 'box': return box(s.x1, s.y1, s.x2, s.y2)
+    case 'ellipse': return ellipse(s.cx, s.cy, s.rx, s.ry)
+    case 'quad': return quad(s.cxTop, s.yTop, s.wTop, s.cxBot, s.yBot, s.wBot)
   }
-  // Mirror the image-left head parts to image-right.
+}
+
+// ---- Head / face (view-specific) ------------------------------------------
+// Geometry comes from BODY_REGION_DATA.head; this only expands shapes and
+// mirrors the image-left paired features (Eye/Ear/Cheek) to the right.
+
+function headRegions(view: BodyView, data: BodyRegionData): BodyRegion[] {
+  const out: BodyRegion[] = data.head[view].map((s) => ({
+    name: s.name as string, side: s.side, group: s.group, tbsa: s.tbsa, points: shapePoints(s.shape),
+  }))
   for (const r of out.filter((x) => x.side === 'left')) {
     out.push({ ...r, side: 'right', points: mirrorX(r.points) })
   }
@@ -124,74 +112,31 @@ function headRegions(view: BodyView): BodyRegion[] {
 
 // ---- Shared body / limbs (named per view) ---------------------------------
 
-function sharedParts(): SharedPart[] {
-  const parts: SharedPart[] = []
+// Geometry comes from BODY_REGION_DATA.central + .left. The image-left list is
+// walked in order (finger/toe groups expand inline, so the hand digits keep
+// their place between Wrist and Palm), then mirrored image-left → image-right.
+function sharedParts(data: BodyRegionData): SharedPart[] {
+  const parts: SharedPart[] = data.central.map((s) => ({
+    names: s.names as AntPost, group: s.group, tbsa: s.tbsa, points: shapePoints(s.shape),
+  }))
 
-  // Central trunk (coordinates trace the figure image; see chart alignment).
-  parts.push(
-    { names: { ant: 'Anterior neck', post: 'Posterior neck' }, group: 'neck', tbsa: 0.5, points: box(220, 224, 260, 256) },
-    { names: { ant: 'Upper abdomen', post: 'Mid back' }, group: 'trunk', tbsa: 3, points: box(184, 392, 296, 452) },
-    { names: { ant: 'Lower abdomen', post: 'Lower back' }, group: 'trunk', tbsa: 3, points: box(192, 452, 288, 506) },
-  )
-
-  // Image-left (mirrored later). Authored as side:'left'.
   const left: SharedPart[] = []
-  const L = (names: AntPost, group: RegionGroup, tbsa: number, points: ReadonlyArray<Point>): void => {
-    left.push({ names, side: 'left', group, tbsa, points })
-  }
-
-  L({ ant: 'Shoulder', post: 'Shoulder' }, 'arm', 2, box(150, 250, 202, 300))
-  L({ ant: 'Chest', post: 'Upper back' }, 'trunk', 4.5, box(176, 258, 240, 392))
-  L({ ant: 'Pelvis', post: 'Buttock' }, 'trunk', 2, box(196, 506, 240, 560))
-
-  // Arm — abducted (spread), so segments slant out to the hand (see quad()).
-  L({ ant: 'Upper arm', post: 'Upper arm' }, 'arm', 2, quad(146, 300, 50, 90, 432, 40))
-  L({ ant: 'Elbow', post: 'Elbow' }, 'arm', 0.5, quad(90, 432, 40, 80, 458, 38))
-  L({ ant: 'Forearm', post: 'Forearm' }, 'arm', 1.5, quad(80, 458, 36, 52, 498, 32))
-  L({ ant: 'Wrist', post: 'Wrist' }, 'arm', 0.3, quad(52, 498, 30, 48, 510, 28))
-
-  // Open hand, fitted to public/figure/anterior.png. In anatomical position the
-  // image-left hand is the patient's RIGHT, palm forward: the thumb is LATERAL
-  // (low x) and the fingers fan down from the knuckle row (~y523), index→little
-  // running left→right. Digits are listed BEFORE the palm so a tap on a digit
-  // resolves to it rather than to the palm box it overlaps at the base.
-  L({ ant: 'Thumb proximal', post: 'Thumb proximal' }, 'hand', 0.1, box(33, 503, 53, 525))
-  L({ ant: 'Thumb distal', post: 'Thumb distal' }, 'hand', 0.1, box(14, 521, 37, 546))
-  const fingers: Array<{ label: string; rootX: number; rootY: number; ang: number; w: number; lens: [number, number, number] }> = [
-    { label: 'Index', rootX: 38, rootY: 524, ang: -17, w: 9, lens: [11, 9, 7] },
-    { label: 'Middle', rootX: 47, rootY: 525, ang: -7, w: 9, lens: [14, 11, 9] },
-    { label: 'Ring', rootX: 56, rootY: 524, ang: -2, w: 9, lens: [11, 9, 7] },
-    { label: 'Little', rootX: 63, rootY: 521, ang: 3, w: 8, lens: [8, 6, 5] },
-  ]
-  for (const f of fingers) {
-    for (const d of digitFan(f.rootX, f.rootY, f.ang, 'hand', 'left', f.label, f.w, [
-      { seg: 'proximal', len: f.lens[0], tbsa: 0.06 },
-      { seg: 'middle', len: f.lens[1], tbsa: 0.05 },
-      { seg: 'distal', len: f.lens[2], tbsa: 0.05 },
-    ])) left.push({ names: { ant: d.name, post: d.name }, side: 'left', group: 'hand', tbsa: d.tbsa, points: d.points })
-  }
-  L({ ant: 'Palm', post: 'Back of hand' }, 'hand', 0.5, box(34, 494, 80, 524))
-
-  // Leg — fitted to the figure: the legs CONVERGE toward the midline going
-  // down, so the knee/shin/ankle sit more medially than the thigh's top. Knee
-  // box centred on the patella (~x197 on the image-left leg).
-  L({ ant: 'Thigh', post: 'Thigh' }, 'leg', 4.5, quad(205, 512, 76, 196, 720, 52))
-  L({ ant: 'Knee', post: 'Back of knee' }, 'leg', 0.5, box(174, 724, 220, 766))
-  L({ ant: 'Shin', post: 'Calf' }, 'leg', 3, quad(196, 766, 48, 189, 856, 34))
-  L({ ant: 'Ankle', post: 'Ankle' }, 'leg', 0.5, box(171, 856, 207, 884))
-  L({ ant: 'Foot dorsum', post: 'Sole' }, 'foot', 1, box(150, 884, 204, 908))
-
-  // Toes (great toe is medial → larger x on image-left foot). Traced to the
-  // figure's toe row (~x145-188) at the bottom of the foot.
-  const toes: Array<{ label: string; cx: number; w: number; len: number }> = [
-    { label: 'Great toe', cx: 194, w: 13, len: 16 },
-    { label: '2nd toe', cx: 182, w: 10, len: 15 },
-    { label: '3rd toe', cx: 172, w: 9, len: 14 },
-    { label: '4th toe', cx: 163, w: 9, len: 13 },
-    { label: '5th toe', cx: 155, w: 8, len: 11 },
-  ]
-  for (const t of toes) {
-    left.push({ names: { ant: t.label, post: t.label }, side: 'left', group: 'foot', tbsa: 0.1, points: box(r1(t.cx - t.w / 2), 908, r1(t.cx + t.w / 2), 908 + t.len) })
+  for (const e of data.left) {
+    if ('fingers' in e) {
+      for (const f of e.fingers) {
+        for (const d of digitFan(f.rootX, f.rootY, f.ang, 'hand', 'left', f.label, f.w, [
+          { seg: 'proximal', len: f.lens[0], tbsa: f.tbsa[0] },
+          { seg: 'middle', len: f.lens[1], tbsa: f.tbsa[1] },
+          { seg: 'distal', len: f.lens[2], tbsa: f.tbsa[2] },
+        ])) left.push({ names: { ant: d.name, post: d.name }, side: 'left', group: 'hand', tbsa: d.tbsa, points: d.points })
+      }
+    } else if ('toes' in e) {
+      for (const t of e.toes) {
+        left.push({ names: { ant: t.label, post: t.label }, side: 'left', group: 'foot', tbsa: 0.1, points: box(r1(t.cx - t.w / 2), t.yTop, r1(t.cx + t.w / 2), t.yTop + t.len) })
+      }
+    } else {
+      left.push({ names: e.names as AntPost, side: 'left', group: e.group, tbsa: e.tbsa, points: shapePoints(e.shape) })
+    }
   }
 
   parts.push(...left)
@@ -202,11 +147,8 @@ function sharedParts(): SharedPart[] {
   return parts
 }
 
-// Build once; reuse for every call.
-const SHARED = sharedParts()
-
-function buildView(view: BodyView): BodyRegion[] {
-  const shared: BodyRegion[] = SHARED.map((p) => ({
+function buildView(view: BodyView, data: BodyRegionData, shared: SharedPart[]): BodyRegion[] {
+  const sharedRegions: BodyRegion[] = shared.map((p) => ({
     name: view === 'anterior' ? p.names.ant : p.names.post,
     side: p.side,
     group: p.group,
@@ -215,16 +157,48 @@ function buildView(view: BodyView): BodyRegion[] {
   }))
   // Most-specific first: head/face and distal limb parts before big trunk/limb
   // segments, so overlapping joints resolve to the finer part.
-  const head = headRegions(view)
-  return [...head, ...shared]
+  const head = headRegions(view, data)
+  return [...head, ...sharedRegions]
 }
 
-const ANTERIOR = buildView('anterior')
-const POSTERIOR = buildView('posterior')
+// Active region data + a rebuildable cache. applyRegionData() swaps the source
+// (e.g. a saved calibration) and invalidates the cache so bodyRegions/bodyZones
+// reflect it. The cache means the (pure) build runs once per data change.
+let activeData: BodyRegionData = BODY_REGION_DATA
+let cache: { ant: BodyRegion[]; post: BodyRegion[]; zonesAnt: BodyZone[]; zonesPost: BodyZone[] } | null = null
+
+function built(): NonNullable<typeof cache> {
+  if (cache) return cache
+  const shared = sharedParts(activeData)
+  const ant = buildView('anterior', activeData, shared)
+  const post = buildView('posterior', activeData, shared)
+  cache = { ant, post, zonesAnt: buildZones(ant), zonesPost: buildZones(post) }
+  return cache
+}
+
+/**
+ * Override the region map at runtime (used by the in-app calibrator to preview a
+ * saved calibration in the live chart). Pass null to restore the built-in map.
+ * Region NAMES are unchanged by calibration, so burn-TBSA lookups are unaffected.
+ */
+export function applyRegionData(data: BodyRegionData | null): void {
+  activeData = data ?? BODY_REGION_DATA
+  cache = null
+}
+
+/**
+ * Build the region polygons for a view from an arbitrary data object WITHOUT
+ * touching the global active map — used by the calibrator to draw a live preview
+ * of in-progress edits.
+ */
+export function buildRegions(data: BodyRegionData, view: BodyView): BodyRegion[] {
+  return buildView(view, data, sharedParts(data))
+}
 
 /** All anatomical regions for a view (UI render + hit-test share this). */
 export function bodyRegions(view: BodyView): ReadonlyArray<BodyRegion> {
-  return view === 'anterior' ? ANTERIOR : POSTERIOR
+  const c = built()
+  return view === 'anterior' ? c.ant : c.post
 }
 
 // ---- Macro zones (for tap-to-zoom "blow up") ------------------------------
@@ -250,9 +224,9 @@ function macroKey(r: BodyRegion): { key: string; name: string; side?: 'left' | '
   return { key: `${r.group}-${r.side}`, name: ZONE_NAME[r.group] ?? r.group, side: r.side, group: r.group }
 }
 
-function buildZones(view: BodyView): BodyZone[] {
+function buildZones(regions: ReadonlyArray<BodyRegion>): BodyZone[] {
   const acc = new Map<string, { meta: ReturnType<typeof macroKey>; x1: number; y1: number; x2: number; y2: number }>()
-  for (const r of bodyRegions(view)) {
+  for (const r of regions) {
     const meta = macroKey(r)
     let z = acc.get(meta.key)
     if (!z) { z = { meta, x1: Infinity, y1: Infinity, x2: -Infinity, y2: -Infinity }; acc.set(meta.key, z) }
@@ -269,12 +243,10 @@ function buildZones(view: BodyView): BodyZone[] {
   }))
 }
 
-const ZONES_ANT = buildZones('anterior')
-const ZONES_POST = buildZones('posterior')
-
 /** Macro zones (head, neck, torso, each arm/hand/leg/foot) for a view. */
 export function bodyZones(view: BodyView): ReadonlyArray<BodyZone> {
-  return view === 'anterior' ? ZONES_ANT : ZONES_POST
+  const c = built()
+  return view === 'anterior' ? c.zonesAnt : c.zonesPost
 }
 
 /** Ray-casting point-in-polygon test. */
@@ -320,7 +292,7 @@ export function zoneAt(x: number, y: number, view: BodyView): BodyZone | null {
 
 export const REGION_TBSA: Readonly<Record<string, number>> = (() => {
   const m: Record<string, number> = {}
-  for (const r of [...ANTERIOR, ...POSTERIOR]) m[r.name] = r.tbsa
+  for (const r of [...bodyRegions('anterior'), ...bodyRegions('posterior')]) m[r.name] = r.tbsa
   // Coarse names returned only by the off-silhouette band fallback. Don't
   // override real region names that happen to share a label (Chest, Pelvis).
   const fallback: Record<string, number> = {
@@ -345,7 +317,7 @@ const LUND_BROWDER: Record<'head' | 'thigh' | 'lowerLeg', Record<AgeBand, number
 // Base region name -> the age-varying Lund–Browder part it belongs to.
 const REGION_AGE_PART: Readonly<Record<string, 'head' | 'thigh' | 'lowerLeg'>> = (() => {
   const m: Record<string, 'head' | 'thigh' | 'lowerLeg'> = {}
-  for (const r of [...ANTERIOR, ...POSTERIOR]) {
+  for (const r of [...bodyRegions('anterior'), ...bodyRegions('posterior')]){
     if (r.group === 'head' || r.group === 'face') m[r.name] = 'head'
     else if (r.name === 'Thigh') m[r.name] = 'thigh'
     else if (r.name === 'Shin' || r.name === 'Calf') m[r.name] = 'lowerLeg'

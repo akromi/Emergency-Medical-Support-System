@@ -1,5 +1,8 @@
-import { describe, it, expect } from 'vitest'
-import { regionAt, regionTBSA, estimateBurnTBSA, bodyRegions, zoneAt } from '../src/index'
+import { describe, it, expect, afterEach } from 'vitest'
+import {
+  regionAt, regionTBSA, estimateBurnTBSA, bodyRegions, zoneAt,
+  applyRegionData, buildRegions, BODY_REGION_DATA, type BodyRegionData,
+} from '../src/index'
 
 // regionAt(x, y, view) hit-tests the anatomical body model (body-model.ts) in
 // SVG user space (480 x 1040). Image-left maps to the patient's RIGHT on the
@@ -70,6 +73,41 @@ describe('regionAt — anatomical hit-testing', () => {
     expect(regionAt(240, 8, 'anterior')).toBe('Head')
     expect(regionAt(20, 900, 'anterior')).toBe('Left lower limb')
     expect(regionAt(460, 900, 'anterior')).toBe('Right lower limb')
+  })
+})
+
+// The region map is data-driven (body-regions.data.ts) so the in-app calibrator
+// can refit it. These lock the data API the calibrator depends on.
+describe('data-driven region map', () => {
+  afterEach(() => applyRegionData(null)) // always restore the built-in map
+
+  const cloneData = (): BodyRegionData => JSON.parse(JSON.stringify(BODY_REGION_DATA))
+
+  it('buildRegions(default) matches the live map without touching global state', () => {
+    expect(buildRegions(BODY_REGION_DATA, 'anterior')).toEqual(bodyRegions('anterior'))
+    expect(buildRegions(BODY_REGION_DATA, 'posterior')).toEqual(bodyRegions('posterior'))
+    // pure: calling it did not change the active map
+    expect(regionAt(226, 160, 'anterior')).toBe('R Eye')
+  })
+
+  it('applyRegionData overrides hit-testing and mirrors the edit; null restores', () => {
+    const d = cloneData()
+    const eye = d.head.anterior.find((s) => s.name === 'Eye')!
+    if (eye.shape.kind === 'ellipse') { eye.shape.cy = 260 } // move the eye far down
+    applyRegionData(d)
+    expect(regionAt(226, 160, 'anterior')).not.toBe('R Eye') // old spot no longer the eye
+    expect(regionAt(226, 260, 'anterior')).toBe('R Eye')      // new spot is
+    expect(regionAt(254, 260, 'anterior')).toBe('L Eye')      // mirror followed
+    applyRegionData(null)
+    expect(regionAt(226, 160, 'anterior')).toBe('R Eye')      // restored
+  })
+
+  it('keeps burn-TBSA stable (calibration moves positions, not names/tbsa)', () => {
+    const d = cloneData()
+    const knee = d.left.find((e) => 'names' in e && e.names?.ant === 'Knee') as { shape: { kind: string; y1?: number; y2?: number } }
+    if (knee && knee.shape.kind === 'box') { knee.shape.y1 = 600; knee.shape.y2 = 650 }
+    applyRegionData(d)
+    expect(regionTBSA('R Thigh')).toBe(4.5) // unchanged by a position override
   })
 })
 
