@@ -140,7 +140,9 @@ function dragHandle(spec: RegionSpec | FingerSpec | ToeSpec, id: string, px: num
 }
 
 // Bounding box (SVG units) of a spec, so the editor can zoom in on the selection.
-function specBBox(spec: RegionSpec | FingerSpec | ToeSpec): { x: number; y: number; w: number; h: number } {
+// `mirror` unions in the mirrored copy (about the centre line) so a paired head
+// feature shows BOTH sides when zoomed — its right-side mirror isn't cropped out.
+function specBBox(spec: RegionSpec | FingerSpec | ToeSpec, mirror = false): { x: number; y: number; w: number; h: number } {
   let x1: number, y1: number, x2: number, y2: number
   if ('lens' in spec) { // finger
     const a = (spec.ang * Math.PI) / 180, sum = spec.lens[0] + spec.lens[1] + spec.lens[2]
@@ -155,11 +157,7 @@ function specBBox(spec: RegionSpec | FingerSpec | ToeSpec): { x: number; y: numb
     else if (s.kind === 'ellipse') { x1 = s.cx - s.rx; y1 = s.cy - s.ry; x2 = s.cx + s.rx; y2 = s.cy + s.ry }
     else { const xs = [s.cxTop - s.wTop / 2, s.cxTop + s.wTop / 2, s.cxBot - s.wBot / 2, s.cxBot + s.wBot / 2]; x1 = Math.min(...xs); x2 = Math.max(...xs); y1 = Math.min(s.yTop, s.yBot); y2 = Math.max(s.yTop, s.yBot) }
   }
-  // Mirror-aware: a left feature near the centre line — widen to show both sides.
-  if ('side' in spec && spec.side === 'left' && x2 > VW / 2 - 20) {
-    x1 = Math.min(x1, VW - x2)
-    x2 = Math.max(x2, VW - x1)
-  }
+  if (mirror) { const mx1 = VW - x2, mx2 = VW - x1; x1 = Math.min(x1, mx1); x2 = Math.max(x2, mx2) }
   return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 }
 }
 
@@ -235,15 +233,22 @@ export function RegionCalibrator() {
   const img = FIGURE_IMAGE[view]
   // Zoom the viewBox to the selected region so its handles are big and easy to
   // grab; fall back to the whole body when nothing is selected or zoom is off.
-  const vb = (() => {
+  const liveVb = (() => {
     if (zoom === 'region' && selSpec) {
-      const b = specBBox(selSpec)
+      // Paired head features (Eye/Ear/Cheek, side:'left') — show both sides.
+      const mirror = sel?.k === 'head' && (selSpec as RegionSpec).side === 'left'
+      const b = specBBox(selSpec, mirror)
       const P = Math.max(26, Math.max(b.w, b.h) * 0.7)
       const x = Math.max(0, b.x - P), y = Math.max(0, b.y - P)
       return { x, y, w: Math.min(VW, b.x + b.w + P) - x, h: Math.min(VH, b.y + b.h + P) - y }
     }
     return { x: 0, y: 0, w: VW, h: VH }
   })()
+  // Freeze the viewport for the duration of a drag so the figure (and the
+  // pointer→user CTM) stays put while the region's bbox moves under the cursor —
+  // otherwise the zoom recentres every frame and dragging feels slippery.
+  const frozenVb = useRef(liveVb)
+  const vb = drag ? frozenVb.current : liveVb
   const hsz = Math.max(1.6, vb.w * 0.018) // ~constant on-screen handle size
 
   return (
@@ -255,11 +260,7 @@ export function RegionCalibrator() {
           Zoom: {zoom === 'region' ? 'region' : 'whole body'}
         </button>
         <select value={sel ? specs.findIndex((s) => addrEq(s.addr, sel)) : -1}
-          onChange={(e) => {
-            const i = Number(e.target.value)
-            setSel(i >= 0 ? specs[i].addr : null)
-            if (i >= 0) setZoom('region')
-          }}>
+          onChange={(e) => { const i = Number(e.target.value); setSel(i >= 0 ? specs[i].addr : null); if (i >= 0) setZoom('region') }}>
           <option value={-1}>— pick a region —</option>
           {specs.map((s, i) => <option key={i} value={i}>{s.label}</option>)}
         </select>
@@ -292,7 +293,7 @@ export function RegionCalibrator() {
             key={h.id}
             className={`calib-h ${h.role}`}
             cx={h.x} cy={h.y} r={h.role === 'move' ? hsz * 1.4 : hsz}
-            onPointerDown={(e) => { e.stopPropagation(); (e.target as Element).setPointerCapture?.(e.pointerId); setDrag({ id: h.id, prev: { ...h } }) }}
+            onPointerDown={(e) => { e.stopPropagation(); (e.target as Element).setPointerCapture?.(e.pointerId); frozenVb.current = liveVb; setDrag({ id: h.id, prev: { ...h } }) }}
           />
         ))}
       </svg>
