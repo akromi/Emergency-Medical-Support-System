@@ -133,22 +133,39 @@ describe('data-driven region map', () => {
     expect(mirror.points).toEqual([[250, 156], [232, 184], [262, 184]])
   })
 
-  it('hit-test precedence follows list order (what the calibrator Priority controls)', () => {
+  it('equal-priority hit-test still follows authored order (stable default)', () => {
     const d = cloneData()
-    // Two regions on the exact same spot; regionAt returns the FIRST in the list.
+    // Two regions on the exact same spot; with equal (default 0) priority the
+    // FIRST in the list wins — the authored order is preserved by a stable sort.
     const here = { kind: 'box', x1: 300, y1: 300, x2: 340, y2: 340 } as const
     d.head.anterior.unshift(
       { name: 'AAA', group: 'face', tbsa: 0, shape: { ...here } },
       { name: 'BBB', group: 'face', tbsa: 0, shape: { ...here } },
     )
     applyRegionData(d)
-    expect(regionAt(320, 320, 'anterior')).toBe('AAA') // earlier wins the overlap
+    expect(regionAt(320, 320, 'anterior')).toBe('AAA')
 
-    // Move BBB ahead of AAA — exactly what "↑ / ⤒ Front" does — and BBB now wins.
     const [bbb] = d.head.anterior.splice(1, 1)
     d.head.anterior.unshift(bbb)
     applyRegionData(d)
     expect(regionAt(320, 320, 'anterior')).toBe('BBB')
+  })
+
+  it('priority overrides authored order ACROSS groups (calibrator Front/Back)', () => {
+    const d = cloneData()
+    const here = { kind: 'box', x1: 300, y1: 300, x2: 340, y2: 340 } as const
+    // A head-group region and a centre (trunk) region overlap the same spot.
+    d.head.anterior.push({ name: 'HEAD2', group: 'face', tbsa: 0, shape: { ...here } })
+    d.central.push({ names: { ant: 'CTR', post: 'CTR' }, group: 'trunk', tbsa: 0, shape: { ...here } })
+    applyRegionData(d)
+    // By default the head bucket builds before shared parts, so HEAD2 wins.
+    expect(regionAt(320, 320, 'anterior')).toBe('HEAD2')
+
+    // Raise the centre region's priority (what ⤒ Front does) → it now wins the
+    // overlap even though it's in a different, normally-lower group.
+    d.central[d.central.length - 1].priority = 5
+    applyRegionData(d)
+    expect(regionAt(320, 320, 'anterior')).toBe('CTR')
   })
 
   it('keeps burn-TBSA stable (calibration moves positions, not names/tbsa)', () => {

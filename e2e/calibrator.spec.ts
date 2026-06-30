@@ -37,12 +37,14 @@ test('admin can add, reshape, split and delete a calibrator region', async ({ pa
   await expect(calib.locator('.calib-h.move')).toHaveCount(1)
   await expect(regionSelect.locator('option')).toHaveCount(before + 1)
 
-  // Overlap priority: a new region lands LAST in its bucket (X===Y); "To front"
-  // makes it priority 1 so it wins overlapping taps.
+  // Overlap priority: a region defaults to 0; "To front" raises it (wins overlaps),
+  // a "↓" step lowers it back below the default.
   const prio = calib.locator('.calib-edit .cn-lbl', { hasText: 'Priority' })
-  await expect(prio).toHaveText(/Priority (\d+)\/\1/)   // last (numerator === denominator)
+  await expect(prio).toHaveText('Priority 0')
   await calib.getByRole('button', { name: /Front/ }).click()
-  await expect(prio).toHaveText(/Priority 1\/\d+/)      // now first
+  await expect(prio).toHaveText(/Priority [1-9]/)        // raised above everything
+  await calib.getByRole('button', { name: 'lower priority' }).click()
+  await expect(prio).toHaveText('Priority 0')            // back to default
 
   // Switch it to a free polygon → green "+" insert handles appear.
   await calib.locator('.calib-shape').selectOption('polygon')

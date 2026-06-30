@@ -32,6 +32,11 @@ export interface RegionSpec {
   group: RegionGroup
   tbsa: number
   shape: ShapeSpec
+  /** Overlap precedence. regionAt() returns the first region under a tap; the
+   *  builder sorts regions by `priority` (higher first) before hit-testing, so a
+   *  higher value wins overlaps even ACROSS groups (head vs limb). Default 0
+   *  keeps the authored order (a stable sort), so existing data is unchanged. */
+  priority?: number
 }
 
 /** One finger: a fan of 3 phalanx boxes down from the knuckle (root). */
