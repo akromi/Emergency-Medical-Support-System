@@ -96,6 +96,26 @@ export async function removeOperator(id: string): Promise<void> {
   changed()
 }
 
+/** Clear the PIN on every admin operator (recovery: restores PIN-less sign-in so
+ *  a locked-out admin can get back in and set a new PIN). Returns how many were
+ *  cleared. Leaves non-admin operators and all records untouched. */
+export async function clearAdminPins(): Promise<number> {
+  const admins = (await db.operators.toArray()).filter((o) => o.role === 'admin' && o.pinHash)
+  for (const op of admins) await setOperatorPin(op.id, '')
+  return admins.length
+}
+
+/** Last-resort recovery: drop the whole operator roster + active selection so the
+ *  device is usable again. CASUALTY RECORDS AND THE AUDIT LOG ARE NOT TOUCHED —
+ *  this only clears sign-ins/PINs. */
+export async function resetAllOperators(): Promise<void> {
+  await db.operators.clear()
+  active = null
+  await db.meta.delete(ACTIVE_KEY)
+  await refreshRoster()
+  changed()
+}
+
 /** True if the operator has no PIN, or the PIN matches. */
 export async function verifyPin(id: string, pin: string): Promise<boolean> {
   const op = await db.operators.get(id)
