@@ -59,6 +59,10 @@ describe('regionAt — anatomical hit-testing', () => {
     expect(regionAt(210, 300, 'posterior')).toBe('L Upper back')
     expect(regionAt(182, 800, 'posterior')).toBe('L Calf')
     expect(regionAt(240, 535, 'posterior')).toBe('Perineum')
+    // The centre-line Perineum must not shadow the flanking Buttock halves: an
+    // inner-buttock tap still records Buttock (2% TBSA), not Perineum (1%).
+    expect(regionAt(220, 535, 'posterior')).toBe('L Buttock')
+    expect(regionAt(260, 535, 'posterior')).toBe('R Buttock')
   })
 
   it('maps a tap to the macro zone of the region under it, not the smallest overlapping bbox', () => {
