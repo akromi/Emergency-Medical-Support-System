@@ -276,17 +276,30 @@ export function RegionCalibrator() {
   const [zoom, setZoom] = useState<'region' | 'body'>('region')
   const [step, setStep] = useState(1)        // nudge/resize amount per button tap
   const [recenter, setRecenter] = useState(0) // bump to re-frame the viewport
-  const [history, setHistory] = useState<BodyRegionData[]>([]) // undo stack (one entry per discrete edit)
+  // Undo stack in a ref (always current, so rapid Ctrl+Z key-repeat pops exactly
+  // one entry per press); a length state drives the disabled button. Each entry
+  // also snapshots the saved-override slot, so undoing a Reset (which clears it)
+  // restores localStorage too — not just the in-memory map.
+  const historyRef = useRef<Array<{ data: BodyRegionData; saved: string | null }>>([])
+  const [histLen, setHistLen] = useState(0)
   const svgRef = useRef<SVGSVGElement>(null)
 
-  // Snapshot the current map onto the undo stack BEFORE a discrete edit (a button
-  // tap, or the start of a drag — not every pointermove). Capped so it can't grow
-  // without bound.
-  const pushHistory = () => setHistory((h) => [...h, clone(data)].slice(-60))
+  // Snapshot the current map + saved slot BEFORE a discrete edit (a button tap or
+  // the start of a drag — not every pointermove). Capped so it can't grow forever.
+  const pushHistory = () => {
+    let saved: string | null = null
+    try { saved = localStorage.getItem(LS_KEY) } catch { /* ignore */ }
+    historyRef.current = [...historyRef.current, { data: clone(data), saved }].slice(-60)
+    setHistLen(historyRef.current.length)
+  }
   function undo() {
-    if (!history.length) return
-    setData(history[history.length - 1])
-    setHistory(history.slice(0, -1))
+    const h = historyRef.current
+    if (!h.length) return
+    const prev = h[h.length - 1]
+    historyRef.current = h.slice(0, -1)
+    setHistLen(historyRef.current.length)
+    try { if (prev.saved === null) localStorage.removeItem(LS_KEY); else localStorage.setItem(LS_KEY, prev.saved) } catch { /* ignore */ }
+    setData(prev.data)
   }
 
   // Preview edits live WHILE the tool is mounted; restore the shipped default on
@@ -302,7 +315,7 @@ export function RegionCalibrator() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [history])
+  }, [])
 
   const regions = useMemo(() => buildRegions(data, view), [data, view])
   const specs = useMemo(() => listSpecs(data, view), [data, view])
@@ -348,8 +361,8 @@ export function RegionCalibrator() {
     a.href = url; a.download = 'body-regions.data.json'; a.click(); URL.revokeObjectURL(url)
   }
   function reset() {
+    pushHistory() // snapshot data + saved BEFORE clearing, so undo restores both
     try { localStorage.removeItem(LS_KEY) } catch { /* ignore */ }
-    pushHistory()
     setData(clone(BODY_REGION_DATA)); setSel(null); setSavedAt('')
   }
 
@@ -390,7 +403,7 @@ export function RegionCalibrator() {
           <option value={-1}>— pick a region —</option>
           {specs.map((s, i) => <option key={i} value={i}>{s.label}</option>)}
         </select>
-        <button type="button" onClick={undo} disabled={!history.length} title="Undo (Ctrl/⌘+Z)">↶ Undo</button>
+        <button type="button" onClick={undo} disabled={!histLen} title="Undo (Ctrl/⌘+Z)">↶ Undo</button>
         <button type="button" onClick={save}>Save</button>
         <button type="button" onClick={exportJson}>Export JSON</button>
         <button type="button" onClick={reset}>Reset to built-in</button>
