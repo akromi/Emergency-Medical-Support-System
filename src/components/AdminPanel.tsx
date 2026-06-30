@@ -4,15 +4,17 @@ import { RegionCalibrator } from './RegionCalibrator'
 import { OperatorPanel } from './OperatorPanel'
 import { AuditLog } from './AuditLog'
 import { EhrTestConsole } from './EhrTestConsole'
+import { useLang } from '../i18n'
 
 // Gated Admin area — a single home that groups the maintenance/config tools so
 // they're not scattered across the menu (or reachable by a bare URL). Opened
 // from the menu only by a signed-in admin AND behind a step-up PIN (see
-// App.tsx `guard('admin.open')`). It is admin-only maintenance furniture, so —
-// like the calibrator — it is intentionally English-only and out of the tour.
+// App.tsx `guard('admin.open')`). The launcher follows the app language; the
+// deeper Region calibrator stays English-only (specialist maintenance tool).
 type Tool = 'operators' | 'audit' | 'calibrator' | 'ehrlab'
 
 export function AdminPanel({ record, onClose }: { record: CasualtyRecord; onClose: () => void }) {
+  const { t } = useLang()
   const [tool, setTool] = useState<Tool | null>(null)
   const back = () => setTool(null)
 
@@ -26,23 +28,23 @@ export function AdminPanel({ record, onClose }: { record: CasualtyRecord; onClos
     <div className="op-overlay" onClick={onClose}>
       <div className="op admin" onClick={(e) => e.stopPropagation()}>
         <header className="op-head">
-          <h2>🛠 Admin</h2>
-          <button type="button" className="topbtn" onClick={onClose}>Close</button>
+          <h2>{t('hdr.admin')}</h2>
+          <button type="button" className="topbtn" onClick={onClose}>{t('sm.close')}</button>
         </header>
-        <p className="op-hint">Authorized maintenance tools. Some actions inside will ask for your PIN again.</p>
+        <p className="op-hint">{t('admin.hint')}</p>
         <div className="admin-grid">
           <button type="button" className="admin-tile" onClick={() => setTool('operators')}>
-            <b>Operators</b><span>Add / remove operators, set PINs &amp; roles</span>
+            <b>{t('op.menu')}</b><span>{t('admin.operatorsDesc')}</span>
           </button>
           <button type="button" className="admin-tile" onClick={() => setTool('audit')}>
-            <b>Audit log</b><span>Tamper-evident security &amp; access events</span>
+            <b>{t('audit.menu')}</b><span>{t('admin.auditDesc')}</span>
           </button>
           <button type="button" className="admin-tile" onClick={() => setTool('calibrator')}>
-            <b>Region calibrator</b><span>Fine-tune the body-chart tap regions</span>
+            <b>{t('admin.calibrator')}</b><span>{t('admin.calibratorDesc')}</span>
           </button>
           {import.meta.env.DEV && (
             <button type="button" className="admin-tile" onClick={() => setTool('ehrlab')}>
-              <b>EHR Test Lab</b><span>Dev / QA console (mock gateway)</span>
+              <b>{t('admin.ehrlab')}</b><span>{t('admin.ehrlabDesc')}</span>
             </button>
           )}
         </div>
