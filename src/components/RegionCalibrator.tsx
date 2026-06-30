@@ -546,7 +546,8 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
       const b = bboxOfPts(outlinePoints(orig.shape)), w = b.x2 - b.x1, h = b.y2 - b.y1
       const mk = (x1: number, y1: number, x2: number, y2: number, suf: string): RegionSpec => {
         const r = JSON.parse(JSON.stringify(orig)) as RegionSpec
-        r.shape = { kind: 'box', x1: r1(x1), y1: r1(y1), x2: r1(x2), y2: r1(y2) }; suffixName(r, suf); return r
+        r.shape = { kind: 'box', x1: r1(x1), y1: r1(y1), x2: r1(x2), y2: r1(y2) }
+        r.tbsa = r1(orig.tbsa / 2); suffixName(r, suf); return r
       }
       const [a, c] = h >= w
         ? [mk(b.x1, b.y1, b.x2, (b.y1 + b.y2) / 2, ' 1'), mk(b.x1, (b.y1 + b.y2) / 2, b.x2, b.y2, ' 2')]
