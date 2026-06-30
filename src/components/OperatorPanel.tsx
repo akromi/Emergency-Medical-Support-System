@@ -4,6 +4,7 @@ import {
   setActiveOperator, setOperatorPin, verifyPin, canManageOperators, type Operator, type Role,
 } from '../db/operators'
 import { requireManageStepUp } from '../db/stepup'
+import { askSecret } from '../db/secret-prompt'
 import { useLang } from '../i18n'
 
 /** Live operator state (active operator + whether the roster is empty). */
@@ -29,7 +30,7 @@ export function OperatorPanel({ onClose }: { onClose: () => void }) {
 
   async function switchTo(op: Operator) {
     if (op.pinHash) {
-      const pin = window.prompt(t('op.pinPrompt'))
+      const pin = await askSecret(t('op.pinPrompt'))
       if (pin == null) return
       if (!(await verifyPin(op.id, pin))) { setMsg(t('op.pinWrong')); return }
     }
@@ -58,7 +59,7 @@ export function OperatorPanel({ onClose }: { onClose: () => void }) {
   // new PIN; an empty value clears it.
   async function changePin(op: Operator) {
     if (!(await requireManageStepUp(t))) { setMsg(t('auth.denied')); return }
-    const next = window.prompt(t('op.newPinPrompt', { name: op.name }))
+    const next = await askSecret(t('op.newPinPrompt', { name: op.name }))
     if (next == null) return
     await setOperatorPin(op.id, next.trim())
     setMsg(t('op.pinUpdated'))

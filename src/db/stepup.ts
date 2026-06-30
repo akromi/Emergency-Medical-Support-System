@@ -1,5 +1,6 @@
 import { getActiveOperator, listOperators, verifyPin } from './operators'
 import { audit } from './audit'
+import { askSecret } from './secret-prompt'
 
 // Step-up re-authentication ("login password") for sensitive actions. When an
 // operator is on duty AND has a PIN, guarded actions — viewing the audit log,
@@ -31,7 +32,7 @@ export function stepUpActive(): boolean {
 export async function requireStepUp(t: Translate, action: string): Promise<boolean> {
   const op = getActiveOperator()
   if (!op?.pinHash) return true
-  const pin = window.prompt(t('auth.prompt', { name: op.name }))
+  const pin = await askSecret(t('auth.prompt', { name: op.name }))
   if (pin == null) return false // cancelled — silent, no audit
   const ok = await verifyPin(op.id, pin)
   await audit('auth.stepup', { detail: `${action}:${ok ? 'ok' : 'fail'}` })
@@ -53,7 +54,7 @@ export async function requireManageStepUp(t: Translate): Promise<boolean> {
 
   const protectedOps = (await listOperators()).filter((o) => o.pinHash)
   if (protectedOps.length === 0) return true // no PIN anywhere → bootstrap-open
-  const pin = window.prompt(t('auth.managePrompt'))
+  const pin = await askSecret(t('auth.managePrompt'))
   if (pin == null) return false // cancelled — silent
   let ok = false
   for (const op of protectedOps) if (await verifyPin(op.id, pin)) { ok = true; break }

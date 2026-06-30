@@ -31,6 +31,7 @@ import { requireStepUp } from './db/stepup'
 import { AuditLog } from './components/AuditLog'
 import { OperatorPanel, useOperators } from './components/OperatorPanel'
 import { AdminPanel } from './components/AdminPanel'
+import { SecretPrompt } from './components/SecretPrompt'
 import { initOperators, canViewAdmin, isAdminOnDuty } from './db/operators'
 import { useLang, regionLabel, nextLang, registerLanguage, saveLanguagePack, templatePack } from './i18n'
 
@@ -655,6 +656,7 @@ export function App() {
     {showAudit && <AuditLog onClose={() => setShowAudit(false)} />}
     {showOperators && <OperatorPanel onClose={() => setShowOperators(false)} />}
     {(vaultState === 'locked' || vaultState === 'setup') && <LockScreen />}
+    <SecretPrompt />
     </>
   )
 }
