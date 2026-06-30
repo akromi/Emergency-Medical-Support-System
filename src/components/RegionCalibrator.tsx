@@ -267,7 +267,7 @@ function loadSaved(): BodyRegionData | null {
   try { const d = JSON.parse(localStorage.getItem(LS_KEY) ?? 'null'); return isRegionData(d) ? d : null } catch { return null }
 }
 
-export function RegionCalibrator() {
+export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   const [view, setView] = useState<BodyView>('anterior')
   const [data, setData] = useState<BodyRegionData>(() => loadSaved() ?? clone(BODY_REGION_DATA))
   const [sel, setSel] = useState<Addr | null>(null)
@@ -394,6 +394,7 @@ export function RegionCalibrator() {
   return (
     <div className="calib">
       <div className="calib-bar">
+        {onClose && <button type="button" onClick={onClose} title="Close the calibrator">✕ Close</button>}
         <strong>Region calibrator</strong>
         <button type="button" onClick={toggleView}>View: {view}</button>
         <button type="button" onClick={() => setZoom((z) => (z === 'region' ? 'body' : 'region'))}>

@@ -22,7 +22,6 @@ import { Tip, OfflineBanner, InstallPrompt, useDismissed } from './components/hi
 import { Tutorial } from './components/Tutorial'
 import { Elapsed } from './components/Elapsed'
 import { VitalsTrend } from './components/VitalsTrend'
-import { EhrTestConsole } from './components/EhrTestConsole'
 import { PcrVerify } from './components/PcrVerify'
 import { contributeHandover, EhrUnavailableError } from './ehr/client'
 import { LockScreen, useVaultState } from './components/VaultLock'
@@ -31,7 +30,8 @@ import { audit } from './db/audit'
 import { requireStepUp } from './db/stepup'
 import { AuditLog } from './components/AuditLog'
 import { OperatorPanel, useOperators } from './components/OperatorPanel'
-import { initOperators, canViewAdmin } from './db/operators'
+import { AdminPanel } from './components/AdminPanel'
+import { initOperators, canViewAdmin, isAdminOnDuty } from './db/operators'
 import { useLang, regionLabel, nextLang, registerLanguage, saveLanguagePack, templatePack } from './i18n'
 
 const TRIAGE_ORDER: TriageCategory[] = ['immediate', 'delayed', 'minor', 'deceased']
@@ -66,7 +66,7 @@ export function App() {
   const [lightbox, setLightbox] = useState<{ photos: string[]; index: number } | null>(null)
   const [photoError, setPhotoError] = useState('')
   const [showTour, setShowTour] = useState(false)
-  const [showEhrLab, setShowEhrLab] = useState(false)
+  const [showAdmin, setShowAdmin] = useState(false)
   const [showAudit, setShowAudit] = useState(false)
   const [showOperators, setShowOperators] = useState(false)
   const [langMsg, setLangMsg] = useState('')
@@ -398,8 +398,8 @@ export function App() {
               )}
             </>
           )}
-          {import.meta.env.DEV && (
-            <button className="topbtn" onClick={() => setShowEhrLab(true)} title="Interactive lab to test the EHR integration against a stubbed gateway">{t('hdr.ehrlab')}</button>
+          {isAdminOnDuty() && (
+            <button className="topbtn" onClick={async () => { setMenuOpen(false); if (await guard('admin.open')) setShowAdmin(true) }} title="Authorized maintenance tools: operators, audit log, region calibrator">{t('hdr.admin')}</button>
           )}
           <button className="topbtn primary" onClick={exportFhir} title="Download an interoperable FHIR record">{t('hdr.fhir')}</button>
         </div>
@@ -651,7 +651,7 @@ export function App() {
         onClose={() => setShowTour(false)}
       />
     )}
-    {import.meta.env.DEV && showEhrLab && <EhrTestConsole record={record} onClose={() => setShowEhrLab(false)} />}
+    {showAdmin && <AdminPanel record={record} onClose={() => setShowAdmin(false)} />}
     {showAudit && <AuditLog onClose={() => setShowAudit(false)} />}
     {showOperators && <OperatorPanel onClose={() => setShowOperators(false)} />}
     {(vaultState === 'locked' || vaultState === 'setup') && <LockScreen />}

@@ -6,8 +6,17 @@ so it is intentionally English-only and absent from the guided tour.
 
 ## Open it
 
-Append `?calibrate=1` to the app URL (e.g. `http://localhost:5173/?calibrate=1`,
-or the deployed URL on a tablet). The normal app is unaffected without the flag.
+The calibrator lives inside the **gated Admin area** — there is no bare
+`?calibrate=1` URL. To reach it:
+
+1. Sign in as an operator with the **admin** role (Operators menu → add/select an
+   admin; set a PIN to require step-up).
+2. Open the **🛠 Admin** menu entry (admin-only; prompts for the step-up PIN).
+3. Choose **Region calibrator**.
+
+This keeps it off field/fresh devices and out of the guided tour. (On a brand-new
+device with no operators yet, create an admin operator first — operator setup is
+bootstrap-open.)
 
 ## Use it
 
