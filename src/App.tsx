@@ -79,6 +79,10 @@ export function App() {
   const { active: activeOperator } = useOperators()
 
   useEffect(() => {
+    if (!isAdminOnDuty()) setShowAdmin(false)
+  }, [activeOperator])
+
+  useEffect(() => {
     initVault()
     initOperators()
   }, [])
