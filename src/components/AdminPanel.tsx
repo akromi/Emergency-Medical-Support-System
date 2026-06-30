@@ -48,6 +48,9 @@ export function AdminPanel({ record, onClose }: { record: CasualtyRecord; onClos
   const [tool, setTool] = useState<Tool | null>(null)
   const [showHelp, setShowHelp] = useState(false)
   const back = () => setTool(null)
+  // Opening a tool also dismisses the help, so it can't linger and re-appear when
+  // you return to the launcher with back().
+  const openTool = (next: Tool) => { setShowHelp(false); setTool(next) }
 
   // Each tool opens full-screen over the launcher; its Close returns here.
   if (tool === 'operators') return <OperatorPanel onClose={back} />
@@ -67,17 +70,17 @@ export function AdminPanel({ record, onClose }: { record: CasualtyRecord; onClos
         </header>
         <p className="op-hint">{t('admin.hint')}</p>
         <div className="admin-grid">
-          <button type="button" className="admin-tile" onClick={() => setTool('operators')}>
+          <button type="button" className="admin-tile" onClick={() => openTool('operators')}>
             <b>{t('op.menu')}</b><span>{t('admin.operatorsDesc')}</span>
           </button>
-          <button type="button" className="admin-tile" onClick={() => setTool('audit')}>
+          <button type="button" className="admin-tile" onClick={() => openTool('audit')}>
             <b>{t('audit.menu')}</b><span>{t('admin.auditDesc')}</span>
           </button>
-          <button type="button" className="admin-tile" onClick={() => setTool('calibrator')}>
+          <button type="button" className="admin-tile" onClick={() => openTool('calibrator')}>
             <b>{t('admin.calibrator')}</b><span>{t('admin.calibratorDesc')}</span>
           </button>
           {import.meta.env.DEV && (
-            <button type="button" className="admin-tile" onClick={() => setTool('ehrlab')}>
+            <button type="button" className="admin-tile" onClick={() => openTool('ehrlab')}>
               <b>{t('admin.ehrlab')}</b><span>{t('admin.ehrlabDesc')}</span>
             </button>
           )}
