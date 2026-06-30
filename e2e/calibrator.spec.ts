@@ -21,8 +21,18 @@ test('admin can add, reshape, split and delete a calibrator region', async ({ pa
   await op.locator('.op-pick', { hasText: 'Chief' }).click()
   await op.getByRole('button', { name: /Close/ }).click()
 
-  // Open the gated Admin area → Region calibrator.
+  // Open the gated Admin area.
   await page.getByRole('button', { name: /🛠 Admin/ }).click()
+
+  // Admin-only security & recovery guide (not in the public tour).
+  await page.locator('.op.admin').getByRole('button', { name: /help/i }).click()
+  const adminHelp = page.locator('.calib-help')
+  await expect(adminHelp.getByRole('heading', { name: /security & recovery/i })).toBeVisible()
+  // Closing the help via its backdrop must NOT also close the Admin launcher.
+  await adminHelp.click({ position: { x: 5, y: 5 } })
+  await expect(adminHelp).toHaveCount(0)
+  await expect(page.locator('.op.admin')).toBeVisible()
+
   await page.getByRole('button', { name: /Region calibrator/ }).click()
   const calib = page.locator('.calib')
   await expect(calib).toBeVisible()
