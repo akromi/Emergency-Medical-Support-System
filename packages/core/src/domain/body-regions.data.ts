@@ -17,6 +17,10 @@ export type ShapeSpec =
   | { kind: 'box'; x1: number; y1: number; x2: number; y2: number; rot?: number }
   | { kind: 'ellipse'; cx: number; cy: number; rx: number; ry: number; rot?: number }
   | { kind: 'quad'; cxTop: number; yTop: number; wTop: number; cxBot: number; yBot: number; wBot: number }
+  // Free polygon: an explicit list of [x, y] vertices. Used by the calibrator to
+  // trace irregular regions (and to back triangle / half-circle shapes), and for
+  // hit-testing it's just another polygon.
+  | { kind: 'polygon'; pts: Array<[number, number]> }
 
 /** A single region. `name` for view-specific head parts; `names` for shared
  *  parts that are labelled differently on the anterior vs posterior view. */

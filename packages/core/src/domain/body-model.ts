@@ -103,6 +103,7 @@ function shapePoints(s: ShapeSpec): Point[] {
     case 'box': return rotatePoints(box(s.x1, s.y1, s.x2, s.y2), (s.x1 + s.x2) / 2, (s.y1 + s.y2) / 2, s.rot)
     case 'ellipse': return rotatePoints(ellipse(s.cx, s.cy, s.rx, s.ry), s.cx, s.cy, s.rot)
     case 'quad': return quad(s.cxTop, s.yTop, s.wTop, s.cxBot, s.yBot, s.wBot)
+    case 'polygon': return s.pts.map(([x, y]) => [r1(x), r1(y)] as Point)
   }
 }
 
