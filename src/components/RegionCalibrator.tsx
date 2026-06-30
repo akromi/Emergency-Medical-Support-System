@@ -397,6 +397,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   const [step, setStep] = useState(1)        // nudge/resize amount per button tap
   const [recenter, setRecenter] = useState(0) // bump to re-frame the viewport
   const [showHelp, setShowHelp] = useState(false) // in-app help / cheat-sheet overlay
+  const [importErr, setImportErr] = useState('') // shown when an imported file is not a valid map
   // Undo stack in a ref (always current, so rapid Ctrl+Z key-repeat pops exactly
   // one entry per press); a length state drives the disabled button. Each entry
   // also snapshots the saved-override slot, so undoing a Reset (which clears it)
@@ -404,6 +405,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   const historyRef = useRef<Array<{ data: BodyRegionData; saved: string | null }>>([])
   const [histLen, setHistLen] = useState(0)
   const svgRef = useRef<SVGSVGElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   // Snapshot the current map + saved slot BEFORE a discrete edit (a button tap or
   // the start of a drag — not every pointermove). Capped so it can't grow forever.
@@ -504,6 +506,18 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob); const a = document.createElement('a')
     a.href = url; a.download = 'body-regions.data.json'; a.click(); URL.revokeObjectURL(url)
+  }
+  // Load a previously exported map back into the tool (the inverse of Export).
+  // Validated before applying so a wrong/garbage file can't corrupt the editor;
+  // snapshots history first so Import is undoable. Editing-only — like every
+  // other edit here it only changes the live map WHILE the tool is mounted.
+  async function importFile(file: File) {
+    try {
+      const parsed = JSON.parse(await file.text())
+      if (!isRegionData(parsed)) { setImportErr(t('calib.importBad')); return }
+      pushHistory()
+      setData(parsed as BodyRegionData); setSel(null); setSelVert(null); setImportErr('')
+    } catch { setImportErr(t('calib.importBad')) }
   }
   function reset() {
     pushHistory() // snapshot data + saved BEFORE clearing, so undo restores both
@@ -651,8 +665,12 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
         <button type="button" onClick={undo} disabled={!histLen} title={t('calib.undoTitle')}>{t('calib.undo')}</button>
         <button type="button" onClick={save} title={t('calib.saveTitle')}>{t('calib.save')}</button>
         <button type="button" onClick={exportJson} title={t('calib.exportTitle')}>{t('calib.export')}</button>
+        <button type="button" onClick={() => fileRef.current?.click()} title={t('calib.importTitle')}>{t('calib.import')}</button>
+        <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }}
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFile(f); e.target.value = '' }} />
         <button type="button" onClick={reset} title={t('calib.resetTitle')}>{t('calib.reset')}</button>
         {savedAt && <span className="calib-note">{t('calib.savedNote', { time: savedAt })}</span>}
+        {importErr && <span className="calib-note calib-err">{importErr}</span>}
         {onClose && <button type="button" className="calib-close" onClick={onClose} title={t('calib.closeTitle')}>{t('calib.close')}</button>}
       </div>
       <div className="calib-hint">
@@ -812,6 +830,7 @@ function CalibHelp({ onClose }: { onClose: () => void }) {
             <li>{t('calib.h.save1')}</li>
             <li>{t('calib.h.save2')}</li>
             <li>{t('calib.h.save3')}</li>
+            <li>{t('calib.h.save5')}</li>
             <li>{t('calib.h.save4')}</li>
           </ul>
         </div>

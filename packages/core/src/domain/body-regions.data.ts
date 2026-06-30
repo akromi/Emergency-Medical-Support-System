@@ -84,69 +84,57 @@ const quad = (cxTop: number, yTop: number, wTop: number, cxBot: number, yBot: nu
 /** The canonical region map. Edit these numbers (or the calibrator) to refit. */
 export const BODY_REGION_DATA: BodyRegionData = {
   head: {
-    // Anterior face — fine features first so overlaps resolve to them.
     anterior: [
-      { name: 'Eye', side: 'left', group: 'face', tbsa: 0.3, shape: ell(226, 160, 13, 8) },
-      { name: 'Ear', side: 'left', group: 'face', tbsa: 0.4, shape: ell(201, 170, 9, 18) },
-      { name: 'Nose', group: 'face', tbsa: 0.3, shape: box(232, 156, 248, 183) },
-      { name: 'Mouth', group: 'face', tbsa: 0.3, shape: box(224, 185, 256, 199) },
-      { name: 'Cheek', side: 'left', group: 'face', tbsa: 0.6, shape: box(202, 166, 229, 200) },
-      { name: 'Chin', group: 'face', tbsa: 0.4, shape: box(218, 199, 262, 222) },
-      { name: 'Forehead', group: 'face', tbsa: 1, shape: box(200, 140, 280, 154) },
-      { name: 'Crown', group: 'head', tbsa: 1, shape: box(202, 108, 278, 140) },
+      { name: "Eye", side: 'left', group: 'face', tbsa: 0.3, shape: ell(226.4, 157.4, 9, 4.4) },
+      { name: "Ear", side: 'left', group: 'face', tbsa: 0.4, shape: { kind: 'ellipse', cx: 206.2, cy: 173.7, rx: 4.5, ry: 14.1, rot: -9 } },
+      { name: "Nose", group: 'face', tbsa: 0.3, shape: { kind: 'polygon', pts: [[237.4, 158.7], [238.7, 155.3], [240.9, 153.4], [242.5, 155.4], [244, 157.3], [248.2, 167], [252.1, 177.3], [229, 177.9], [232.7, 167.7]] } },
+      { name: "Mouth", group: 'face', tbsa: 0.3, shape: box(224.6, 180.7, 255, 191.3) },
+      { name: "Cheek", side: 'left', group: 'face', tbsa: 0.6, shape: box(210.6, 164.4, 226.4, 203.2) },
+      { name: "Chin", group: 'face', tbsa: 0.4, shape: box(219, 192, 265.6, 207.9) },
+      { name: "Forehead", group: 'face', tbsa: 1, shape: box(205.4, 140.3, 276.4, 151.2) },
+      { name: "Crown", group: 'head', tbsa: 1, shape: { kind: 'polygon', pts: [[274.6, 138.9], [240.5, 140], [205.3, 140.5], [205.3, 140.5], [207.3, 132.9], [211.5, 125.3], [218.7, 118.1], [227.7, 113.9], [241.2, 111.2], [248.7, 111.9], [259, 115.9], [267.1, 121], [272.6, 128.8], [274.6, 138.9]] } },
     ],
-    // Posterior head — ear first (and at true ear level).
     posterior: [
-      { name: 'Ear', side: 'left', group: 'face', tbsa: 0.4, shape: ell(200, 170, 8, 17) },
-      { name: 'Posterior scalp', group: 'head', tbsa: 1.5, shape: box(206, 113, 274, 162) },
-      { name: 'Occiput', group: 'head', tbsa: 2, shape: box(204, 162, 276, 210) },
-      { name: 'Nape', group: 'neck', tbsa: 0.5, shape: box(220, 210, 260, 233) },
+      { name: "Ear", side: 'left', group: 'face', tbsa: 0.4, shape: ell(200, 170, 8, 17) },
+      { name: "Posterior scalp", group: 'head', tbsa: 1.5, shape: box(206, 113, 274, 162) },
+      { name: "Occiput", group: 'head', tbsa: 2, shape: box(204, 162, 276, 210) },
+      { name: "Nape", group: 'neck', tbsa: 0.5, shape: box(220, 210, 260, 233) },
     ],
   },
   central: [
-    { names: { ant: 'Anterior neck', post: 'Posterior neck' }, group: 'neck', tbsa: 0.5, shape: box(220, 224, 260, 256) },
-    { names: { ant: 'Upper abdomen', post: 'Mid back' }, group: 'trunk', tbsa: 3, shape: box(184, 392, 296, 452) },
-    { names: { ant: 'Lower abdomen', post: 'Lower back' }, group: 'trunk', tbsa: 3, shape: box(192, 452, 288, 506) },
-    // Centre-line genital/perineal region, fitted to the crotch on the figure
-    // (between the two Pelvis halves, reaching down to where the legs separate).
-    // Listed in `central` so it is hit-tested before the (mirrored) Pelvis/Thigh
-    // and wins the central tap. Width is deliberately kept narrow (±16 of the
-    // x=240 midline): because `central` is SHARED by both views, this same box
-    // is the posterior Perineum, so a wider box would shadow the flanking
-    // Buttock halves (2% TBSA) on the back view. ±16 stays clear of each
-    // Buttock's centre while remaining a reliable touch target once zoomed.
-    { names: { ant: 'Groin', post: 'Perineum' }, group: 'trunk', tbsa: 1, shape: box(224, 512, 256, 566) },
+    { names: { ant: "Anterior neck", post: "Posterior neck" }, group: 'neck', tbsa: 0.5, shape: box(211.7, 207.5, 269.5, 251) },
+    { names: { ant: "Upper abdomen", post: "Mid back" }, group: 'trunk', tbsa: 3, shape: box(173.7, 345.2, 305.7, 429.5) },
+    { names: { ant: "Lower abdomen", post: "Lower back" }, group: 'trunk', tbsa: 3, shape: box(174, 433, 307.8, 493.7) },
+    { names: { ant: "Groin", post: "Perineum" }, group: 'trunk', tbsa: 1, shape: box(224, 512, 256, 566) },
   ],
   left: [
-    { names: { ant: 'Shoulder', post: 'Shoulder' }, side: 'left', group: 'arm', tbsa: 2, shape: box(150, 250, 202, 300) },
-    { names: { ant: 'Chest', post: 'Upper back' }, side: 'left', group: 'trunk', tbsa: 4.5, shape: box(176, 258, 240, 392) },
-    { names: { ant: 'Pelvis', post: 'Buttock' }, side: 'left', group: 'trunk', tbsa: 2, shape: box(196, 506, 240, 560) },
-    { names: { ant: 'Upper arm', post: 'Upper arm' }, side: 'left', group: 'arm', tbsa: 2, shape: quad(146, 300, 50, 90, 432, 40) },
-    { names: { ant: 'Elbow', post: 'Elbow' }, side: 'left', group: 'arm', tbsa: 0.5, shape: quad(90, 432, 40, 80, 458, 38) },
-    { names: { ant: 'Forearm', post: 'Forearm' }, side: 'left', group: 'arm', tbsa: 1.5, shape: quad(80, 458, 36, 52, 498, 32) },
-    { names: { ant: 'Wrist', post: 'Wrist' }, side: 'left', group: 'arm', tbsa: 0.3, shape: quad(52, 498, 30, 48, 510, 28) },
-    // Hand digits (before Palm so a base tap resolves to the digit).
-    { names: { ant: 'Thumb proximal', post: 'Thumb proximal' }, side: 'left', group: 'hand', tbsa: 0.1, shape: box(33, 503, 53, 525) },
-    { names: { ant: 'Thumb distal', post: 'Thumb distal' }, side: 'left', group: 'hand', tbsa: 0.1, shape: box(14, 521, 37, 546) },
+    { names: { ant: "Shoulder", post: "Shoulder" }, side: 'left', group: 'arm', tbsa: 2, shape: { kind: 'polygon', pts: [[140.6, 257.1], [162.4, 246.3], [210.7, 226.5], [212.1, 254.1], [174.9, 255.4], [161.8, 276.5], [165.3, 294.4], [122.5, 300.3]] } },
+    { names: { ant: "Chest", post: "Upper back" }, side: 'left', group: 'trunk', tbsa: 4.5, shape: box(166, 258, 238, 343.3) },
+    { names: { ant: "Pelvis", post: "Buttock" }, side: 'left', group: 'trunk', tbsa: 2, shape: { kind: 'polygon', pts: [[175.3, 431.8], [243.2, 434.4], [243.2, 509.8], [162.7, 514.6], [165.7, 494.8], [168.6, 472.1]] } },
+    { names: { ant: "Upper arm", post: "Upper arm" }, side: 'left', group: 'arm', tbsa: 2, shape: { kind: 'polygon', pts: [[125.6, 306.9], [171.1, 292.9], [171.3, 304.9], [169.4, 325.5], [161.9, 339.4], [152, 359.6], [112.2, 351.2], [113.6, 347.7], [117.9, 331.1], [124.9, 321.3], [124.3, 316.7]] } },
+    { names: { ant: "Elbow", post: "Elbow" }, side: 'left', group: 'arm', tbsa: 0.5, shape: { kind: 'polygon', pts: [[111.9, 351.6], [149.5, 362.4], [144.7, 369.3], [140.1, 377.2], [135.7, 394.6], [90.1, 385.7], [101.5, 373]] } },
+    { names: { ant: "Forearm", post: "Forearm" }, side: 'left', group: 'arm', tbsa: 1.5, shape: { kind: 'polygon', pts: [[89.2, 385.8], [139.1, 395.5], [88.7, 475.4], [58.7, 466.1]] } },
+    { names: { ant: "Wrist", post: "Wrist" }, side: 'left', group: 'arm', tbsa: 0.3, shape: { kind: 'polygon', pts: [[59.7, 466.3], [86.6, 475.5], [80.6, 492.4], [65.2, 490.3], [51.8, 478.3]] } },
+    { names: { ant: "Thumb proximal", post: "Thumb proximal" }, side: 'left', group: 'hand', tbsa: 0.1, shape: { kind: 'polygon', pts: [[31.9, 486.5], [51.1, 476.2], [55.9, 482.3], [59.8, 487.1], [37.7, 497]] } },
+    { names: { ant: "Thumb distal", post: "Thumb distal" }, side: 'left', group: 'hand', tbsa: 0.1, shape: { kind: 'polygon', pts: [[10, 504.3], [16.5, 502.6], [20.5, 497.7], [32, 487.4], [38.3, 497.5], [28.2, 504.3], [22, 509.1], [13.3, 510.7], [8.6, 507.6]] } },
     { fingers: [
-      { label: 'Index', rootX: 38, rootY: 524, ang: -17, w: 9, lens: [11, 9, 7], tbsa: [0.06, 0.05, 0.05] },
-      { label: 'Middle', rootX: 47, rootY: 525, ang: -7, w: 9, lens: [14, 11, 9], tbsa: [0.06, 0.05, 0.05] },
-      { label: 'Ring', rootX: 56, rootY: 524, ang: -2, w: 9, lens: [11, 9, 7], tbsa: [0.06, 0.05, 0.05] },
-      { label: 'Little', rootX: 63, rootY: 521, ang: 3, w: 8, lens: [8, 6, 5], tbsa: [0.06, 0.05, 0.05] },
+      { label: "Index", rootX: 34.1, rootY: 517.1, ang: -33.1, w: 9, lens: [15.4, 12.4, 10.1], tbsa: [0.06, 0.05, 0.05] },
+      { label: "Middle", rootX: 42, rootY: 523.4, ang: -24, w: 9, lens: [16.8, 13.1, 11.1], tbsa: [0.06, 0.05, 0.05] },
+      { label: "Ring", rootX: 51.5, rootY: 526, ang: -16.1, w: 9, lens: [15.2, 12, 10], tbsa: [0.06, 0.05, 0.05] },
+      { label: "Little", rootX: 62.8, rootY: 525.3, ang: -10.3, w: 7.9, lens: [12.1, 9.7, 7.7], tbsa: [0.06, 0.05, 0.05] },
     ] },
-    { names: { ant: 'Palm', post: 'Back of hand' }, side: 'left', group: 'hand', tbsa: 0.5, shape: box(34, 494, 80, 524) },
-    // Leg — converges medially; knee centred on the patella.
-    { names: { ant: 'Thigh', post: 'Thigh' }, side: 'left', group: 'leg', tbsa: 4.5, shape: quad(205, 512, 76, 196, 720, 52) },
-    { names: { ant: 'Knee', post: 'Back of knee' }, side: 'left', group: 'leg', tbsa: 0.5, shape: box(174, 724, 220, 766) },
-    { names: { ant: 'Shin', post: 'Calf' }, side: 'left', group: 'leg', tbsa: 3, shape: quad(196, 766, 48, 189, 856, 34) },
-    { names: { ant: 'Ankle', post: 'Ankle' }, side: 'left', group: 'leg', tbsa: 0.5, shape: box(171, 856, 207, 884) },
-    { names: { ant: 'Foot dorsum', post: 'Sole' }, side: 'left', group: 'foot', tbsa: 1, shape: box(150, 884, 204, 908) },
+    { names: { ant: "Palm", post: "Back of hand" }, side: 'left', group: 'hand', tbsa: 0.5, shape: { kind: 'polygon', pts: [[37.2, 498.6], [59.4, 486.4], [69.2, 491.3], [76.4, 492.8], [80.9, 492], [78.6, 505.7], [72.7, 516.3], [67.6, 525.2], [62.1, 526.1], [48.2, 524.9], [29.1, 516.6], [30.8, 507.1]] } },
+    { names: { ant: "Thigh", post: "Thigh" }, side: 'left', group: 'leg', tbsa: 4.5, shape: { kind: 'polygon', pts: [[163.1, 511.5], [241.5, 513.3], [217, 668.5], [192.3, 663.6], [162, 664.5], [150, 602.6], [152.5, 553]] } },
+    { names: { ant: "Knee", post: "Back of knee" }, side: 'left', group: 'leg', tbsa: 0.5, shape: { kind: 'polygon', pts: [[167, 662.7], [218.5, 661.2], [214.4, 687], [204.7, 711.9], [161.2, 710.5]] } },
+    { names: { ant: "Shin", post: "Calf" }, side: 'left', group: 'leg', tbsa: 3, shape: quad(196, 766, 48, 189, 856, 34) },
+    { names: { ant: "Ankle", post: "Ankle" }, side: 'left', group: 'leg', tbsa: 0.5, shape: box(171, 856, 207, 884) },
+    { names: { ant: "Foot dorsum", post: "Sole" }, side: 'left', group: 'foot', tbsa: 1, shape: box(150, 884, 204, 908) },
     { toes: [
-      { label: 'Great toe', cx: 194, w: 13, len: 16, yTop: 908 },
-      { label: '2nd toe', cx: 182, w: 10, len: 15, yTop: 908 },
-      { label: '3rd toe', cx: 172, w: 9, len: 14, yTop: 908 },
-      { label: '4th toe', cx: 163, w: 9, len: 13, yTop: 908 },
-      { label: '5th toe', cx: 155, w: 8, len: 11, yTop: 908 },
+      { label: "Great toe", cx: 194, w: 13, len: 16, yTop: 908 },
+      { label: "2nd toe", cx: 182, w: 10, len: 15, yTop: 908 },
+      { label: "3rd toe", cx: 172, w: 9, len: 14, yTop: 908 },
+      { label: "4th toe", cx: 163, w: 9, len: 13, yTop: 908 },
+      { label: "5th toe", cx: 155, w: 8, len: 11, yTop: 908 },
     ] },
   ],
 }
