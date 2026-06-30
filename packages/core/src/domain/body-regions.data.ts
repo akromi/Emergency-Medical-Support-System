@@ -126,7 +126,7 @@ export const BODY_REGION_DATA: BodyRegionData = {
     { names: { ant: "Palm", post: "Back of hand" }, side: 'left', group: 'hand', tbsa: 0.5, shape: { kind: 'polygon', pts: [[37.2, 498.6], [59.4, 486.4], [69.2, 491.3], [76.4, 492.8], [80.9, 492], [78.6, 505.7], [72.7, 516.3], [67.6, 525.2], [62.1, 526.1], [48.2, 524.9], [29.1, 516.6], [30.8, 507.1]] } },
     { names: { ant: "Thigh", post: "Thigh" }, side: 'left', group: 'leg', tbsa: 4.5, shape: { kind: 'polygon', pts: [[163.1, 511.5], [241.5, 513.3], [217, 668.5], [192.3, 663.6], [162, 664.5], [150, 602.6], [152.5, 553]] } },
     { names: { ant: "Knee", post: "Back of knee" }, side: 'left', group: 'leg', tbsa: 0.5, shape: { kind: 'polygon', pts: [[167, 662.7], [218.5, 661.2], [214.4, 687], [204.7, 711.9], [161.2, 710.5]] } },
-    { names: { ant: "Shin", post: "Calf" }, side: 'left', group: 'leg', tbsa: 3, shape: quad(196, 766, 48, 189, 856, 34) },
+    { names: { ant: "Shin", post: "Calf" }, side: 'left', group: 'leg', tbsa: 3, shape: quad(186, 710, 56, 189, 856, 34) },
     { names: { ant: "Ankle", post: "Ankle" }, side: 'left', group: 'leg', tbsa: 0.5, shape: box(171, 856, 207, 884) },
     { names: { ant: "Foot dorsum", post: "Sole" }, side: 'left', group: 'foot', tbsa: 1, shape: box(150, 884, 204, 908) },
     { toes: [

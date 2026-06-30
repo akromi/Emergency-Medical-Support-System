@@ -50,6 +50,9 @@ describe('regionAt — anatomical hit-testing', () => {
     expect(regionAt(210, 600, 'anterior')).toBe('R Thigh')
     expect(regionAt(193, 687, 'anterior')).toBe('R Knee') // patella, not the thigh above it
     expect(regionAt(193, 811, 'anterior')).toBe('R Shin')
+    // No gap between the knee's lower edge and the shin: a tap just below the
+    // knee resolves to a leg segment, never the coarse vertical-band fallback.
+    expect(regionAt(190, 730, 'anterior')).toBe('R Shin')
     expect(regionAt(240, 245, 'anterior')).toBe('Anterior neck')
     expect(regionAt(240, 420, 'anterior')).toBe('Upper abdomen')
     expect(regionAt(210, 300, 'anterior')).toBe('R Chest')
