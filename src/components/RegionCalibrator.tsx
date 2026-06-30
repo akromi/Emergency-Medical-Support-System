@@ -397,6 +397,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   const [step, setStep] = useState(1)        // nudge/resize amount per button tap
   const [recenter, setRecenter] = useState(0) // bump to re-frame the viewport
   const [showHelp, setShowHelp] = useState(false) // in-app help / cheat-sheet overlay
+  const [importErr, setImportErr] = useState('') // shown when an imported file is not a valid map
   // Undo stack in a ref (always current, so rapid Ctrl+Z key-repeat pops exactly
   // one entry per press); a length state drives the disabled button. Each entry
   // also snapshots the saved-override slot, so undoing a Reset (which clears it)
@@ -404,13 +405,19 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   const historyRef = useRef<Array<{ data: BodyRegionData; saved: string | null }>>([])
   const [histLen, setHistLen] = useState(0)
   const svgRef = useRef<SVGSVGElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const importTokenRef = useRef(0) // invalidates an in-flight async Import (see importFile)
+  // Mirror of `data` that is always current — so history snapshots taken after an
+  // await (e.g. async Import reading a file) capture the LATEST map, not the
+  // stale value captured in the closure when the action started.
+  const dataRef = useRef(data)
 
   // Snapshot the current map + saved slot BEFORE a discrete edit (a button tap or
   // the start of a drag — not every pointermove). Capped so it can't grow forever.
   const pushHistory = () => {
     let saved: string | null = null
     try { saved = localStorage.getItem(LS_KEY) } catch { /* ignore */ }
-    historyRef.current = [...historyRef.current, { data: clone(data), saved }].slice(-60)
+    historyRef.current = [...historyRef.current, { data: clone(dataRef.current), saved }].slice(-60)
     setHistLen(historyRef.current.length)
   }
   function undo() {
@@ -426,8 +433,8 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
 
   // Preview edits live WHILE the tool is mounted; restore the shipped default on
   // exit so the override never leaks into the normal app.
-  useEffect(() => { applyRegionData(data) }, [data])
-  useEffect(() => () => { applyRegionData(null) }, [])
+  useEffect(() => { dataRef.current = data; applyRegionData(data) }, [data])
+  useEffect(() => () => { importTokenRef.current++; applyRegionData(null) }, [])
 
   // Ctrl/⌘+Z → undo one step.
   useEffect(() => {
@@ -498,17 +505,51 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   }
 
   function save() {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); setSavedAt(new Date().toLocaleTimeString()) } catch { /* ignore */ }
+    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); setSavedAt(new Date().toLocaleTimeString()); setImportErr('') } catch { /* ignore */ }
   }
   function exportJson() {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob); const a = document.createElement('a')
     a.href = url; a.download = 'body-regions.data.json'; a.click(); URL.revokeObjectURL(url)
   }
+  // Load a previously exported map back into the tool (the inverse of Export).
+  // Validated before applying so a wrong/garbage file can't corrupt the editor;
+  // snapshots history first so Import is undoable. Editing-only — like every
+  // other edit here it only changes the live map WHILE the tool is mounted.
+  async function importFile(file: File) {
+    // Generation token: bump on start so a second Import supersedes the first,
+    // and any other action that invalidates an in-flight read (Reset, unmount)
+    // bumps it too. After the await we bail unless we're still the current read,
+    // so a slow file load can't clobber a map the user has since chosen.
+    const token = ++importTokenRef.current
+    try {
+      const parsed = JSON.parse(await file.text())
+      if (token !== importTokenRef.current) return
+      // Structural check, then a full trial build for BOTH views: this exercises
+      // every region/finger/toe shape via shapePoints, so a file that passes the
+      // shallow array check but has a malformed/empty shape is rejected here
+      // rather than crashing the editor after setData.
+      if (!isRegionData(parsed)) { setImportErr(t('calib.importBad')); return }
+      // A trial build runs shapePoints for every region; also require that each
+      // built region yielded a real polygon — an unknown shape.kind produces
+      // undefined points (later crashes rg.points.map) and an empty polygon
+      // silently drops hit-testing. Both are rejected here.
+      const built = [...buildRegions(parsed as BodyRegionData, 'anterior'),
+                     ...buildRegions(parsed as BodyRegionData, 'posterior')]
+      if (!built.every((r) => Array.isArray(r.points) && r.points.length >= 3)) {
+        setImportErr(t('calib.importBad')); return
+      }
+      pushHistory() // snapshots the LATEST map (via dataRef), even after the await
+      // Import is an unsaved edit: clear the "saved … resumes here" note so it
+      // can't keep advertising an earlier Save that no longer matches the map.
+      setData(parsed as BodyRegionData); setSel(null); setSelVert(null); setSavedAt(''); setImportErr('')
+    } catch { if (token === importTokenRef.current) setImportErr(t('calib.importBad')) }
+  }
   function reset() {
+    importTokenRef.current++ // cancel any in-flight import so it can't clobber this
     pushHistory() // snapshot data + saved BEFORE clearing, so undo restores both
     try { localStorage.removeItem(LS_KEY) } catch { /* ignore */ }
-    setData(clone(BODY_REGION_DATA)); setSel(null); setSavedAt('')
+    setData(clone(BODY_REGION_DATA)); setSel(null); setSavedAt(''); setImportErr('')
   }
 
   // ---- Region add / duplicate / split / delete ----------------------------
@@ -651,8 +692,12 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
         <button type="button" onClick={undo} disabled={!histLen} title={t('calib.undoTitle')}>{t('calib.undo')}</button>
         <button type="button" onClick={save} title={t('calib.saveTitle')}>{t('calib.save')}</button>
         <button type="button" onClick={exportJson} title={t('calib.exportTitle')}>{t('calib.export')}</button>
+        <button type="button" onClick={() => fileRef.current?.click()} title={t('calib.importTitle')}>{t('calib.import')}</button>
+        <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }}
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFile(f); e.target.value = '' }} />
         <button type="button" onClick={reset} title={t('calib.resetTitle')}>{t('calib.reset')}</button>
         {savedAt && <span className="calib-note">{t('calib.savedNote', { time: savedAt })}</span>}
+        {importErr && <span className="calib-note calib-err">{importErr}</span>}
         {onClose && <button type="button" className="calib-close" onClick={onClose} title={t('calib.closeTitle')}>{t('calib.close')}</button>}
       </div>
       <div className="calib-hint">
@@ -812,6 +857,7 @@ function CalibHelp({ onClose }: { onClose: () => void }) {
             <li>{t('calib.h.save1')}</li>
             <li>{t('calib.h.save2')}</li>
             <li>{t('calib.h.save3')}</li>
+            <li>{t('calib.h.save5')}</li>
             <li>{t('calib.h.save4')}</li>
           </ul>
         </div>

@@ -20,37 +20,46 @@ describe('regionAt — anatomical hit-testing', () => {
   // Coordinates below are fitted to public/figure/{anterior,posterior}.png:
   // facial features sit higher and the ear is reachable (it used to fall through
   // to Cheek/Head). See body-model.ts headRegions().
+  // Sample points below are region centroids in the applied (calibrated) map —
+  // see body-regions.data.ts. They move when the map is re-calibrated; what they
+  // assert (a tap lands on the right region/side) does not.
   it('resolves facial features (anterior only)', () => {
     expect(regionAt(240, 147, 'anterior')).toBe('Forehead')
     expect(regionAt(240, 168, 'anterior')).toBe('Nose')
-    expect(regionAt(240, 192, 'anterior')).toBe('Mouth')
-    expect(regionAt(240, 210, 'anterior')).toBe('Chin')
-    expect(regionAt(226, 160, 'anterior')).toBe('R Eye') // image-left eye -> patient R
-    expect(regionAt(254, 160, 'anterior')).toBe('L Eye')
+    expect(regionAt(240, 186, 'anterior')).toBe('Mouth')
+    expect(regionAt(242, 200, 'anterior')).toBe('Chin')
+    expect(regionAt(226, 157, 'anterior')).toBe('R Eye') // image-left eye -> patient R
+    expect(regionAt(254, 157, 'anterior')).toBe('L Eye')
   })
 
   it('resolves the ear at the side of the head (regression: was Cheek/Head)', () => {
-    expect(regionAt(201, 170, 'anterior')).toBe('R Ear')
-    expect(regionAt(279, 170, 'anterior')).toBe('L Ear')
+    expect(regionAt(206, 174, 'anterior')).toBe('R Ear')
+    expect(regionAt(274, 174, 'anterior')).toBe('L Ear')
     expect(regionAt(200, 170, 'posterior')).toBe('L Ear')
   })
 
   it('resolves individual fingers and toes', () => {
-    expect(regionAt(37, 530, 'anterior')).toBe('R Index proximal')
-    expect(regionAt(46, 532, 'anterior')).toBe('R Middle proximal')
-    expect(regionAt(194, 914, 'anterior')).toBe('R Great toe')
+    expect(regionAt(30, 524, 'anterior')).toBe('R Index proximal')
+    expect(regionAt(39, 531, 'anterior')).toBe('R Middle proximal')
+    expect(regionAt(194, 916, 'anterior')).toBe('R Great toe')
     // Mirror across the midline -> patient's LEFT.
-    expect(regionAt(480 - 46, 532, 'anterior')).toBe('L Middle proximal')
+    expect(regionAt(441, 531, 'anterior')).toBe('L Middle proximal')
   })
 
   it('resolves limb and trunk segments with anatomical sidedness', () => {
     expect(regionAt(210, 600, 'anterior')).toBe('R Thigh')
-    expect(regionAt(197, 745, 'anterior')).toBe('R Knee') // patella, not the thigh above it
-    expect(regionAt(182, 800, 'anterior')).toBe('R Shin')
+    expect(regionAt(193, 687, 'anterior')).toBe('R Knee') // patella, not the thigh above it
+    // The Thigh and Knee polygons overlap by a few px at the top of the patella;
+    // the finer Knee (priority) wins that band over the larger Thigh.
+    expect(regionAt(200, 665, 'anterior')).toBe('R Knee')
+    expect(regionAt(193, 811, 'anterior')).toBe('R Shin')
+    // No gap between the knee's lower edge and the shin: a tap just below the
+    // knee resolves to a leg segment, never the coarse vertical-band fallback.
+    expect(regionAt(190, 730, 'anterior')).toBe('R Shin')
     expect(regionAt(240, 245, 'anterior')).toBe('Anterior neck')
     expect(regionAt(240, 420, 'anterior')).toBe('Upper abdomen')
     expect(regionAt(210, 300, 'anterior')).toBe('R Chest')
-    // Centre-line groin sits between the two Pelvis halves and wins the tap.
+    // Centre-line groin between the legs wins the tap over the flanking Pelvis.
     expect(regionAt(240, 535, 'anterior')).toBe('Groin')
   })
 
@@ -59,8 +68,8 @@ describe('regionAt — anatomical hit-testing', () => {
     expect(regionAt(210, 300, 'posterior')).toBe('L Upper back')
     expect(regionAt(182, 800, 'posterior')).toBe('L Calf')
     expect(regionAt(240, 535, 'posterior')).toBe('Perineum')
-    // The centre-line Perineum must not shadow the flanking Buttock halves: an
-    // inner-buttock tap still records Buttock (2% TBSA), not Perineum (1%).
+    // The lower buttock (below the lower-back overlap, beside the central
+    // Perineum) records Buttock — not Thigh, and not the central Perineum.
     expect(regionAt(220, 535, 'posterior')).toBe('L Buttock')
     expect(regionAt(260, 535, 'posterior')).toBe('R Buttock')
   })
@@ -70,8 +79,8 @@ describe('regionAt — anatomical hit-testing', () => {
     // so a bbox-only zoneAt would wrongly zoom the arm.
     expect(regionAt(180, 300, 'anterior')).toBe('R Chest')
     expect(zoneAt(180, 300, 'anterior')?.key).toBe('torso')
-    // Upper-thigh / pelvis stays in the torso zone, not an overlapping limb.
-    expect(zoneAt(210, 520, 'anterior')?.key).toBe('torso')
+    // Pelvis stays in the torso zone, not an overlapping limb.
+    expect(zoneAt(200, 495, 'anterior')?.key).toBe('torso')
     // Distal parts still resolve to their own zone.
     expect(zoneAt(48, 524, 'anterior')?.key).toBe('hand-left')
   })
@@ -112,12 +121,12 @@ describe('data-driven region map', () => {
   it('applies a box/ellipse rotation to the polygon', () => {
     const d = cloneData()
     const eye = d.head.anterior.find((s) => s.name === 'Eye')!
-    // The eye ellipse is wide & short (rx 13, ry 8). A point 10 below its centre
-    // is outside when flat, but inside once rotated 90° (vertical axis → 13).
-    expect(regionAt(226, 170, 'anterior')).not.toBe('R Eye')
+    // The eye ellipse is wide & short (rx 9, ry 4.4). A point ~6 below its centre
+    // is outside when flat, but inside once rotated 90° (vertical axis → 9).
+    expect(regionAt(226, 163, 'anterior')).not.toBe('R Eye')
     if (eye.shape.kind === 'ellipse') eye.shape.rot = 90
     applyRegionData(d)
-    expect(regionAt(226, 170, 'anterior')).toBe('R Eye')
+    expect(regionAt(226, 163, 'anterior')).toBe('R Eye')
   })
 
   it('builds, hit-tests and mirrors a free polygon shape', () => {
@@ -177,10 +186,19 @@ describe('data-driven region map', () => {
 
   it('keeps burn-TBSA stable (calibration moves positions, not names/tbsa)', () => {
     const d = cloneData()
-    const knee = d.left.find((e) => 'names' in e && e.names?.ant === 'Knee') as { shape: { kind: string; y1?: number; y2?: number } }
-    if (knee && knee.shape.kind === 'box') { knee.shape.y1 = 600; knee.shape.y2 = 650 }
+    const knee = d.left.find((e) => 'names' in e && e.names?.ant === 'Knee') as
+      { shape: { kind: string; pts?: Array<[number, number]>; y1?: number; y2?: number } }
+    // The shipped map traces the knee as a polygon; shove every vertex down the
+    // leg so the override genuinely moves it (a no-op override would prove nothing).
+    const s = knee.shape
+    if (s.kind === 'polygon' && s.pts) s.pts = s.pts.map(([x, y]) => [x, y + 120] as [number, number])
+    else if (s.kind === 'box' && s.y1 != null && s.y2 != null) { s.y1 += 120; s.y2 += 120 }
     applyRegionData(d)
-    expect(regionTBSA('R Thigh')).toBe(4.5) // unchanged by a position override
+    // The knee really moved (its old patella spot is no longer the knee)…
+    expect(regionAt(193, 687, 'anterior')).not.toBe('R Knee')
+    // …yet TBSA comes from the static table, unaffected by geometry.
+    expect(regionTBSA('R Knee')).toBe(0.5)
+    expect(regionTBSA('R Thigh')).toBe(4.5)
   })
 })
 
