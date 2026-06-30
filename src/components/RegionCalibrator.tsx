@@ -504,7 +504,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   }
 
   function save() {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); setSavedAt(new Date().toLocaleTimeString()) } catch { /* ignore */ }
+    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); setSavedAt(new Date().toLocaleTimeString()); setImportErr('') } catch { /* ignore */ }
   }
   function exportJson() {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -523,8 +523,15 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
       // shallow array check but has a malformed/empty shape is rejected here
       // rather than crashing the editor after setData.
       if (!isRegionData(parsed)) { setImportErr(t('calib.importBad')); return }
-      buildRegions(parsed as BodyRegionData, 'anterior')
-      buildRegions(parsed as BodyRegionData, 'posterior')
+      // A trial build runs shapePoints for every region; also require that each
+      // built region yielded a real polygon — an unknown shape.kind produces
+      // undefined points (later crashes rg.points.map) and an empty polygon
+      // silently drops hit-testing. Both are rejected here.
+      const built = [...buildRegions(parsed as BodyRegionData, 'anterior'),
+                     ...buildRegions(parsed as BodyRegionData, 'posterior')]
+      if (!built.every((r) => Array.isArray(r.points) && r.points.length >= 3)) {
+        setImportErr(t('calib.importBad')); return
+      }
       pushHistory() // snapshots the LATEST map (via dataRef), even after the await
       // Import is an unsaved edit: clear the "saved … resumes here" note so it
       // can't keep advertising an earlier Save that no longer matches the map.
@@ -534,7 +541,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   function reset() {
     pushHistory() // snapshot data + saved BEFORE clearing, so undo restores both
     try { localStorage.removeItem(LS_KEY) } catch { /* ignore */ }
-    setData(clone(BODY_REGION_DATA)); setSel(null); setSavedAt('')
+    setData(clone(BODY_REGION_DATA)); setSel(null); setSavedAt(''); setImportErr('')
   }
 
   // ---- Region add / duplicate / split / delete ----------------------------

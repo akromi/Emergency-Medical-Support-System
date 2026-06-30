@@ -49,6 +49,9 @@ describe('regionAt — anatomical hit-testing', () => {
   it('resolves limb and trunk segments with anatomical sidedness', () => {
     expect(regionAt(210, 600, 'anterior')).toBe('R Thigh')
     expect(regionAt(193, 687, 'anterior')).toBe('R Knee') // patella, not the thigh above it
+    // The Thigh and Knee polygons overlap by a few px at the top of the patella;
+    // the finer Knee (priority) wins that band over the larger Thigh.
+    expect(regionAt(200, 665, 'anterior')).toBe('R Knee')
     expect(regionAt(193, 811, 'anterior')).toBe('R Shin')
     // No gap between the knee's lower edge and the shin: a tap just below the
     // knee resolves to a leg segment, never the coarse vertical-band fallback.
