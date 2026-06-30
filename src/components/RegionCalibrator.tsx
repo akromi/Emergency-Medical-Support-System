@@ -398,7 +398,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   // one entry per press); a length state drives the disabled button. Each entry
   // also snapshots the saved-override slot, so undoing a Reset (which clears it)
   // restores localStorage too — not just the in-memory map.
-  const historyRef = useRef<Array<{ data: BodyRegionData; saved: string | null }>>([])
+  const historyRef = useRef<Array<{ data: BodyRegionData; saved: string | null; sel: Addr | null }>>([])
   const [histLen, setHistLen] = useState(0)
   const svgRef = useRef<SVGSVGElement>(null)
 
@@ -407,7 +407,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   const pushHistory = () => {
     let saved: string | null = null
     try { saved = localStorage.getItem(LS_KEY) } catch { /* ignore */ }
-    historyRef.current = [...historyRef.current, { data: clone(data), saved }].slice(-60)
+    historyRef.current = [...historyRef.current, { data: clone(data), saved, sel }].slice(-60)
     setHistLen(historyRef.current.length)
   }
   function undo() {
@@ -419,6 +419,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
     setDrag(null) // end any in-progress drag so later pointer moves don't re-edit the restored map
     try { if (prev.saved === null) localStorage.removeItem(LS_KEY); else localStorage.setItem(LS_KEY, prev.saved) } catch { /* ignore */ }
     setData(prev.data)
+    setSel(prev.sel)
   }
 
   // Preview edits live WHILE the tool is mounted; restore the shipped default on
