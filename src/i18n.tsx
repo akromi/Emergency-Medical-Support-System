@@ -1798,6 +1798,7 @@ const REGION_FR: Dict = {
   'Upper abdomen': 'Abdomen supérieur', 'Mid back': 'Milieu du dos',
   'Lower abdomen': 'Abdomen inférieur', 'Lower back': 'Bas du dos',
   Shoulder: 'Épaule', Chest: 'Thorax', 'Upper back': 'Haut du dos', Pelvis: 'Bassin', Buttock: 'Fesse',
+  Groin: 'Aine', Perineum: 'Périnée',
   // arm / hand
   'Upper arm': 'Bras', Elbow: 'Coude', Forearm: 'Avant-bras', Wrist: 'Poignet',
   Palm: 'Paume', 'Back of hand': 'Dos de la main',
@@ -1825,6 +1826,7 @@ const REGION_AR: Dict = {
   'Upper abdomen': 'أعلى البطن', 'Mid back': 'وسط الظهر',
   'Lower abdomen': 'أسفل البطن', 'Lower back': 'أسفل الظهر',
   Shoulder: 'الكتف', Chest: 'الصدر', 'Upper back': 'أعلى الظهر', Pelvis: 'الحوض', Buttock: 'الأرداف',
+  Groin: 'الأُربية', Perineum: 'العِجان',
   // arm / hand
   'Upper arm': 'العضد', Elbow: 'المرفق', Forearm: 'الساعد', Wrist: 'الرسغ',
   Palm: 'راحة اليد', 'Back of hand': 'ظهر اليد',
@@ -1852,6 +1854,7 @@ const REGION_FA: Dict = {
   'Upper abdomen': 'بالای شکم', 'Mid back': 'میان پشت',
   'Lower abdomen': 'پایین شکم', 'Lower back': 'پایین کمر',
   Shoulder: 'شانه', Chest: 'قفسه سینه', 'Upper back': 'بالای پشت', Pelvis: 'لگن', Buttock: 'باسن',
+  Groin: 'کشالهٔ ران', Perineum: 'پرینه',
   // arm / hand
   'Upper arm': 'بازو', Elbow: 'آرنج', Forearm: 'ساعد', Wrist: 'مچ دست',
   Palm: 'کف دست', 'Back of hand': 'پشت دست',

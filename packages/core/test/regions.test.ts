@@ -50,12 +50,15 @@ describe('regionAt — anatomical hit-testing', () => {
     expect(regionAt(240, 245, 'anterior')).toBe('Anterior neck')
     expect(regionAt(240, 420, 'anterior')).toBe('Upper abdomen')
     expect(regionAt(210, 300, 'anterior')).toBe('R Chest')
+    // Centre-line groin sits between the two Pelvis halves and wins the tap.
+    expect(regionAt(240, 535, 'anterior')).toBe('Groin')
   })
 
   it('uses posterior names and flips the side on the back view', () => {
     expect(regionAt(240, 180, 'posterior')).toBe('Occiput')
     expect(regionAt(210, 300, 'posterior')).toBe('L Upper back')
     expect(regionAt(182, 800, 'posterior')).toBe('L Calf')
+    expect(regionAt(240, 535, 'posterior')).toBe('Perineum')
   })
 
   it('maps a tap to the macro zone of the region under it, not the smallest overlapping bbox', () => {
