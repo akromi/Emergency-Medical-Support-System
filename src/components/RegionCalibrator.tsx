@@ -90,6 +90,8 @@ function regionArr(data: BodyRegionData, addr: Addr): { arr: Array<RegionSpec>; 
 const isRegionAddr = (addr: Addr | null): boolean => !!addr && (addr.k === 'head' || addr.k === 'central' || (addr.k === 'left'))
 /** Bump a region address to the next index (after inserting a copy below it). */
 const nextAddr = (a: Addr): Addr => (a.k === 'head' || a.k === 'central' || a.k === 'left') ? { ...a, i: a.i + 1 } : a
+/** Point a region address at a specific index in its bucket (after reordering). */
+const withIndex = (a: Addr, i: number): Addr => (a.k === 'head' || a.k === 'central' || a.k === 'left') ? { ...a, i } : a
 /** Append a suffix to whichever name field(s) a region carries. */
 function suffixName(r: RegionSpec, suf: string): void {
   if (r.name != null) r.name = r.name + suf
@@ -573,6 +575,22 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
     setData((d) => { const nd = clone(d); const sp = specShape(nd, sel!); if ('shape' in sp) fn(sp as RegionSpec); return nd })
   }
 
+  // ---- Overlap precedence (hit-test order) --------------------------------
+  // regionAt() returns the FIRST region whose polygon contains the tap, so a
+  // region EARLIER in its bucket wins an overlap. These move the selected region
+  // within its bucket (head / centre / left) to set that precedence explicitly.
+  const reorderCtx = isRegionAddr(sel) ? regionArr(data, sel!) : null
+  function reorder(kind: 'front' | 'up' | 'down' | 'back') {
+    if (!reorderCtx) return
+    const { arr, i } = reorderCtx
+    const to = kind === 'front' ? 0 : kind === 'back' ? arr.length - 1
+      : kind === 'up' ? Math.max(0, i - 1) : Math.min(arr.length - 1, i + 1)
+    if (to === i) return
+    pushHistory()
+    setData((d) => { const nd = clone(d); const c = regionArr(nd, sel!); if (c) { const [it] = c.arr.splice(i, 1); c.arr.splice(to, 0, it) } return nd })
+    setSel((s) => (s ? withIndex(s, to) : s)); setSelVert(null)
+  }
+
   const img = FIGURE_IMAGE[view]
   // Frame the viewport to the selected region (with padding) so its handles are
   // big and easy to grab. Crucially this is computed ONLY when the selection /
@@ -636,6 +654,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
         selected vertex — so irregular regions (a thigh, the nose) trace exactly. The blue ring always sits at the region's
         centre. Use <strong>＋ Add region</strong>, and on a selected region <strong>Duplicate / Split / Delete</strong> plus the
         name / group / TBSA fields — e.g. <em>Split</em> the nose, then make one half a triangle and the other a rectangle.
+        When two regions overlap, the one with higher <strong>Priority</strong> (lower number) wins the tap — use <strong>⤒ Front / ↑ / ↓ / ⤓ Back</strong> to set it.
         Edit the image-LEFT / centre / head regions; the right side mirrors automatically.
         Selected: <strong>{sel ? specs.find((s) => addrEq(s.addr, sel))?.label : 'none'}</strong>.
       </div>
@@ -695,6 +714,14 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
           <button type="button" onClick={duplicateRegion} title="Copy this region">⎘ Duplicate</button>
           <button type="button" onClick={splitRegion} title="Split this region into two halves">✂ Split</button>
           <button type="button" className="ce-del" onClick={deleteRegion} title="Delete this region">🗑 Delete</button>
+          {reorderCtx && (<>
+            <span className="cn-sep" />
+            <span className="cn-lbl" title="Hit-test order: when two regions overlap, the one with higher priority (lower number) wins the tap. Resolves within this region's group (head / centre / limb).">Priority {reorderCtx.i + 1}/{reorderCtx.arr.length}</span>
+            <button type="button" onClick={() => reorder('front')} disabled={reorderCtx.i === 0} title="To front — win overlaps">⤒ Front</button>
+            <button type="button" onClick={() => reorder('up')} disabled={reorderCtx.i === 0} aria-label="higher priority">↑</button>
+            <button type="button" onClick={() => reorder('down')} disabled={reorderCtx.i >= reorderCtx.arr.length - 1} aria-label="lower priority">↓</button>
+            <button type="button" onClick={() => reorder('back')} disabled={reorderCtx.i >= reorderCtx.arr.length - 1} title="To back — lose overlaps">⤓ Back</button>
+          </>)}
         </div>
       )}
       <svg

@@ -728,5 +728,6 @@ input::placeholder { color:var(--txt-faint); }
 .calib-edit button { min-height:34px; padding:4px 10px; font-size:13px; line-height:1;
   border:1px solid var(--line); background:var(--panel); color:var(--txt); border-radius:8px; cursor:pointer; }
 .calib-edit button:hover { border-color:var(--ekg); }
+.calib-edit button:disabled { opacity:.4; cursor:default; border-color:var(--line); }
 .calib-edit button.ce-del { color:#fca5a5; }
 .calib-edit button.ce-del:hover { border-color:#ef4444; }
