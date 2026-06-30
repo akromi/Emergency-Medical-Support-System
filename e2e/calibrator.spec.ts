@@ -27,6 +27,14 @@ test('admin can add, reshape, split and delete a calibrator region', async ({ pa
   const calib = page.locator('.calib')
   await expect(calib).toBeVisible()
 
+  // In-app help: the ❓ Help button opens a contextual guide; ✕ closes it.
+  await calib.getByRole('button', { name: /help/i }).click()
+  const help = page.locator('.calib-help')
+  await expect(help).toBeVisible()
+  await expect(help.getByRole('heading', { name: /Region calibrator/ })).toBeVisible()
+  await help.getByRole('button', { name: /Close/ }).click()
+  await expect(help).toHaveCount(0)
+
   const regionSelect = calib.locator('.calib-bar select').first()
   const before = await regionSelect.locator('option').count()
 

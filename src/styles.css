@@ -731,3 +731,26 @@ input::placeholder { color:var(--txt-faint); }
 .calib-edit button:disabled { opacity:.4; cursor:default; border-color:var(--line); }
 .calib-edit button.ce-del { color:#fca5a5; }
 .calib-edit button.ce-del:hover { border-color:#ef4444; }
+
+/* In-app help / cheat-sheet overlay (❓ Help). Above the calibrator (z 200). */
+.calib-help-btn { border-color:#3f9bd6 !important; color:#bfe2fb !important; }
+.calib-help { position:fixed; inset:0; z-index:260; background:rgba(0,0,0,.6); overflow:auto;
+  display:flex; align-items:flex-start; justify-content:center; padding:24px 16px; }
+.calib-help-card { width:100%; max-width:680px; background:var(--panel); border:1px solid var(--line);
+  border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,.5); }
+.calib-help-head { position:sticky; top:0; display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:14px 18px; border-bottom:1px solid var(--line); background:var(--panel); border-radius:12px 12px 0 0; }
+.calib-help-head h2 { margin:0; font-size:14px; letter-spacing:.5px; text-transform:uppercase; color:var(--txt); }
+.calib-help-head button { border:1px solid var(--line); background:var(--panel-2); color:var(--txt);
+  border-radius:8px; padding:6px 12px; font-size:13px; cursor:pointer; }
+.calib-help-head button:hover { border-color:var(--ekg); }
+.calib-help-body { padding:14px 20px 20px; font-size:13px; line-height:1.6; color:var(--txt); }
+.calib-help-body h3 { margin:16px 0 6px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--ekg); }
+.calib-help-body p { margin:0 0 6px; color:var(--txt-dim); }
+.calib-help-body ul { margin:0; padding-inline-start:20px; }
+.calib-help-body li { margin:3px 0; }
+.calib-help-body code { font-family:var(--mono); font-size:12px; background:var(--panel-2);
+  border:1px solid var(--line); border-radius:5px; padding:1px 5px; }
+.calib-help-body .ch-blue { color:#3b82f6; font-weight:700; }
+.calib-help-body .ch-amber { color:#f59e0b; font-weight:700; }
+.calib-help-body .ch-green { color:#10b981; font-weight:700; }
