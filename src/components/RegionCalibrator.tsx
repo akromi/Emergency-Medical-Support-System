@@ -14,7 +14,7 @@
 // centre/head) specs; the right side is mirrored automatically on every rebuild.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  type BodyView, type BodyRegionData, type RegionSpec, type FingerSpec, type ToeSpec,
+  type BodyView, type BodyRegionData, type RegionSpec, type FingerSpec, type ToeSpec, type ShapeSpec,
   BODY_REGION_DATA, BODY_VIEWBOX, buildRegions, applyRegionData,
 } from '@triage-link/core'
 import { FIGURE_IMAGE } from './figure'
@@ -73,7 +73,72 @@ function specShape(data: BodyRegionData, addr: Addr): RegionSpec | FingerSpec | 
 }
 
 // ---- Handles ---------------------------------------------------------------
-interface Handle { id: string; x: number; y: number; role: 'move' | 'pt' }
+// role: 'move' = drag the whole region · 'pt' = reshape · 'add' = insert a
+// polygon vertex (small green +).
+interface Handle { id: string; x: number; y: number; role: 'move' | 'pt' | 'add' }
+
+const polyCentroid = (pts: ReadonlyArray<[number, number]>): [number, number] =>
+  [pts.reduce((a, p) => a + p[0], 0) / pts.length, pts.reduce((a, p) => a + p[1], 0) / pts.length]
+
+const bboxOfPts = (pts: ReadonlyArray<[number, number]>): { x1: number; y1: number; x2: number; y2: number } => {
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1])
+  return { x1: Math.min(...xs), y1: Math.min(...ys), x2: Math.max(...xs), y2: Math.max(...ys) }
+}
+
+// Trace any shape's outline as a list of vertices (rotation applied), so a shape
+// can be converted to another kind while keeping the same footprint, and so a
+// box/ellipse/quad can be turned into an editable free polygon.
+function outlinePoints(s: ShapeSpec): Array<[number, number]> {
+  if (s.kind === 'box') {
+    const cx = (s.x1 + s.x2) / 2, cy = (s.y1 + s.y2) / 2, rot = s.rot ?? 0
+    return ([[s.x1, s.y1], [s.x2, s.y1], [s.x2, s.y2], [s.x1, s.y2]] as Array<[number, number]>)
+      .map(([x, y]) => { const p = rotPt(x, y, cx, cy, rot); return [p.x, p.y] })
+  }
+  if (s.kind === 'ellipse') {
+    const rot = s.rot ?? 0, out: Array<[number, number]> = []
+    for (let i = 0; i < 16; i++) { const a = (i / 16) * 2 * Math.PI; const p = rotPt(s.cx + s.rx * Math.cos(a), s.cy + s.ry * Math.sin(a), s.cx, s.cy, rot); out.push([p.x, p.y]) }
+    return out
+  }
+  if (s.kind === 'polygon') return s.pts.map(([x, y]) => [x, y])
+  return [[s.cxTop - s.wTop / 2, s.yTop], [s.cxTop + s.wTop / 2, s.yTop], [s.cxBot + s.wBot / 2, s.yBot], [s.cxBot - s.wBot / 2, s.yBot]]
+}
+
+// The shape kinds the calibrator can switch a region between. 'ellipse' splits
+// into Circle (rx==ry) vs Oval; Triangle / Half-circle / free Polygon are all
+// stored as { kind:'polygon' } so they hit-test and mirror like any polygon.
+type ShapeKind = 'box' | 'circle' | 'oval' | 'triangle' | 'halfcircle' | 'polygon'
+const SHAPE_KINDS: ReadonlyArray<readonly [ShapeKind, string]> = [
+  ['box', 'Rectangle'], ['circle', 'Circle'], ['oval', 'Oval'],
+  ['triangle', 'Triangle'], ['halfcircle', 'Half-circle'], ['polygon', 'Polygon'],
+]
+
+/** Best-effort label of the current shape, to show in the Shape menu. */
+function shapeKindOf(s: ShapeSpec): ShapeKind {
+  if (s.kind === 'box') return 'box'
+  if (s.kind === 'ellipse') return Math.abs(s.rx - s.ry) < 0.5 ? 'circle' : 'oval'
+  if (s.kind === 'quad') return 'box'
+  return 'polygon'
+}
+
+/** Convert a shape to another kind, preserving its bounding footprint. */
+function convertShape(s: ShapeSpec, kind: ShapeKind): ShapeSpec {
+  const pts = outlinePoints(s)
+  const { x1, y1, x2, y2 } = bboxOfPts(pts)
+  const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2, w = Math.max(MIN, x2 - x1), h = Math.max(MIN, y2 - y1)
+  switch (kind) {
+    case 'box': return { kind: 'box', x1: r1(x1), y1: r1(y1), x2: r1(x2), y2: r1(y2) }
+    case 'circle': { const r = Math.max(MIN, Math.min(w, h) / 2); return { kind: 'ellipse', cx: r1(cx), cy: r1(cy), rx: r1(r), ry: r1(r) } }
+    case 'oval': return { kind: 'ellipse', cx: r1(cx), cy: r1(cy), rx: r1(w / 2), ry: r1(h / 2) }
+    case 'triangle': return { kind: 'polygon', pts: [[r1(cx), r1(y1)], [r1(x2), r1(y2)], [r1(x1), r1(y2)]] }
+    case 'halfcircle': {
+      const out: Array<[number, number]> = [[r1(x1), r1(y1)], [r1(x2), r1(y1)]]
+      const N = 10
+      for (let i = 0; i <= N; i++) { const a = Math.PI * (i / N); out.push([r1(cx + (w / 2) * Math.cos(a)), r1(y1 + h * Math.sin(a))]) }
+      return { kind: 'polygon', pts: out }
+    }
+    case 'polygon': return { kind: 'polygon', pts: pts.map(([x, y]) => [r1(x), r1(y)] as [number, number]) }
+  }
+}
 
 function handlesFor(spec: RegionSpec | FingerSpec | ToeSpec): Handle[] {
   if ('lens' in spec) { // finger
@@ -100,7 +165,15 @@ function handlesFor(spec: RegionSpec | FingerSpec | ToeSpec): Handle[] {
     return [
       { id: 'c', x: r1(cx), y: r1(cy), role: 'move' },
       P('nw', s.x1, s.y1), P('ne', s.x2, s.y1), P('se', s.x2, s.y2), P('sw', s.x1, s.y2),
+      P('n', cx, s.y1), P('s', cx, s.y2), P('w', s.x1, cy), P('e', s.x2, cy), // edge midpoints (8-anchor)
     ]
+  }
+  if (s.kind === 'polygon') {
+    const pts = s.pts, [cx, cy] = polyCentroid(pts)
+    const out: Handle[] = [{ id: 'c', x: r1(cx), y: r1(cy), role: 'move' }]
+    pts.forEach((p, i) => out.push({ id: `v${i}`, x: r1(p[0]), y: r1(p[1]), role: 'pt' }))
+    pts.forEach((p, i) => { const q = pts[(i + 1) % pts.length]; out.push({ id: `add${i}`, x: r1((p[0] + q[0]) / 2), y: r1((p[1] + q[1]) / 2), role: 'add' }) })
+    return out
   }
   if (s.kind === 'ellipse') {
     const rot = s.rot ?? 0
@@ -146,6 +219,11 @@ function dragHandle(spec: RegionSpec | FingerSpec | ToeSpec, id: string, px: num
     const { cx, cy, rot } = shapeRot(s as never)
     const p = rotPt(px, py, cx, cy, -rot); px = p.x; py = p.y
   }
+  if (s.kind === 'polygon') {
+    if (id === 'c') { const dx = px - prev.x, dy = py - prev.y; s.pts = s.pts.map(([x, y]) => [r1(x + dx), r1(y + dy)]); return }
+    if (id.startsWith('v')) { const i = +id.slice(1); if (s.pts[i]) s.pts[i] = [r1(px), r1(py)] } // 'add' handled at pointer-down
+    return
+  }
   if (s.kind === 'box') {
     if (id === 'c') { const dx = px - prev.x, dy = py - prev.y; s.x1 = r1(s.x1 + dx); s.x2 = r1(s.x2 + dx); s.y1 = r1(s.y1 + dy); s.y2 = r1(s.y2 + dy); return }
     if (id.includes('w')) s.x1 = r1(Math.min(px, s.x2 - MIN)); if (id.includes('e')) s.x2 = r1(Math.max(px, s.x1 + MIN))
@@ -190,6 +268,8 @@ function specBBox(spec: RegionSpec | FingerSpec | ToeSpec, mirror = false): { x:
       const a = (s.rot ?? 0) * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a)
       const hw = Math.hypot(s.rx * c, s.ry * sn), hh = Math.hypot(s.rx * sn, s.ry * c) // rotated ellipse extent
       x1 = s.cx - hw; y1 = s.cy - hh; x2 = s.cx + hw; y2 = s.cy + hh
+    } else if (s.kind === 'polygon') {
+      const b = bboxOfPts(s.pts); x1 = b.x1; y1 = b.y1; x2 = b.x2; y2 = b.y2
     } else { const xs = [s.cxTop - s.wTop / 2, s.cxTop + s.wTop / 2, s.cxBot - s.wBot / 2, s.cxBot + s.wBot / 2]; x1 = Math.min(...xs); x2 = Math.max(...xs); y1 = Math.min(s.yTop, s.yBot); y2 = Math.max(s.yTop, s.yBot) }
   }
   if (mirror) { const mx1 = VW - x2, mx2 = VW - x1; x1 = Math.min(x1, mx1); x2 = Math.max(x2, mx2) }
@@ -207,6 +287,7 @@ function nudgeSpec(spec: RegionSpec | FingerSpec | ToeSpec, dx: number, dy: numb
   const s = (spec as RegionSpec).shape
   if (s.kind === 'box') { s.x1 = r1(s.x1 + dx); s.x2 = r1(s.x2 + dx); s.y1 = r1(s.y1 + dy); s.y2 = r1(s.y2 + dy) }
   else if (s.kind === 'ellipse') { s.cx = r1(s.cx + dx); s.cy = r1(s.cy + dy) }
+  else if (s.kind === 'polygon') { s.pts = s.pts.map(([x, y]) => [r1(x + dx), r1(y + dy)]) }
   else { s.cxTop = r1(s.cxTop + dx); s.cxBot = r1(s.cxBot + dx); s.yTop = r1(s.yTop + dy); s.yBot = r1(s.yBot + dy) }
 }
 
@@ -231,6 +312,11 @@ function resizeSpec(spec: RegionSpec | FingerSpec | ToeSpec, dw: number, dh: num
     if (s.y2 - s.y1 < MIN) { const c = (s.y1 + s.y2) / 2; s.y1 = r1(c - MIN / 2); s.y2 = r1(c + MIN / 2) }
   } else if (s.kind === 'ellipse') {
     s.rx = r1(Math.max(MIN, s.rx + dw / 2)); s.ry = r1(Math.max(MIN, s.ry + dh / 2))
+  } else if (s.kind === 'polygon') {
+    const [cx, cy] = polyCentroid(s.pts), b = bboxOfPts(s.pts)
+    const w = b.x2 - b.x1, h = b.y2 - b.y1
+    const sx = w > MIN ? Math.max(0.05, (w + dw) / w) : 1, sy = h > MIN ? Math.max(0.05, (h + dh) / h) : 1
+    s.pts = s.pts.map(([x, y]) => [r1(cx + (x - cx) * sx), r1(cy + (y - cy) * sy)])
   } else {
     s.wTop = r1(Math.max(MIN, s.wTop + dw)); s.wBot = r1(Math.max(MIN, s.wBot + dw))
     s.yTop = r1(s.yTop - dh / 2); s.yBot = r1(s.yBot + dh / 2)
@@ -244,13 +330,17 @@ function rotateSpec(spec: RegionSpec | FingerSpec | ToeSpec, d: number): void {
   if ('cx' in spec && 'len' in spec) return // toe: no rotation
   const s = (spec as RegionSpec).shape
   if (s.kind === 'box' || s.kind === 'ellipse') s.rot = r1(((s.rot ?? 0) + d) % 360)
+  else if (s.kind === 'polygon') { // a polygon has no `rot`; rotate its vertices about the centroid
+    const [cx, cy] = polyCentroid(s.pts)
+    s.pts = s.pts.map(([x, y]) => { const p = rotPt(x, y, cx, cy, d); return [r1(p.x), r1(p.y)] })
+  }
 }
-/** Whether the selected spec can be rotated (fingers, boxes, ellipses). */
+/** Whether the selected spec can be rotated (fingers, boxes, ellipses, polygons). */
 function rotatable(spec: RegionSpec | FingerSpec | ToeSpec): boolean {
   if ('lens' in spec) return true
   if ('cx' in spec && 'len' in spec) return false
   const k = (spec as RegionSpec).shape.kind
-  return k === 'box' || k === 'ellipse'
+  return k === 'box' || k === 'ellipse' || k === 'polygon'
 }
 
 // ---- Component -------------------------------------------------------------
@@ -271,6 +361,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   const [view, setView] = useState<BodyView>('anterior')
   const [data, setData] = useState<BodyRegionData>(() => loadSaved() ?? clone(BODY_REGION_DATA))
   const [sel, setSel] = useState<Addr | null>(null)
+  const [selVert, setSelVert] = useState<number | null>(null) // last-touched polygon vertex (for "− point")
   const [drag, setDrag] = useState<{ id: string; prev: Handle } | null>(null)
   const [savedAt, setSavedAt] = useState<string>('')
   const [zoom, setZoom] = useState<'region' | 'body'>('region')
@@ -351,6 +442,29 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   function toggleView() {
     setView((v) => (v === 'anterior' ? 'posterior' : 'anterior'))
     setSel((s) => (s && s.k === 'head' ? null : s))
+    setSelVert(null)
+  }
+
+  // Switch the selected region's shape (Rectangle / Circle / Oval / Triangle /
+  // Half-circle / free Polygon), keeping its footprint. Fingers/toes have no
+  // ShapeSpec, so the menu is hidden for them.
+  function convertSel(kind: ShapeKind) {
+    if (!sel) return
+    pushHistory()
+    setSelVert(null)
+    setData((d) => { const nd = clone(d); const sp = specShape(nd, sel); if ('shape' in sp) sp.shape = convertShape(sp.shape, kind); return nd })
+  }
+
+  // Remove the last-touched vertex of a polygon (kept at ≥3 so it stays a face).
+  function removeVert() {
+    if (!sel || selVert == null) return
+    pushHistory()
+    setData((d) => {
+      const nd = clone(d); const sp = specShape(nd, sel)
+      if ('shape' in sp && sp.shape.kind === 'polygon' && sp.shape.pts.length > 3) sp.shape.pts.splice(selVert, 1)
+      return nd
+    })
+    setSelVert(null)
   }
 
   function save() {
@@ -401,10 +515,17 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
           Zoom: {zoom === 'region' ? 'region' : 'whole body'}
         </button>
         <select value={sel ? specs.findIndex((s) => addrEq(s.addr, sel)) : -1}
-          onChange={(e) => { const i = Number(e.target.value); setSel(i >= 0 ? specs[i].addr : null); if (i >= 0) setZoom('region') }}>
+          onChange={(e) => { const i = Number(e.target.value); setSel(i >= 0 ? specs[i].addr : null); setSelVert(null); if (i >= 0) setZoom('region') }}>
           <option value={-1}>— pick a region —</option>
           {specs.map((s, i) => <option key={i} value={i}>{s.label}</option>)}
         </select>
+        {selSpec && 'shape' in selSpec && (
+          <select className="calib-shape" value="" title="Switch the region's shape"
+            onChange={(e) => { if (e.target.value) convertSel(e.target.value as ShapeKind) }}>
+            <option value="">Shape: {shapeKindOf((selSpec as RegionSpec).shape)} ▾</option>
+            {SHAPE_KINDS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          </select>
+        )}
         <button type="button" onClick={undo} disabled={!histLen} title="Undo (Ctrl/⌘+Z)">↶ Undo</button>
         <button type="button" onClick={save}>Save</button>
         <button type="button" onClick={exportJson}>Export JSON</button>
@@ -416,7 +537,10 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
         <span style={{ color: '#3b82f6', fontWeight: 700 }}> blue ring</span> to move the whole region,
         the <span style={{ color: '#f59e0b', fontWeight: 700 }}>amber dots</span> to reshape it — or use the
         <strong> Move / Width / Height / Rotate</strong> buttons below for precise taps (the figure stays put while you
-        adjust). Edit the image-LEFT / centre / head regions; the right side mirrors automatically.
+        adjust). Use <strong>Shape</strong> to switch a region between rectangle / circle / oval / triangle /
+        half-circle / free polygon; on a polygon, drag a vertex, tap a
+        <span style={{ color: '#10b981', fontWeight: 700 }}> green +</span> to add one, or <strong>− point</strong> to remove the
+        selected vertex — so irregular regions (a thigh, the nose) trace exactly. Edit the image-LEFT / centre / head regions; the right side mirrors automatically.
         Selected: <strong>{sel ? specs.find((s) => addrEq(s.addr, sel))?.label : 'none'}</strong>.
       </div>
       {sel && selSpec && (
@@ -436,6 +560,12 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
             <span className="cn-lbl">Rotate</span>
             <button type="button" onClick={() => edit((s) => rotateSpec(s, -step))} aria-label="rotate left">↺</button>
             <button type="button" onClick={() => edit((s) => rotateSpec(s, step))} aria-label="rotate right">↻</button>
+          </>)}
+          {'shape' in selSpec && (selSpec as RegionSpec).shape.kind === 'polygon' && (<>
+            <span className="cn-lbl">Point</span>
+            <button type="button" onClick={removeVert}
+              disabled={selVert == null || (selSpec as RegionSpec & { shape: { kind: 'polygon'; pts: unknown[] } }).shape.pts.length <= 3}
+              title="Remove the selected vertex (tap a vertex first; tap a green + to add one)">− point</button>
           </>)}
           <span className="cn-sep" />
           <span className="cn-lbl">Step</span>
@@ -460,8 +590,20 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
           <circle
             key={h.id}
             className={`calib-h ${h.role}`}
-            cx={h.x} cy={h.y} r={h.role === 'move' ? hsz * 1.4 : hsz}
-            onPointerDown={(e) => { e.stopPropagation(); (e.target as Element).setPointerCapture?.(e.pointerId); pushHistory(); frozenVb.current = framedVb; setDrag({ id: h.id, prev: { ...h } }) }}
+            cx={h.x} cy={h.y} r={h.role === 'move' ? hsz * 1.4 : h.role === 'add' ? hsz * 0.8 : hsz}
+            onPointerDown={(e) => {
+              e.stopPropagation(); (e.target as Element).setPointerCapture?.(e.pointerId)
+              pushHistory(); frozenVb.current = framedVb
+              if (h.role === 'add' && sel) { // insert a new vertex after edge i, then drag it
+                const i = +h.id.slice(3)
+                setData((d) => { const nd = clone(d); const sp = specShape(nd, sel); if ('shape' in sp && sp.shape.kind === 'polygon') sp.shape.pts.splice(i + 1, 0, [h.x, h.y]); return nd })
+                setSelVert(i + 1)
+                setDrag({ id: `v${i + 1}`, prev: { id: `v${i + 1}`, x: h.x, y: h.y, role: 'pt' } })
+                return
+              }
+              if (h.id.startsWith('v')) setSelVert(+h.id.slice(1))
+              setDrag({ id: h.id, prev: { ...h } })
+            }}
           />
         ))}
       </svg>

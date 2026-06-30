@@ -651,6 +651,8 @@ input::placeholder { color:var(--txt-faint); }
    Distinct in both hue (colourblind-safe orange/blue) and shape (solid vs ring). */
 .calib-h { fill:#f59e0b; stroke:#1a1205; stroke-width:1.5; vector-effect:non-scaling-stroke; cursor:grab; pointer-events:all; }
 .calib-h.move { fill:transparent; stroke:#3b82f6; stroke-width:3.5; }
+/* Insert-vertex handles on a polygon edge: smaller hollow GREEN dots ("+"). */
+.calib-h.add { fill:rgba(16,185,129,0.25); stroke:#10b981; stroke-width:2; cursor:copy; }
 .calib-h:active { cursor:grabbing; }
 
 /* Touch-friendly move/resize panel for the selected region. */

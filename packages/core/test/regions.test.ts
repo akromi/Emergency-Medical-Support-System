@@ -113,6 +113,26 @@ describe('data-driven region map', () => {
     expect(regionAt(226, 170, 'anterior')).toBe('R Eye')
   })
 
+  it('builds, hit-tests and mirrors a free polygon shape', () => {
+    const d = cloneData()
+    // Re-trace the Nose as an explicit triangle (calibrator "Shape ▸ Triangle").
+    const nose = d.head.anterior.find((s) => s.name === 'Nose')!
+    nose.side = 'left' // make it a mirrored part so we can assert the mirror too
+    nose.shape = { kind: 'polygon', pts: [[230, 156], [248, 184], [218, 184]] }
+    applyRegionData(d)
+    // The polygon renders with exactly its given vertices (image-left copy)…
+    const built = buildRegions(d, 'anterior')
+    const poly = built.find((r) => r.name === 'Nose' && r.side === 'left')!
+    expect(poly.points).toEqual([[230, 156], [248, 184], [218, 184]])
+    // …a point inside the triangle resolves to it (image-left → patient's R),
+    // one outside (above the apex) does not…
+    expect(regionAt(232, 178, 'anterior')).toBe('R Nose')
+    expect(regionAt(232, 150, 'anterior')).not.toContain('Nose')
+    // …and the side:'left' polygon was mirrored about the centre line (x → 480-x).
+    const mirror = built.find((r) => r.name === 'Nose' && r.side === 'right')!
+    expect(mirror.points).toEqual([[250, 156], [232, 184], [262, 184]])
+  })
+
   it('keeps burn-TBSA stable (calibration moves positions, not names/tbsa)', () => {
     const d = cloneData()
     const knee = d.left.find((e) => 'names' in e && e.names?.ant === 'Knee') as { shape: { kind: string; y1?: number; y2?: number } }
