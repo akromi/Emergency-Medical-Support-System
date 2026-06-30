@@ -667,3 +667,21 @@ input::placeholder { color:var(--txt-faint); }
 .calib-nudge button:hover { border-color:var(--ekg); }
 .calib-nudge button:active { background:var(--raised); }
 .calib-nudge button.on { background:#163040; border-color:#3f9bd6; color:#bfe2fb; }
+
+/* Region add / name / group / TBSA / duplicate / split / delete panel. */
+.calib-edit { display:flex; flex-wrap:wrap; align-items:center; gap:5px; padding:7px 12px;
+  border-bottom:1px solid var(--line); background:var(--panel-2); }
+.calib-edit .cn-lbl { font-size:11px; font-weight:700; letter-spacing:.04em; color:var(--txt-dim);
+  margin-inline-start:8px; text-transform:uppercase; }
+.calib-edit .cn-lbl:first-child { margin-inline-start:0; }
+.calib-edit .cn-sep { flex:1; }
+.calib-edit input, .calib-edit select { min-height:34px; padding:4px 8px; font-size:13px;
+  border:1px solid var(--line); background:var(--panel); color:var(--txt); border-radius:8px; }
+.calib-edit .ce-name { min-width:120px; }
+.calib-edit .ce-num { width:64px; }
+.calib-edit .ce-chk { display:inline-flex; align-items:center; gap:4px; font-size:12px; color:var(--txt-dim); }
+.calib-edit button { min-height:34px; padding:4px 10px; font-size:13px; line-height:1;
+  border:1px solid var(--line); background:var(--panel); color:var(--txt); border-radius:8px; cursor:pointer; }
+.calib-edit button:hover { border-color:var(--ekg); }
+.calib-edit button.ce-del { color:#fca5a5; }
+.calib-edit button.ce-del:hover { border-color:#ef4444; }

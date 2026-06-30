@@ -14,7 +14,7 @@
 // centre/head) specs; the right side is mirrored automatically on every rebuild.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  type BodyView, type BodyRegionData, type RegionSpec, type FingerSpec, type ToeSpec, type ShapeSpec,
+  type BodyView, type BodyRegionData, type RegionSpec, type FingerSpec, type ToeSpec, type ShapeSpec, type RegionGroup,
   BODY_REGION_DATA, BODY_VIEWBOX, buildRegions, applyRegionData,
 } from '@triage-link/core'
 import { FIGURE_IMAGE } from './figure'
@@ -70,6 +70,30 @@ function specShape(data: BodyRegionData, addr: Addr): RegionSpec | FingerSpec | 
     case 'finger': return (data.left[addr.i] as { fingers: FingerSpec[] }).fingers[addr.fi]
     case 'toe': return (data.left[addr.i] as { toes: ToeSpec[] }).toes[addr.ti]
   }
+}
+
+// ---- Region add / duplicate / split / delete ------------------------------
+// These operate on whole RegionSpecs (not fingers/toes), so the calibrator can
+// build new regions and break one region into several — e.g. split the nose
+// into a triangular tip + a rectangular bridge.
+const GROUPS: ReadonlyArray<RegionGroup> = ['head', 'face', 'neck', 'trunk', 'arm', 'hand', 'leg', 'foot']
+
+/** The array + index holding the RegionSpec an address points at (head / centre
+ *  / left). Returns null for finger/toe groups, which aren't single regions. */
+function regionArr(data: BodyRegionData, addr: Addr): { arr: Array<RegionSpec>; i: number } | null {
+  if (addr.k === 'head') return { arr: data.head[addr.view], i: addr.i }
+  if (addr.k === 'central') return { arr: data.central, i: addr.i }
+  if (addr.k === 'left') { const e = data.left[addr.i]; return 'shape' in e ? { arr: data.left as RegionSpec[], i: addr.i } : null }
+  return null
+}
+/** True when an address points at an editable single region (not a finger/toe). */
+const isRegionAddr = (addr: Addr | null): boolean => !!addr && (addr.k === 'head' || addr.k === 'central' || (addr.k === 'left'))
+/** Bump a region address to the next index (after inserting a copy below it). */
+const nextAddr = (a: Addr): Addr => (a.k === 'head' || a.k === 'central' || a.k === 'left') ? { ...a, i: a.i + 1 } : a
+/** Append a suffix to whichever name field(s) a region carries. */
+function suffixName(r: RegionSpec, suf: string): void {
+  if (r.name != null) r.name = r.name + suf
+  if (r.names) r.names = { ant: r.names.ant + suf, post: r.names.post + suf }
 }
 
 // ---- Handles ---------------------------------------------------------------
@@ -169,7 +193,8 @@ function handlesFor(spec: RegionSpec | FingerSpec | ToeSpec): Handle[] {
     ]
   }
   if (s.kind === 'polygon') {
-    const pts = s.pts, [cx, cy] = polyCentroid(pts)
+    const pts = s.pts, b = bboxOfPts(pts) // move ring at the bbox CENTRE (visual middle), not the vertex average
+    const cx = (b.x1 + b.x2) / 2, cy = (b.y1 + b.y2) / 2
     const out: Handle[] = [{ id: 'c', x: r1(cx), y: r1(cy), role: 'move' }]
     pts.forEach((p, i) => out.push({ id: `v${i}`, x: r1(p[0]), y: r1(p[1]), role: 'pt' }))
     pts.forEach((p, i) => { const q = pts[(i + 1) % pts.length]; out.push({ id: `add${i}`, x: r1((p[0] + q[0]) / 2), y: r1((p[1] + q[1]) / 2), role: 'add' }) })
@@ -481,6 +506,73 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
     setData(clone(BODY_REGION_DATA)); setSel(null); setSavedAt('')
   }
 
+  // ---- Region add / duplicate / split / delete ----------------------------
+  // Add a fresh region (a small box at the view centre) to the current view's
+  // list; select it so it can be named, grouped and reshaped right away.
+  function addRegion() {
+    pushHistory()
+    const idx = data.head[view].length // appended → lands at the current length
+    const cx = VW / 2, cy = VH / 2
+    setData((d) => {
+      const nd = clone(d)
+      nd.head[view].push({ name: 'New region', group: 'trunk', tbsa: 0, shape: { kind: 'box', x1: r1(cx - 30), y1: r1(cy - 22), x2: r1(cx + 30), y2: r1(cy + 22) } })
+      return nd
+    })
+    setSel({ k: 'head', view, i: idx }); setSelVert(null); setZoom('region')
+  }
+
+  // Duplicate the selected region just below it (offset a little) and select the copy.
+  function duplicateRegion() {
+    if (!isRegionAddr(sel)) return
+    pushHistory()
+    setData((d) => {
+      const nd = clone(d); const ctx = regionArr(nd, sel!); if (!ctx) return nd
+      const copy = JSON.parse(JSON.stringify(ctx.arr[ctx.i])) as RegionSpec
+      nudgeSpec(copy, 12, 12); suffixName(copy, ' copy')
+      ctx.arr.splice(ctx.i + 1, 0, copy)
+      return nd
+    })
+    setSel((s) => (s ? nextAddr(s) : s)); setSelVert(null)
+  }
+
+  // Split the selected region into two halves (top/bottom if it's taller, else
+  // left/right), in place — the seed for tracing two distinct shapes from one.
+  function splitRegion() {
+    if (!isRegionAddr(sel)) return
+    pushHistory()
+    setData((d) => {
+      const nd = clone(d); const ctx = regionArr(nd, sel!); if (!ctx) return nd
+      const orig = ctx.arr[ctx.i]
+      const b = bboxOfPts(outlinePoints(orig.shape)), w = b.x2 - b.x1, h = b.y2 - b.y1
+      const mk = (x1: number, y1: number, x2: number, y2: number, suf: string): RegionSpec => {
+        const r = JSON.parse(JSON.stringify(orig)) as RegionSpec
+        r.shape = { kind: 'box', x1: r1(x1), y1: r1(y1), x2: r1(x2), y2: r1(y2) }; suffixName(r, suf); return r
+      }
+      const [a, c] = h >= w
+        ? [mk(b.x1, b.y1, b.x2, (b.y1 + b.y2) / 2, ' 1'), mk(b.x1, (b.y1 + b.y2) / 2, b.x2, b.y2, ' 2')]
+        : [mk(b.x1, b.y1, (b.x1 + b.x2) / 2, b.y2, ' 1'), mk((b.x1 + b.x2) / 2, b.y1, b.x2, b.y2, ' 2')]
+      ctx.arr.splice(ctx.i, 1, a, c)
+      return nd
+    })
+    setSelVert(null) // selection stays on the first half (same index)
+  }
+
+  // Delete the selected region (with a guard — it changes the shipped map until Reset).
+  function deleteRegion() {
+    if (!isRegionAddr(sel)) return
+    if (!window.confirm('Delete this region from the map?')) return
+    pushHistory()
+    setData((d) => { const nd = clone(d); const ctx = regionArr(nd, sel!); if (ctx) ctx.arr.splice(ctx.i, 1); return nd })
+    setSel(null); setSelVert(null)
+  }
+
+  // Edit a non-geometry property (name / group / tbsa / mirror) of the selected region.
+  function editProp(fn: (r: RegionSpec) => void) {
+    if (!isRegionAddr(sel)) return
+    pushHistory()
+    setData((d) => { const nd = clone(d); const sp = specShape(nd, sel!); if ('shape' in sp) fn(sp as RegionSpec); return nd })
+  }
+
   const img = FIGURE_IMAGE[view]
   // Frame the viewport to the selected region (with padding) so its handles are
   // big and easy to grab. Crucially this is computed ONLY when the selection /
@@ -526,6 +618,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
             {SHAPE_KINDS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </select>
         )}
+        <button type="button" onClick={addRegion} title="Add a new region to this view">＋ Add region</button>
         <button type="button" onClick={undo} disabled={!histLen} title="Undo (Ctrl/⌘+Z)">↶ Undo</button>
         <button type="button" onClick={save}>Save</button>
         <button type="button" onClick={exportJson}>Export JSON</button>
@@ -540,7 +633,10 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
         adjust). Use <strong>Shape</strong> to switch a region between rectangle / circle / oval / triangle /
         half-circle / free polygon; on a polygon, drag a vertex, tap a
         <span style={{ color: '#10b981', fontWeight: 700 }}> green +</span> to add one, or <strong>− point</strong> to remove the
-        selected vertex — so irregular regions (a thigh, the nose) trace exactly. Edit the image-LEFT / centre / head regions; the right side mirrors automatically.
+        selected vertex — so irregular regions (a thigh, the nose) trace exactly. The blue ring always sits at the region's
+        centre. Use <strong>＋ Add region</strong>, and on a selected region <strong>Duplicate / Split / Delete</strong> plus the
+        name / group / TBSA fields — e.g. <em>Split</em> the nose, then make one half a triangle and the other a rectangle.
+        Edit the image-LEFT / centre / head regions; the right side mirrors automatically.
         Selected: <strong>{sel ? specs.find((s) => addrEq(s.addr, sel))?.label : 'none'}</strong>.
       </div>
       {sel && selSpec && (
@@ -572,6 +668,33 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
           <button type="button" className={step === 1 ? 'on' : ''} onClick={() => setStep(1)}>1</button>
           <button type="button" className={step === 5 ? 'on' : ''} onClick={() => setStep(5)}>5</button>
           <button type="button" onClick={() => setRecenter((r) => r + 1)}>Recenter</button>
+        </div>
+      )}
+      {sel && selSpec && 'shape' in selSpec && (
+        <div className="calib-edit">
+          <span className="cn-lbl">Region</span>
+          {(selSpec as RegionSpec).name != null ? (
+            <input className="ce-name" value={(selSpec as RegionSpec).name}
+              onChange={(e) => editProp((r) => { r.name = e.target.value })} placeholder="name" aria-label="region name" />
+          ) : (<>
+            <input className="ce-name" value={(selSpec as RegionSpec).names!.ant}
+              onChange={(e) => editProp((r) => { if (r.names) r.names.ant = e.target.value })} placeholder="anterior name" aria-label="anterior name" />
+            <input className="ce-name" value={(selSpec as RegionSpec).names!.post}
+              onChange={(e) => editProp((r) => { if (r.names) r.names.post = e.target.value })} placeholder="posterior name" aria-label="posterior name" />
+          </>)}
+          <span className="cn-lbl">Group</span>
+          <select value={(selSpec as RegionSpec).group} onChange={(e) => editProp((r) => { r.group = e.target.value as RegionGroup })} aria-label="region group">
+            {GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+          <span className="cn-lbl">TBSA%</span>
+          <input className="ce-num" type="number" step={0.1} min={0} value={(selSpec as RegionSpec).tbsa}
+            onChange={(e) => editProp((r) => { r.tbsa = Number(e.target.value) || 0 })} aria-label="region TBSA percent" />
+          <label className="ce-chk"><input type="checkbox" checked={(selSpec as RegionSpec).side === 'left'}
+            onChange={(e) => editProp((r) => { if (e.target.checked) r.side = 'left'; else delete r.side })} /> Mirror</label>
+          <span className="cn-sep" />
+          <button type="button" onClick={duplicateRegion} title="Copy this region">⎘ Duplicate</button>
+          <button type="button" onClick={splitRegion} title="Split this region into two halves">✂ Split</button>
+          <button type="button" className="ce-del" onClick={deleteRegion} title="Delete this region">🗑 Delete</button>
         </div>
       )}
       <svg
