@@ -25,6 +25,8 @@ export interface BodyRegion {
   /** Surface-area % for this region's marked aspect (rule-of-nines scale). */
   tbsa: number
   points: ReadonlyArray<Point>
+  /** Overlap precedence; higher wins. Default/absent = 0 (authored order). */
+  priority?: number
 }
 
 const W = BODY_VIEWBOX.width
@@ -83,6 +85,7 @@ interface SharedPart {
   group: RegionGroup
   tbsa: number
   points: ReadonlyArray<Point>
+  priority?: number
 }
 
 const mirrorX = (pts: ReadonlyArray<Point>): Point[] => pts.map(([x, y]) => [r1(W - x), y] as Point)
@@ -113,7 +116,7 @@ function shapePoints(s: ShapeSpec): Point[] {
 
 function headRegions(view: BodyView, data: BodyRegionData): BodyRegion[] {
   const out: BodyRegion[] = data.head[view].map((s) => ({
-    name: s.name as string, side: s.side, group: s.group, tbsa: s.tbsa, points: shapePoints(s.shape),
+    name: s.name as string, side: s.side, group: s.group, tbsa: s.tbsa, points: shapePoints(s.shape), priority: s.priority,
   }))
   for (const r of out.filter((x) => x.side === 'left')) {
     out.push({ ...r, side: 'right', points: mirrorX(r.points) })
@@ -128,7 +131,7 @@ function headRegions(view: BodyView, data: BodyRegionData): BodyRegion[] {
 // their place between Wrist and Palm), then mirrored image-left → image-right.
 function sharedParts(data: BodyRegionData): SharedPart[] {
   const parts: SharedPart[] = data.central.map((s) => ({
-    names: s.names as AntPost, group: s.group, tbsa: s.tbsa, points: shapePoints(s.shape),
+    names: s.names as AntPost, group: s.group, tbsa: s.tbsa, points: shapePoints(s.shape), priority: s.priority,
   }))
 
   const left: SharedPart[] = []
@@ -146,7 +149,7 @@ function sharedParts(data: BodyRegionData): SharedPart[] {
         left.push({ names: { ant: t.label, post: t.label }, side: 'left', group: 'foot', tbsa: 0.1, points: box(r1(t.cx - t.w / 2), t.yTop, r1(t.cx + t.w / 2), t.yTop + t.len) })
       }
     } else {
-      left.push({ names: e.names as AntPost, side: 'left', group: e.group, tbsa: e.tbsa, points: shapePoints(e.shape) })
+      left.push({ names: e.names as AntPost, side: 'left', group: e.group, tbsa: e.tbsa, points: shapePoints(e.shape), priority: e.priority })
     }
   }
 
@@ -165,11 +168,16 @@ function buildView(view: BodyView, data: BodyRegionData, shared: SharedPart[]): 
     group: p.group,
     tbsa: p.tbsa,
     points: p.points,
+    priority: p.priority,
   }))
   // Most-specific first: head/face and distal limb parts before big trunk/limb
-  // segments, so overlapping joints resolve to the finer part.
+  // segments, so overlapping joints resolve to the finer part. Then a STABLE sort
+  // by priority (higher first) lets the calibrator lift a region above others —
+  // across groups too — while leaving the authored order intact for equal (0)
+  // priority, so default data hit-tests exactly as before.
   const head = headRegions(view, data)
-  return [...head, ...sharedRegions]
+  const all = [...head, ...sharedRegions]
+  return all.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
 }
 
 // Active region data + a rebuildable cache. applyRegionData() swaps the source
