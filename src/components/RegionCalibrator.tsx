@@ -406,6 +406,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   const [histLen, setHistLen] = useState(0)
   const svgRef = useRef<SVGSVGElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const importTokenRef = useRef(0) // invalidates an in-flight async Import (see importFile)
   // Mirror of `data` that is always current — so history snapshots taken after an
   // await (e.g. async Import reading a file) capture the LATEST map, not the
   // stale value captured in the closure when the action started.
@@ -433,7 +434,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   // Preview edits live WHILE the tool is mounted; restore the shipped default on
   // exit so the override never leaks into the normal app.
   useEffect(() => { dataRef.current = data; applyRegionData(data) }, [data])
-  useEffect(() => () => { applyRegionData(null) }, [])
+  useEffect(() => () => { importTokenRef.current++; applyRegionData(null) }, [])
 
   // Ctrl/⌘+Z → undo one step.
   useEffect(() => {
@@ -516,8 +517,14 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   // snapshots history first so Import is undoable. Editing-only — like every
   // other edit here it only changes the live map WHILE the tool is mounted.
   async function importFile(file: File) {
+    // Generation token: bump on start so a second Import supersedes the first,
+    // and any other action that invalidates an in-flight read (Reset, unmount)
+    // bumps it too. After the await we bail unless we're still the current read,
+    // so a slow file load can't clobber a map the user has since chosen.
+    const token = ++importTokenRef.current
     try {
       const parsed = JSON.parse(await file.text())
+      if (token !== importTokenRef.current) return
       // Structural check, then a full trial build for BOTH views: this exercises
       // every region/finger/toe shape via shapePoints, so a file that passes the
       // shallow array check but has a malformed/empty shape is rejected here
@@ -536,9 +543,10 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
       // Import is an unsaved edit: clear the "saved … resumes here" note so it
       // can't keep advertising an earlier Save that no longer matches the map.
       setData(parsed as BodyRegionData); setSel(null); setSelVert(null); setSavedAt(''); setImportErr('')
-    } catch { setImportErr(t('calib.importBad')) }
+    } catch { if (token === importTokenRef.current) setImportErr(t('calib.importBad')) }
   }
   function reset() {
+    importTokenRef.current++ // cancel any in-flight import so it can't clobber this
     pushHistory() // snapshot data + saved BEFORE clearing, so undo restores both
     try { localStorage.removeItem(LS_KEY) } catch { /* ignore */ }
     setData(clone(BODY_REGION_DATA)); setSel(null); setSavedAt(''); setImportErr('')
