@@ -4,6 +4,10 @@ A developer/maintenance tool for fitting the body-chart **tap regions** to the
 figure images pixel-perfectly. It is **not** part of the field casualty workflow,
 so it is intentionally English-only and absent from the guided tour.
 
+> **In-app help:** everything below is also available inside the tool — click the
+> **❓ Help** button in the toolbar for a contextual cheat-sheet, and hover any
+> control for a tooltip describing what it does.
+
 ## Open it
 
 The calibrator lives inside the **gated Admin area** — there is no bare
@@ -18,23 +22,53 @@ This keeps it off field/fresh devices and out of the guided tour. (On a brand-ne
 device with no operators yet, create an admin operator first — operator setup is
 bootstrap-open.)
 
-## Use it
+## Get around
 
-1. Pick a region from the dropdown — the view **zooms to it** so the handles are
-   big and easy to drag (toggle the *Zoom* button for the whole body).
-2. Use the **Move / Width / Height / Rotate** buttons (with a 1- or 5-unit
-   **Step**) for precise, tap-based adjustment — the figure holds still while you
-   work. **Rotate** tilts boxes and ellipses (eyes/ears/cheeks) and angles
-   fingers; the buttons appear only for shapes that support it.
-3. Or drag the handles onto the figure — a **blue hollow ring** moves the whole
-   region; **solid amber dots** reshape it:
-   - **boxes** – four corner handles + a centre (move) handle;
-   - **ellipses** (eye/ear) – centre + an east (radius-x) + a south (radius-y) handle;
-   - **quads** (limb segments) – four corner handles + centre;
-   - **fingers** – root (move), tip (sets angle + length), and a width handle;
-   - **toes** – top-centre (move) + a bottom-right corner handle.
+1. **Pick a region** from the dropdown — the view **zooms to it** so the handles
+   are big and easy to drag (toggle the *Zoom* button for the whole body).
+2. **View** flips anterior (front) / posterior (back). **Recenter** re-frames the
+   view on the selection if it drifts off-screen.
 3. You edit the image-**left** / centre / head regions; the **right side mirrors
-   automatically** on every change. Switch anterior/posterior with the *View* button.
+   automatically** on every change.
+
+## Reshape a region
+
+Drag the handles onto the figure:
+
+- **Blue ring** — move the whole region (it always sits at the region's centre).
+- **Amber dots** — reshape. **Boxes** have four corners **+ four edge midpoints**
+  (8 anchors, for irregular boxes like a thigh); **ellipses** have radius handles;
+  **quads** (limb segments) have four corners; **fingers** have root / tip / width;
+  **toes** have top-centre + a corner.
+- **Green +** — on a **polygon**, insert a vertex on that edge, then drag it.
+  **− point** removes the selected vertex (kept at ≥ 3).
+
+Or use the **Move / Width / Height / Rotate** buttons with a 1- or 5-unit **Step**
+for precise, tap-based adjustment — the figure holds still while you work.
+
+## Shapes
+
+The **Shape** menu converts the selected region between **rectangle / circle /
+oval / triangle / half-circle / free polygon**, preserving its footprint. Triangle
+and half-circle are stored as polygons, so they hit-test and mirror like any other.
+
+## Add / duplicate / split / delete regions
+
+- **＋ Add region** drops a new box at the view centre, selected and ready.
+- **Duplicate** copies the selected region; **Split** halves it (top/bottom or
+  left/right) — the seed for e.g. tracing the nose as a *triangle + a rectangle*;
+  **Delete** removes it.
+- The **Name / Group / TBSA% / Mirror** fields edit the selected region. Region
+  **names** drive burn-TBSA, so renaming changes the math; moving/reshaping does not.
+
+## Overlapping regions (priority)
+
+`regionAt()` returns the region with the highest **priority** under the tap (a
+stable sort, so equal priority falls back to the authored order). In the editor:
+
+- **⤒ Front** wins every overlap in the view; **⤓ Back** loses to all; **↑ / ↓**
+  nudge by one. This works **across groups** — a centre/limb region can be made to
+  win against a head region, or vice-versa. `0` = default authored order.
 
 **Undo** (toolbar button or **Ctrl/⌘+Z**) steps back one edit at a time — each
 button tap is one step, and a whole handle drag is one step.
@@ -46,9 +80,9 @@ app always renders the shipped default — a saved calibration is *not* applied 
 startup. This keeps a field tablet from ever silently using non-default injury
 geometry.
 
-- **Save** persists your in-progress edits to `localStorage` so reopening
-  `?calibrate=1` resumes them. It only affects the calibrator (the live preview
-  is applied solely while the tool is mounted, and reset on exit).
+- **Save** persists your in-progress edits to `localStorage` so reopening the tool
+  resumes them. It only affects the calibrator (the live preview is applied solely
+  while the tool is mounted, and reset on exit).
 - **Export JSON** downloads `body-regions.data.json` — the full corrected map.
 - **Reset to built-in** clears the saved edits and returns to the shipped map.
 
@@ -63,8 +97,11 @@ assertions may need updating to match the new positions.
 
 ## How it fits together
 
-- `body-regions.data.ts` – the serialisable region map (the single place to edit).
+- `body-regions.data.ts` – the serialisable region map (the single place to edit);
+  each region carries an optional `shape`, `priority`, `side`, `group`, `tbsa`.
 - `body-model.ts` – `buildRegions(data, view)` (pure, used for the live preview),
   `applyRegionData(data | null)` (runtime override used by the tool **only**, while
-  it is mounted), and the usual `bodyRegions` / `zoneAt` / `regionAt`.
-- `src/components/RegionCalibrator.tsx` – the `?calibrate=1` UI.
+  it is mounted), the priority-aware sort, and the usual `bodyRegions` / `zoneAt` /
+  `regionAt`.
+- `src/components/RegionCalibrator.tsx` – the calibrator UI (including the **❓ Help**
+  panel and per-control tooltips).

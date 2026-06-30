@@ -392,6 +392,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   const [zoom, setZoom] = useState<'region' | 'body'>('region')
   const [step, setStep] = useState(1)        // nudge/resize amount per button tap
   const [recenter, setRecenter] = useState(0) // bump to re-frame the viewport
+  const [showHelp, setShowHelp] = useState(false) // in-app help / cheat-sheet overlay
   // Undo stack in a ref (always current, so rapid Ctrl+Z key-repeat pops exactly
   // one entry per press); a length state drives the disabled button. Each entry
   // also snapshots the saved-override slot, so undoing a Reset (which clears it)
@@ -623,29 +624,32 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   return (
     <div className="calib">
       <div className="calib-bar">
-        {onClose && <button type="button" onClick={onClose} title="Close the calibrator">✕ Close</button>}
+        {onClose && <button type="button" onClick={onClose} title="Close the calibrator and restore the shipped region map">✕ Close</button>}
         <strong>Region calibrator</strong>
-        <button type="button" onClick={toggleView}>View: {view}</button>
-        <button type="button" onClick={() => setZoom((z) => (z === 'region' ? 'body' : 'region'))}>
+        <button type="button" className="calib-help-btn" onClick={() => setShowHelp(true)} title="How to use the calibrator (open the help guide)" aria-label="Open the help guide">❓ Help</button>
+        <button type="button" onClick={toggleView} title="Flip between the anterior (front) and posterior (back) figure">View: {view}</button>
+        <button type="button" onClick={() => setZoom((z) => (z === 'region' ? 'body' : 'region'))}
+          title="Toggle between zooming to the selected region (big handles) and the whole body">
           Zoom: {zoom === 'region' ? 'region' : 'whole body'}
         </button>
-        <select value={sel ? specs.findIndex((s) => addrEq(s.addr, sel)) : -1}
+        <select title="Pick a region to edit — the view zooms to it"
+          value={sel ? specs.findIndex((s) => addrEq(s.addr, sel)) : -1}
           onChange={(e) => { const i = Number(e.target.value); setSel(i >= 0 ? specs[i].addr : null); setSelVert(null); if (i >= 0) setZoom('region') }}>
           <option value={-1}>— pick a region —</option>
           {specs.map((s, i) => <option key={i} value={i}>{s.label}</option>)}
         </select>
         {selSpec && 'shape' in selSpec && (
-          <select className="calib-shape" value="" title="Switch the region's shape"
+          <select className="calib-shape" value="" title="Switch the region's shape (rectangle / circle / oval / triangle / half-circle / free polygon), keeping its footprint"
             onChange={(e) => { if (e.target.value) convertSel(e.target.value as ShapeKind) }}>
             <option value="">Shape: {shapeKindOf((selSpec as RegionSpec).shape)} ▾</option>
             {SHAPE_KINDS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </select>
         )}
-        <button type="button" onClick={addRegion} title="Add a new region to this view">＋ Add region</button>
-        <button type="button" onClick={undo} disabled={!histLen} title="Undo (Ctrl/⌘+Z)">↶ Undo</button>
-        <button type="button" onClick={save}>Save</button>
-        <button type="button" onClick={exportJson}>Export JSON</button>
-        <button type="button" onClick={reset}>Reset to built-in</button>
+        <button type="button" onClick={addRegion} title="Add a new region (a box at the view centre) to this view">＋ Add region</button>
+        <button type="button" onClick={undo} disabled={!histLen} title="Undo the last edit, one step at a time (Ctrl/⌘+Z)">↶ Undo</button>
+        <button type="button" onClick={save} title="Save edits to this browser (localStorage) so they resume next time — does NOT change the live field chart">Save</button>
+        <button type="button" onClick={exportJson} title="Download the full corrected map as body-regions.data.json (commit it to ship as the default)">Export JSON</button>
+        <button type="button" onClick={reset} title="Discard all edits and return to the shipped built-in map">Reset to built-in</button>
         {savedAt && <span className="calib-note">saved {savedAt} — resumes here; Export &amp; commit to make it the app default</span>}
       </div>
       <div className="calib-hint">
@@ -665,21 +669,21 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
       </div>
       {sel && selSpec && (
         <div className="calib-nudge">
-          <span className="cn-lbl">Move</span>
-          <button type="button" onClick={() => edit((s) => nudgeSpec(s, -step, 0))} aria-label="move left">←</button>
-          <button type="button" onClick={() => edit((s) => nudgeSpec(s, 0, -step))} aria-label="move up">↑</button>
-          <button type="button" onClick={() => edit((s) => nudgeSpec(s, 0, step))} aria-label="move down">↓</button>
-          <button type="button" onClick={() => edit((s) => nudgeSpec(s, step, 0))} aria-label="move right">→</button>
-          <span className="cn-lbl">{'lens' in selSpec ? 'Thick' : 'Width'}</span>
-          <button type="button" onClick={() => edit((s) => resizeSpec(s, -step, 0))} aria-label="narrower">−</button>
-          <button type="button" onClick={() => edit((s) => resizeSpec(s, step, 0))} aria-label="wider">+</button>
-          <span className="cn-lbl">{'lens' in selSpec ? 'Length' : 'Height'}</span>
-          <button type="button" onClick={() => edit((s) => resizeSpec(s, 0, -step))} aria-label="shorter">−</button>
-          <button type="button" onClick={() => edit((s) => resizeSpec(s, 0, step))} aria-label="taller">+</button>
+          <span className="cn-lbl" title="Nudge the whole region by the Step amount — the figure holds still">Move</span>
+          <button type="button" onClick={() => edit((s) => nudgeSpec(s, -step, 0))} aria-label="move left" title="Move left">←</button>
+          <button type="button" onClick={() => edit((s) => nudgeSpec(s, 0, -step))} aria-label="move up" title="Move up">↑</button>
+          <button type="button" onClick={() => edit((s) => nudgeSpec(s, 0, step))} aria-label="move down" title="Move down">↓</button>
+          <button type="button" onClick={() => edit((s) => nudgeSpec(s, step, 0))} aria-label="move right" title="Move right">→</button>
+          <span className="cn-lbl" title={'lens' in selSpec ? 'Finger thickness' : 'Grow / shrink width about the centre'}>{'lens' in selSpec ? 'Thick' : 'Width'}</span>
+          <button type="button" onClick={() => edit((s) => resizeSpec(s, -step, 0))} aria-label="narrower" title="Narrower">−</button>
+          <button type="button" onClick={() => edit((s) => resizeSpec(s, step, 0))} aria-label="wider" title="Wider">+</button>
+          <span className="cn-lbl" title={'lens' in selSpec ? 'Finger length' : 'Grow / shrink height about the centre'}>{'lens' in selSpec ? 'Length' : 'Height'}</span>
+          <button type="button" onClick={() => edit((s) => resizeSpec(s, 0, -step))} aria-label="shorter" title="Shorter">−</button>
+          <button type="button" onClick={() => edit((s) => resizeSpec(s, 0, step))} aria-label="taller" title="Taller">+</button>
           {rotatable(selSpec) && (<>
-            <span className="cn-lbl">Rotate</span>
-            <button type="button" onClick={() => edit((s) => rotateSpec(s, -step))} aria-label="rotate left">↺</button>
-            <button type="button" onClick={() => edit((s) => rotateSpec(s, step))} aria-label="rotate right">↻</button>
+            <span className="cn-lbl" title="Rotate the shape by the Step in degrees (boxes, ellipses, polygons, fingers)">Rotate</span>
+            <button type="button" onClick={() => edit((s) => rotateSpec(s, -step))} aria-label="rotate left" title="Rotate counter-clockwise">↺</button>
+            <button type="button" onClick={() => edit((s) => rotateSpec(s, step))} aria-label="rotate right" title="Rotate clockwise">↻</button>
           </>)}
           {'shape' in selSpec && (selSpec as RegionSpec).shape.kind === 'polygon' && (<>
             <span className="cn-lbl">Point</span>
@@ -688,10 +692,10 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
               title="Remove the selected vertex (tap a vertex first; tap a green + to add one)">− point</button>
           </>)}
           <span className="cn-sep" />
-          <span className="cn-lbl">Step</span>
-          <button type="button" className={step === 1 ? 'on' : ''} onClick={() => setStep(1)}>1</button>
-          <button type="button" className={step === 5 ? 'on' : ''} onClick={() => setStep(5)}>5</button>
-          <button type="button" onClick={() => setRecenter((r) => r + 1)}>Recenter</button>
+          <span className="cn-lbl" title="How much each Move / Width / Height / Rotate tap changes (units, or degrees for Rotate)">Step</span>
+          <button type="button" className={step === 1 ? 'on' : ''} onClick={() => setStep(1)} title="Fine — 1 unit per tap">1</button>
+          <button type="button" className={step === 5 ? 'on' : ''} onClick={() => setStep(5)} title="Coarse — 5 units per tap">5</button>
+          <button type="button" onClick={() => setRecenter((r) => r + 1)} title="Re-frame the view on the selected region (after it has drifted off-screen)">Recenter</button>
         </div>
       )}
       {sel && selSpec && 'shape' in selSpec && (
@@ -760,6 +764,75 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
           />
         ))}
       </svg>
+      {showHelp && <CalibHelp onClose={() => setShowHelp(false)} />}
+    </div>
+  )
+}
+
+// ---- In-app help / cheat-sheet --------------------------------------------
+// A contextual reference for every calibrator control, reachable from the ❓ Help
+// button. English-only like the rest of the tool (admin/maintenance furniture).
+function CalibHelp({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="calib-help" role="dialog" aria-modal="true" aria-label="Region calibrator help" onClick={onClose}>
+      <div className="calib-help-card" onClick={(e) => e.stopPropagation()}>
+        <header className="calib-help-head">
+          <h2>Region calibrator — help</h2>
+          <button type="button" onClick={onClose} title="Close help">✕ Close</button>
+        </header>
+        <div className="calib-help-body">
+          <p>
+            Fit the body-chart <strong>tap regions</strong> onto the figure. This is a
+            workshop tool — your edits never change the live field chart until you
+            <strong> Export</strong> the map and commit it to the app.
+          </p>
+
+          <h3>Get around</h3>
+          <ul>
+            <li><strong>View</strong> — flip the anterior (front) / posterior (back) figure.</li>
+            <li><strong>Zoom</strong> — toggle between the selected region (big handles) and the whole body.</li>
+            <li><strong>Pick a region</strong> from the dropdown; the view zooms to it. <strong>Recenter</strong> re-frames it if it drifts off-screen.</li>
+            <li>You edit the image-<strong>left</strong> / centre / head regions; the <strong>right side mirrors automatically</strong>.</li>
+          </ul>
+
+          <h3>Drag handles (on the figure)</h3>
+          <ul>
+            <li><span className="ch-blue">Blue ring</span> — move the whole region (it always sits at the region's centre).</li>
+            <li><span className="ch-amber">Amber dots</span> — reshape: boxes have 4 corners + 4 edge midpoints (8 anchors); ellipses have radius handles; quads have 4 corners; fingers/toes have their own.</li>
+            <li><span className="ch-green">Green +</span> — on a polygon, insert a vertex on that edge (then drag it). <strong>− point</strong> removes the selected vertex.</li>
+          </ul>
+
+          <h3>Precise buttons (figure holds still)</h3>
+          <ul>
+            <li><strong>Move / Width / Height / Rotate</strong> — nudge by the <strong>Step</strong> (1 fine, 5 coarse; degrees for Rotate).</li>
+          </ul>
+
+          <h3>Shapes</h3>
+          <ul>
+            <li><strong>Shape</strong> menu — switch a region between rectangle / circle / oval / triangle / half-circle / free polygon, keeping its footprint. Triangle &amp; half-circle are stored as polygons.</li>
+          </ul>
+
+          <h3>Build regions</h3>
+          <ul>
+            <li><strong>＋ Add region</strong> — drop a new box at the view centre, then name / group / reshape it.</li>
+            <li><strong>Duplicate</strong> copies it; <strong>Split</strong> halves it (e.g. split the nose, then make one half a triangle and the other a rectangle); <strong>Delete</strong> removes it.</li>
+            <li><strong>Name / Group / TBSA% / Mirror</strong> fields edit the selected region. Region names drive burn-TBSA, so renaming changes the math; moving/reshaping does not.</li>
+          </ul>
+
+          <h3>Overlapping regions</h3>
+          <ul>
+            <li>A tap resolves to the region with the highest <strong>Priority</strong>. <strong>⤒ Front</strong> wins every overlap in the view, <strong>⤓ Back</strong> loses to all, <strong>↑ / ↓</strong> nudge by one — and it works <em>across groups</em> (a head region vs a limb). 0 = default authored order.</li>
+          </ul>
+
+          <h3>Save your work</h3>
+          <ul>
+            <li><strong>Undo</strong> (or Ctrl/⌘+Z) steps back one edit at a time.</li>
+            <li><strong>Save</strong> keeps edits in this browser so they resume next time — it does <em>not</em> touch the live chart.</li>
+            <li><strong>Export JSON</strong> downloads the full map. To ship it to everyone, commit those numbers to <code>body-regions.data.ts</code>.</li>
+            <li><strong>Reset to built-in</strong> discards edits and restores the shipped map.</li>
+          </ul>
+        </div>
+      </div>
     </div>
   )
 }
