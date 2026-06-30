@@ -623,8 +623,20 @@ input::placeholder { color:var(--txt-faint); }
 .op-pin:hover { color:var(--txt); border-color:var(--ekg); }
 .op-hint { margin:12px 0 0; font-size:11.5px; line-height:1.5; color:var(--txt-dim); }
 
+/* Admin launcher: a grid of tiles, each opening a grouped maintenance tool. */
+.admin-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+@media (max-width:520px) { .admin-grid { grid-template-columns:1fr; } }
+.admin-tile { display:flex; flex-direction:column; gap:3px; align-items:flex-start; text-align:start;
+  border:1px solid var(--line); background:var(--panel-2); color:var(--txt); border-radius:10px;
+  padding:12px 14px; cursor:pointer; }
+.admin-tile:hover { border-color:var(--ekg); background:var(--raised); }
+.admin-tile b { font-size:13.5px; }
+.admin-tile span { font-size:11.5px; color:var(--txt-dim); line-height:1.4; }
+
 /* Region calibrator (?calibrate=1) — developer tool, not field UI. */
-.calib { position:fixed; inset:0; display:flex; flex-direction:column; background:var(--bg); color:var(--txt); }
+/* z-index above the app topbar (40) and other overlays (100): the calibrator now
+   opens as a full-screen overlay from the gated Admin area, not a standalone page. */
+.calib { position:fixed; inset:0; z-index:200; display:flex; flex-direction:column; background:var(--bg); color:var(--txt); }
 .calib-bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px 12px; border-bottom:1px solid var(--line); }
 .calib-bar strong { margin-right:6px; }
 .calib-bar button, .calib-bar select { border:1px solid var(--line); background:var(--panel-2); color:var(--txt);

@@ -52,6 +52,10 @@ export const canViewAdmin = (): boolean => rosterEmpty || (!!active && active.ro
 /** Managing operators — open while nobody is signed in (bootstrap / kiosk setup
  *  and recovery), then admin-only once an operator is on duty. */
 export const canManageOperators = (): boolean => !active || active.role === 'admin'
+/** The gated Admin area (calibrator, EHR lab, audit, operators). STRICT: an
+ *  operator with role 'admin' must be signed in — not bootstrap-open — so the
+ *  entry stays hidden on field/fresh devices (and out of the guided tour). */
+export const isAdminOnDuty = (): boolean => active?.role === 'admin'
 
 async function refreshRoster() {
   rosterEmpty = (await db.operators.count()) === 0
