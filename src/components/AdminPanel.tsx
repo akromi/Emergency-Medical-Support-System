@@ -30,6 +30,7 @@ function AdminHelp({ onClose }: { onClose: () => void }) {
           {sec(t('admin.help.forgot'), ['admin.help.forgot1', 'admin.help.forgot2', 'admin.help.forgot3'])}
           {sec(t('admin.help.relock'), ['admin.help.relock1'])}
           {sec(t('admin.help.tips'), ['admin.help.tips1', 'admin.help.tips2'])}
+          {sec(t('admin.help.limits'), ['admin.help.limits1', 'admin.help.limits2', 'admin.help.limits3'])}
         </div>
       </div>
     </div>

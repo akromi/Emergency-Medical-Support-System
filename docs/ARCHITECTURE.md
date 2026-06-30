@@ -506,6 +506,22 @@ security scanning (CodeQL, secret scan, `npm audit`). Still open: end-user auth 
 RBAC, and immutable audit logging. A deployment processing real PHI would apply defense-in-depth
 across every layer rather than a perimeter alone.
 
+**Threat model — the operator/admin gate is a *soft* control.** The operator roster, role
+checks (`canManageOperators`, `isAdminOnDuty`), PIN step-up, and the admin-PIN roster lock are
+all **client-side**: there is no server adjudicating access (the field app is offline-first), so
+they run on a device the operator controls. They provide **attribution and separation of duties
+among non-technical users on a shared device**, and the audit log makes casual tampering
+*evident* — but they are **not authentication**. A user with browser dev tools (or any
+storage/file access) can edit IndexedDB, call the exported functions, or brute-force a 4-digit
+PIN hash, and so bypass the gate. PINs are stored as `sha256(id:pin)`, which is reversible
+locally for short PINs; the audit chain is tamper-*evident*, not tamper-*proof*, against a local
+adversary who has the code. The **real** confidentiality boundary on-device is the **encryption
+vault** (a strong passphrase keeps PHI unreadable at rest even if the gate is defeated — though
+the key is in memory while unlocked). For a hard access boundary, rely on **device management**
+(kiosk / MDM, dev-tools disabled) and/or move privileged decisions **server-side** (real auth:
+OAuth2 / OIDC / SMART-on-FHIR enforced by the sync service), accepting that this requires
+connectivity for those actions.
+
 ```mermaid
 flowchart TB
   L1["DEVICE — encryption at rest · biometric lock · remote wipe"]
