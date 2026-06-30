@@ -40,24 +40,30 @@ export async function requireStepUp(t: Translate, action: string): Promise<boole
 }
 
 /**
- * Step-up for operator-roster management (add / remove / change PIN). This is
- * privilege-sensitive — unlike the data actions above it can DISABLE the gate
- * itself (e.g. clearing the admin PIN) — so it cannot fall open just because
- * nobody is signed in. Rule: once ANY operator has a PIN, managing the roster
- * requires a valid PIN (the active operator's own when signed in, otherwise any
- * registered operator PIN). It stays open only while no operator has a PIN at
- * all (the community / bootstrap default).
+ * Step-up for operator-roster management (add / remove / change PIN / grant a
+ * role). This is the privilege boundary — it can MINT an admin — so it is
+ * ADMIN-ONLY: once an admin with a PIN exists, every roster change requires an
+ * admin's PIN (the active admin's own when one is signed in, otherwise any admin
+ * operator's PIN). A non-admin's PIN never passes, so a field/lead operator
+ * cannot sign out and promote themselves to admin.
+ *
+ * It stays open ONLY while no admin has a PIN yet — the first-run / post-recovery
+ * bootstrap window in which the first admin is created and given a PIN. Setting a
+ * PIN on an admin is therefore the single action that locks the device down.
  */
 export async function requireManageStepUp(t: Translate): Promise<boolean> {
-  const active = getActiveOperator()
-  if (active?.pinHash) return requireStepUp(t, 'op.manage') // re-auth against own PIN
+  const adminsWithPin = (await listOperators()).filter((o) => o.role === 'admin' && o.pinHash)
+  if (adminsWithPin.length === 0) return true // no admin PIN yet → bootstrap-open
 
-  const protectedOps = (await listOperators()).filter((o) => o.pinHash)
-  if (protectedOps.length === 0) return true // no PIN anywhere → bootstrap-open
+  const active = getActiveOperator()
+  // Signed in as an admin who has a PIN → re-auth against their own PIN.
+  if (active?.role === 'admin' && active.pinHash) return requireStepUp(t, 'op.manage')
+
+  // Otherwise (signed out, or signed in as a non-admin) require ANY admin's PIN.
   const pin = await askSecret(t('auth.managePrompt'))
   if (pin == null) return false // cancelled — silent
   let ok = false
-  for (const op of protectedOps) if (await verifyPin(op.id, pin)) { ok = true; break }
+  for (const op of adminsWithPin) if (await verifyPin(op.id, pin)) { ok = true; break }
   await audit('auth.stepup', { detail: `op.manage:${ok ? 'ok' : 'fail'}` })
   return ok
 }

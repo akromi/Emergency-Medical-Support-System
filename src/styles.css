@@ -606,6 +606,8 @@ input::placeholder { color:var(--txt-faint); }
 .op-head-actions { display:flex; gap:8px; }
 .op-msg { margin-bottom:10px; padding:7px 11px; border-radius:8px; font-size:12.5px; font-weight:600;
   color:#fff; background:#a5302b; border:1px solid #e0564f; }
+.op-warn { margin-bottom:10px; padding:7px 11px; border-radius:8px; font-size:12px; line-height:1.45;
+  color:#fde68a; background:color-mix(in srgb, #b45309 22%, var(--panel)); border:1px solid #b45309; }
 .op-list { list-style:none; margin:0 0 12px; padding:0; display:flex; flex-direction:column; gap:6px; }
 .op-row { display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:9px; padding:4px 8px; }
 .op-row.on { border-color:var(--ekg); background:color-mix(in srgb, var(--ekg) 8%, var(--panel)); }

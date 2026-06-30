@@ -164,6 +164,9 @@ export function OperatorPanel({ onClose }: { onClose: () => void }) {
           </div>
         ) : (<>
           {rows.length === 0 && <div className="empty">{t('op.empty')}</div>}
+          {rows.length > 0 && !rows.some((o) => o.role === 'admin' && o.pinHash) && (
+            <div className="op-warn" role="alert">{t('op.lockWarn')}</div>
+          )}
 
           <ul className="op-list">
             {rows.map((op) => (
