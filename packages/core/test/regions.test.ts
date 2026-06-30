@@ -133,6 +133,24 @@ describe('data-driven region map', () => {
     expect(mirror.points).toEqual([[250, 156], [232, 184], [262, 184]])
   })
 
+  it('hit-test precedence follows list order (what the calibrator Priority controls)', () => {
+    const d = cloneData()
+    // Two regions on the exact same spot; regionAt returns the FIRST in the list.
+    const here = { kind: 'box', x1: 300, y1: 300, x2: 340, y2: 340 } as const
+    d.head.anterior.unshift(
+      { name: 'AAA', group: 'face', tbsa: 0, shape: { ...here } },
+      { name: 'BBB', group: 'face', tbsa: 0, shape: { ...here } },
+    )
+    applyRegionData(d)
+    expect(regionAt(320, 320, 'anterior')).toBe('AAA') // earlier wins the overlap
+
+    // Move BBB ahead of AAA — exactly what "↑ / ⤒ Front" does — and BBB now wins.
+    const [bbb] = d.head.anterior.splice(1, 1)
+    d.head.anterior.unshift(bbb)
+    applyRegionData(d)
+    expect(regionAt(320, 320, 'anterior')).toBe('BBB')
+  })
+
   it('keeps burn-TBSA stable (calibration moves positions, not names/tbsa)', () => {
     const d = cloneData()
     const knee = d.left.find((e) => 'names' in e && e.names?.ant === 'Knee') as { shape: { kind: string; y1?: number; y2?: number } }
