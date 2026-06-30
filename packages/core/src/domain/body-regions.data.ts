@@ -107,9 +107,12 @@ export const BODY_REGION_DATA: BodyRegionData = {
     { names: { ant: 'Anterior neck', post: 'Posterior neck' }, group: 'neck', tbsa: 0.5, shape: box(220, 224, 260, 256) },
     { names: { ant: 'Upper abdomen', post: 'Mid back' }, group: 'trunk', tbsa: 3, shape: box(184, 392, 296, 452) },
     { names: { ant: 'Lower abdomen', post: 'Lower back' }, group: 'trunk', tbsa: 3, shape: box(192, 452, 288, 506) },
-    // Centre-line genital/perineal region between the two Pelvis halves. Listed in
-    // `central` so it is hit-tested before the (mirrored) Pelvis and wins the tap.
-    { names: { ant: 'Groin', post: 'Perineum' }, group: 'trunk', tbsa: 1, shape: box(230, 514, 250, 556) },
+    // Centre-line genital/perineal region, fitted to the crotch on the figure
+    // (sits between the two Pelvis halves and reaches down to where the legs
+    // separate). Listed in `central` so it is hit-tested before the (mirrored)
+    // Pelvis/Thigh and wins the central tap — wide enough to be a reliable
+    // touch target rather than a thin midline sliver.
+    { names: { ant: 'Groin', post: 'Perineum' }, group: 'trunk', tbsa: 1, shape: box(214, 512, 266, 566) },
   ],
   left: [
     { names: { ant: 'Shoulder', post: 'Shoulder' }, side: 'left', group: 'arm', tbsa: 2, shape: box(150, 250, 202, 300) },
