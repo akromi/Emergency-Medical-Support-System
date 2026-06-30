@@ -5,6 +5,7 @@ import {
 } from '../db/operators'
 import { requireManageStepUp } from '../db/stepup'
 import { askSecret } from '../db/secret-prompt'
+import { audit } from '../db/audit'
 import { ensureRecoveryCode, generateRecoveryCode, recoverWithCode, localResetCredentials } from '../db/recovery'
 import { useLang } from '../i18n'
 
@@ -82,6 +83,7 @@ export function OperatorPanel({ onClose }: { onClose: () => void }) {
     const next = await askSecret(t('op.newPinPrompt', { name: op.name }))
     if (next == null) return
     await setOperatorPin(op.id, next.trim())
+    await audit('auth.recovery.peer')
     await maybeIssueRecovery(op.role, !!next.trim())
     setMsg(t('op.pinUpdated'))
     await reload()
