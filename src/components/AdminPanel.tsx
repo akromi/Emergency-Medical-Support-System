@@ -18,7 +18,8 @@ function AdminHelp({ onClose }: { onClose: () => void }) {
     </>
   )
   return (
-    <div className="calib-help" role="dialog" aria-modal="true" aria-label={t('admin.help.title')} onClick={onClose}>
+    <div className="calib-help" role="dialog" aria-modal="true" aria-label={t('admin.help.title')}
+      onClick={(e) => { e.stopPropagation(); onClose() }}>
       <div className="calib-help-card" onClick={(e) => e.stopPropagation()}>
         <header className="calib-help-head">
           <h2>{t('admin.help.title')}</h2>
