@@ -623,6 +623,25 @@ input::placeholder { color:var(--txt-faint); }
 .op-pin:hover { color:var(--txt); border-color:var(--ekg); }
 .op-hint { margin:12px 0 0; font-size:11.5px; line-height:1.5; color:var(--txt-dim); }
 
+/* Masked PIN / secret dialog — above every overlay (op 100, calib 200, vault 300)
+   so it can re-auth from any of them. The field is type=password (Show/Hide). */
+.secret-overlay { position:fixed; inset:0; z-index:400; background:rgba(0,0,0,.6); overflow:auto;
+  padding:20px; display:flex; align-items:flex-start; justify-content:center; }
+.secret-box { width:100%; max-width:380px; margin-top:14vh; background:var(--panel);
+  border:1px solid var(--line); border-radius:12px; padding:16px 18px; display:flex; flex-direction:column; gap:12px; }
+.secret-msg { font-size:13px; line-height:1.5; color:var(--txt); }
+.secret-row { display:flex; gap:8px; }
+.secret-row input { flex:1; min-width:0; padding:9px 11px; border:1px solid var(--line); border-radius:8px;
+  background:var(--panel-2); color:var(--txt); font-size:15px; letter-spacing:.12em; }
+.secret-eye { border:1px solid var(--line); background:var(--panel-2); color:var(--txt-dim);
+  font-size:11.5px; font-weight:600; border-radius:8px; padding:0 10px; cursor:pointer; white-space:nowrap; }
+.secret-eye:hover { color:var(--txt); border-color:var(--ekg); }
+.secret-actions { display:flex; justify-content:flex-end; gap:8px; }
+.secret-actions button { padding:8px 16px; border:1px solid var(--line); border-radius:8px;
+  background:var(--panel-2); color:var(--txt); font-size:13px; font-weight:600; cursor:pointer; }
+.secret-actions button:hover { border-color:var(--ekg); }
+.secret-actions button.primary { background:var(--ekg); border-color:var(--ekg); color:#04121e; }
+
 /* Admin launcher: a grid of tiles, each opening a grouped maintenance tool. */
 .admin-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
 @media (max-width:520px) { .admin-grid { grid-template-columns:1fr; } }
