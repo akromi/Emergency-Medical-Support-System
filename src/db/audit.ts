@@ -19,6 +19,7 @@ export type AuditAction =
   | 'backup.create' | 'backup.restore'
   | 'vault.enable' | 'vault.disable' | 'vault.unlock' | 'vault.lock'
   | 'auth.stepup'
+  | 'auth.recovery.issue' | 'auth.recovery.code' | 'auth.recovery.peer' | 'auth.recovery.localreset'
 
 const HEAD_KEY = 'audit.head'
 const GENESIS = 'genesis'
