@@ -2,7 +2,8 @@
 
 A developer/maintenance tool for fitting the body-chart **tap regions** to the
 figure images pixel-perfectly. It is **not** part of the field casualty workflow,
-so it is intentionally English-only and absent from the guided tour.
+so it stays out of the guided tour — but its UI, tooltips, and help guide follow
+the selected app language (English / French / Arabic / Persian, RTL included).
 
 > **In-app help:** everything below is also available inside the tool — click the
 > **❓ Help** button in the toolbar for a contextual cheat-sheet, and hover any

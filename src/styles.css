@@ -734,6 +734,8 @@ input::placeholder { color:var(--txt-faint); }
 
 /* In-app help / cheat-sheet overlay (❓ Help). Above the calibrator (z 200). */
 .calib-help-btn { border-color:#3f9bd6 !important; color:#bfe2fb !important; }
+/* Close sits at the far (inline-end) side of the toolbar. */
+.calib-bar .calib-close { margin-inline-start:auto; }
 .calib-help { position:fixed; inset:0; z-index:260; background:rgba(0,0,0,.6); overflow:auto;
   display:flex; align-items:flex-start; justify-content:center; padding:24px 16px; }
 .calib-help-card { width:100%; max-width:680px; background:var(--panel); border:1px solid var(--line);

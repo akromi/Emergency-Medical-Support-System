@@ -18,6 +18,7 @@ import {
   BODY_REGION_DATA, BODY_VIEWBOX, buildRegions, applyRegionData,
 } from '@triage-link/core'
 import { FIGURE_IMAGE } from './figure'
+import { useLang, regionLabel, type TFn } from '../i18n'
 
 const { width: VW, height: VH } = BODY_VIEWBOX
 const LS_KEY = 'tl.regions.override'
@@ -49,15 +50,17 @@ const addrEq = (a: Addr, b: Addr | null): boolean => !!b && JSON.stringify(a) ==
 
 interface Listed { addr: Addr; label: string }
 
-// Every editable spec for the current view, in a friendly order.
-function listSpecs(data: BodyRegionData, view: BodyView): Listed[] {
+// Every editable spec for the current view, in a friendly order. Labels are
+// localized: the bucket prefix via t(), the anatomical name via regionLabel().
+function listSpecs(data: BodyRegionData, view: BodyView, t: TFn, lang: string): Listed[] {
   const out: Listed[] = []
-  data.head[view].forEach((s, i) => out.push({ addr: { k: 'head', view, i }, label: `Head · ${s.name}` }))
-  data.central.forEach((s, i) => out.push({ addr: { k: 'central', i }, label: `Centre · ${s.names!.ant}` }))
+  const rl = (n: string) => regionLabel(n, lang)
+  data.head[view].forEach((s, i) => out.push({ addr: { k: 'head', view, i }, label: `${t('calib.bkHead')} · ${rl(s.name!)}` }))
+  data.central.forEach((s, i) => out.push({ addr: { k: 'central', i }, label: `${t('calib.bkCentre')} · ${rl(s.names!.ant)}` }))
   data.left.forEach((e, i) => {
-    if ('fingers' in e) e.fingers.forEach((f, fi) => out.push({ addr: { k: 'finger', i, fi }, label: `Hand · ${f.label} finger` }))
-    else if ('toes' in e) e.toes.forEach((t, ti) => out.push({ addr: { k: 'toe', i, ti }, label: `Foot · ${t.label}` }))
-    else out.push({ addr: { k: 'left', i }, label: `Left · ${(e as RegionSpec).names!.ant}` })
+    if ('fingers' in e) e.fingers.forEach((f, fi) => out.push({ addr: { k: 'finger', i, fi }, label: `${t('calib.bkHand')} · ${t('calib.finger', { label: rl(f.label) })}` }))
+    else if ('toes' in e) e.toes.forEach((to, ti) => out.push({ addr: { k: 'toe', i, ti }, label: `${t('calib.bkFoot')} · ${rl(to.label)}` }))
+    else out.push({ addr: { k: 'left', i }, label: `${t('calib.bkLeft')} · ${rl((e as RegionSpec).names!.ant)}` })
   })
   return out
 }
@@ -383,6 +386,7 @@ function loadSaved(): BodyRegionData | null {
 }
 
 export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
+  const { t, lang } = useLang()
   const [view, setView] = useState<BodyView>('anterior')
   const [data, setData] = useState<BodyRegionData>(() => loadSaved() ?? clone(BODY_REGION_DATA))
   const [sel, setSel] = useState<Addr | null>(null)
@@ -436,7 +440,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   }, [])
 
   const regions = useMemo(() => buildRegions(data, view), [data, view])
-  const specs = useMemo(() => listSpecs(data, view), [data, view])
+  const specs = useMemo(() => listSpecs(data, view, t, lang), [data, view, t, lang])
   const selSpec = sel ? specShape(data, sel) : null
   const handles = selSpec ? handlesFor(selSpec) : []
 
@@ -561,7 +565,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   // Delete the selected region (with a guard — it changes the shipped map until Reset).
   function deleteRegion() {
     if (!isRegionAddr(sel)) return
-    if (!window.confirm('Delete this region from the map?')) return
+    if (!window.confirm(t('calib.deleteConfirm'))) return
     pushHistory()
     setData((d) => { const nd = clone(d); const ctx = regionArr(nd, sel!); if (ctx) ctx.arr.splice(ctx.i, 1); return nd })
     setSel(null); setSelVert(null)
@@ -624,111 +628,99 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   return (
     <div className="calib">
       <div className="calib-bar">
-        {onClose && <button type="button" onClick={onClose} title="Close the calibrator and restore the shipped region map">✕ Close</button>}
-        <strong>Region calibrator</strong>
-        <button type="button" className="calib-help-btn" onClick={() => setShowHelp(true)} title="How to use the calibrator (open the help guide)" aria-label="Open the help guide">❓ Help</button>
-        <button type="button" onClick={toggleView} title="Flip between the anterior (front) and posterior (back) figure">View: {view}</button>
-        <button type="button" onClick={() => setZoom((z) => (z === 'region' ? 'body' : 'region'))}
-          title="Toggle between zooming to the selected region (big handles) and the whole body">
-          Zoom: {zoom === 'region' ? 'region' : 'whole body'}
+        <strong>{t('calib.title')}</strong>
+        <button type="button" className="calib-help-btn" onClick={() => setShowHelp(true)} title={t('calib.helpTitle')} aria-label={t('calib.helpAria')}>{t('calib.help')}</button>
+        <button type="button" onClick={toggleView} title={t('calib.viewTitle')}>{t('calib.view', { v: t(view === 'anterior' ? 'calib.anterior' : 'calib.posterior') })}</button>
+        <button type="button" onClick={() => setZoom((z) => (z === 'region' ? 'body' : 'region'))} title={t('calib.zoomTitle')}>
+          {t('calib.zoom', { z: t(zoom === 'region' ? 'calib.zRegion' : 'calib.zBody') })}
         </button>
-        <select title="Pick a region to edit — the view zooms to it"
+        <select title={t('calib.pickTitle')}
           value={sel ? specs.findIndex((s) => addrEq(s.addr, sel)) : -1}
           onChange={(e) => { const i = Number(e.target.value); setSel(i >= 0 ? specs[i].addr : null); setSelVert(null); if (i >= 0) setZoom('region') }}>
-          <option value={-1}>— pick a region —</option>
+          <option value={-1}>{t('calib.pick')}</option>
           {specs.map((s, i) => <option key={i} value={i}>{s.label}</option>)}
         </select>
         {selSpec && 'shape' in selSpec && (
-          <select className="calib-shape" value="" title="Switch the region's shape (rectangle / circle / oval / triangle / half-circle / free polygon), keeping its footprint"
+          <select className="calib-shape" value="" title={t('calib.shapeTitle')}
             onChange={(e) => { if (e.target.value) convertSel(e.target.value as ShapeKind) }}>
-            <option value="">Shape: {shapeKindOf((selSpec as RegionSpec).shape)} ▾</option>
-            {SHAPE_KINDS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            <option value="">{t('calib.shapeMenu', { k: t(`calib.shape.${shapeKindOf((selSpec as RegionSpec).shape)}`) })}</option>
+            {SHAPE_KINDS.map(([k]) => <option key={k} value={k}>{t(`calib.shape.${k}`)}</option>)}
           </select>
         )}
-        <button type="button" onClick={addRegion} title="Add a new region (a box at the view centre) to this view">＋ Add region</button>
-        <button type="button" onClick={undo} disabled={!histLen} title="Undo the last edit, one step at a time (Ctrl/⌘+Z)">↶ Undo</button>
-        <button type="button" onClick={save} title="Save edits to this browser (localStorage) so they resume next time — does NOT change the live field chart">Save</button>
-        <button type="button" onClick={exportJson} title="Download the full corrected map as body-regions.data.json (commit it to ship as the default)">Export JSON</button>
-        <button type="button" onClick={reset} title="Discard all edits and return to the shipped built-in map">Reset to built-in</button>
-        {savedAt && <span className="calib-note">saved {savedAt} — resumes here; Export &amp; commit to make it the app default</span>}
+        <button type="button" onClick={addRegion} title={t('calib.addTitle')}>{t('calib.addRegion')}</button>
+        <button type="button" onClick={undo} disabled={!histLen} title={t('calib.undoTitle')}>{t('calib.undo')}</button>
+        <button type="button" onClick={save} title={t('calib.saveTitle')}>{t('calib.save')}</button>
+        <button type="button" onClick={exportJson} title={t('calib.exportTitle')}>{t('calib.export')}</button>
+        <button type="button" onClick={reset} title={t('calib.resetTitle')}>{t('calib.reset')}</button>
+        {savedAt && <span className="calib-note">{t('calib.savedNote', { time: savedAt })}</span>}
+        {onClose && <button type="button" className="calib-close" onClick={onClose} title={t('calib.closeTitle')}>{t('calib.close')}</button>}
       </div>
       <div className="calib-hint">
-        Pick a region — the view zooms to it (toggle <em>Zoom</em> for the whole body). Drag the
-        <span style={{ color: '#3b82f6', fontWeight: 700 }}> blue ring</span> to move the whole region,
-        the <span style={{ color: '#f59e0b', fontWeight: 700 }}>amber dots</span> to reshape it — or use the
-        <strong> Move / Width / Height / Rotate</strong> buttons below for precise taps (the figure stays put while you
-        adjust). Use <strong>Shape</strong> to switch a region between rectangle / circle / oval / triangle /
-        half-circle / free polygon; on a polygon, drag a vertex, tap a
-        <span style={{ color: '#10b981', fontWeight: 700 }}> green +</span> to add one, or <strong>− point</strong> to remove the
-        selected vertex — so irregular regions (a thigh, the nose) trace exactly. The blue ring always sits at the region's
-        centre. Use <strong>＋ Add region</strong>, and on a selected region <strong>Duplicate / Split / Delete</strong> plus the
-        name / group / TBSA fields — e.g. <em>Split</em> the nose, then make one half a triangle and the other a rectangle.
-        When two regions overlap, the one with higher <strong>Priority</strong> wins the tap — across groups too (a head region vs a limb) — use <strong>⤒ Front / ↑ / ↓ / ⤓ Back</strong> to set it.
-        Edit the image-LEFT / centre / head regions; the right side mirrors automatically.
-        Selected: <strong>{sel ? specs.find((s) => addrEq(s.addr, sel))?.label : 'none'}</strong>.
+        {t('calib.hint')}{' '}
+        {t('calib.selected', { label: sel ? (specs.find((s) => addrEq(s.addr, sel))?.label ?? t('calib.none')) : t('calib.none') })}
       </div>
       {sel && selSpec && (
         <div className="calib-nudge">
-          <span className="cn-lbl" title="Nudge the whole region by the Step amount — the figure holds still">Move</span>
-          <button type="button" onClick={() => edit((s) => nudgeSpec(s, -step, 0))} aria-label="move left" title="Move left">←</button>
-          <button type="button" onClick={() => edit((s) => nudgeSpec(s, 0, -step))} aria-label="move up" title="Move up">↑</button>
-          <button type="button" onClick={() => edit((s) => nudgeSpec(s, 0, step))} aria-label="move down" title="Move down">↓</button>
-          <button type="button" onClick={() => edit((s) => nudgeSpec(s, step, 0))} aria-label="move right" title="Move right">→</button>
-          <span className="cn-lbl" title={'lens' in selSpec ? 'Finger thickness' : 'Grow / shrink width about the centre'}>{'lens' in selSpec ? 'Thick' : 'Width'}</span>
-          <button type="button" onClick={() => edit((s) => resizeSpec(s, -step, 0))} aria-label="narrower" title="Narrower">−</button>
-          <button type="button" onClick={() => edit((s) => resizeSpec(s, step, 0))} aria-label="wider" title="Wider">+</button>
-          <span className="cn-lbl" title={'lens' in selSpec ? 'Finger length' : 'Grow / shrink height about the centre'}>{'lens' in selSpec ? 'Length' : 'Height'}</span>
-          <button type="button" onClick={() => edit((s) => resizeSpec(s, 0, -step))} aria-label="shorter" title="Shorter">−</button>
-          <button type="button" onClick={() => edit((s) => resizeSpec(s, 0, step))} aria-label="taller" title="Taller">+</button>
+          <span className="cn-lbl" title={t('calib.moveTitle')}>{t('calib.move')}</span>
+          <button type="button" onClick={() => edit((s) => nudgeSpec(s, -step, 0))} aria-label={t('calib.moveLeft')} title={t('calib.moveLeft')}>←</button>
+          <button type="button" onClick={() => edit((s) => nudgeSpec(s, 0, -step))} aria-label={t('calib.moveUp')} title={t('calib.moveUp')}>↑</button>
+          <button type="button" onClick={() => edit((s) => nudgeSpec(s, 0, step))} aria-label={t('calib.moveDown')} title={t('calib.moveDown')}>↓</button>
+          <button type="button" onClick={() => edit((s) => nudgeSpec(s, step, 0))} aria-label={t('calib.moveRight')} title={t('calib.moveRight')}>→</button>
+          <span className="cn-lbl" title={'lens' in selSpec ? t('calib.thickTitle') : t('calib.widthTitle')}>{'lens' in selSpec ? t('calib.thick') : t('calib.width')}</span>
+          <button type="button" onClick={() => edit((s) => resizeSpec(s, -step, 0))} aria-label={t('calib.narrower')} title={t('calib.narrower')}>−</button>
+          <button type="button" onClick={() => edit((s) => resizeSpec(s, step, 0))} aria-label={t('calib.wider')} title={t('calib.wider')}>+</button>
+          <span className="cn-lbl" title={'lens' in selSpec ? t('calib.lengthTitle') : t('calib.heightTitle')}>{'lens' in selSpec ? t('calib.length') : t('calib.height')}</span>
+          <button type="button" onClick={() => edit((s) => resizeSpec(s, 0, -step))} aria-label={t('calib.shorter')} title={t('calib.shorter')}>−</button>
+          <button type="button" onClick={() => edit((s) => resizeSpec(s, 0, step))} aria-label={t('calib.taller')} title={t('calib.taller')}>+</button>
           {rotatable(selSpec) && (<>
-            <span className="cn-lbl" title="Rotate the shape by the Step in degrees (boxes, ellipses, polygons, fingers)">Rotate</span>
-            <button type="button" onClick={() => edit((s) => rotateSpec(s, -step))} aria-label="rotate left" title="Rotate counter-clockwise">↺</button>
-            <button type="button" onClick={() => edit((s) => rotateSpec(s, step))} aria-label="rotate right" title="Rotate clockwise">↻</button>
+            <span className="cn-lbl" title={t('calib.rotateTitle')}>{t('calib.rotate')}</span>
+            <button type="button" onClick={() => edit((s) => rotateSpec(s, -step))} aria-label={t('calib.rotL')} title={t('calib.rotL')}>↺</button>
+            <button type="button" onClick={() => edit((s) => rotateSpec(s, step))} aria-label={t('calib.rotR')} title={t('calib.rotR')}>↻</button>
           </>)}
           {'shape' in selSpec && (selSpec as RegionSpec).shape.kind === 'polygon' && (<>
-            <span className="cn-lbl">Point</span>
+            <span className="cn-lbl">{t('calib.point')}</span>
             <button type="button" onClick={removeVert}
               disabled={selVert == null || (selSpec as RegionSpec & { shape: { kind: 'polygon'; pts: unknown[] } }).shape.pts.length <= 3}
-              title="Remove the selected vertex (tap a vertex first; tap a green + to add one)">− point</button>
+              title={t('calib.removePointTitle')}>{t('calib.removePoint')}</button>
           </>)}
           <span className="cn-sep" />
-          <span className="cn-lbl" title="How much each Move / Width / Height / Rotate tap changes (units, or degrees for Rotate)">Step</span>
-          <button type="button" className={step === 1 ? 'on' : ''} onClick={() => setStep(1)} title="Fine — 1 unit per tap">1</button>
-          <button type="button" className={step === 5 ? 'on' : ''} onClick={() => setStep(5)} title="Coarse — 5 units per tap">5</button>
-          <button type="button" onClick={() => setRecenter((r) => r + 1)} title="Re-frame the view on the selected region (after it has drifted off-screen)">Recenter</button>
+          <span className="cn-lbl" title={t('calib.stepTitle')}>{t('calib.step')}</span>
+          <button type="button" className={step === 1 ? 'on' : ''} onClick={() => setStep(1)} title={t('calib.step1Title')}>1</button>
+          <button type="button" className={step === 5 ? 'on' : ''} onClick={() => setStep(5)} title={t('calib.step5Title')}>5</button>
+          <button type="button" onClick={() => setRecenter((r) => r + 1)} title={t('calib.recenterTitle')}>{t('calib.recenter')}</button>
         </div>
       )}
       {sel && selSpec && 'shape' in selSpec && (
         <div className="calib-edit">
-          <span className="cn-lbl">Region</span>
+          <span className="cn-lbl">{t('calib.region')}</span>
           {(selSpec as RegionSpec).name != null ? (
             <input className="ce-name" value={(selSpec as RegionSpec).name}
-              onChange={(e) => editProp((r) => { r.name = e.target.value })} placeholder="name" aria-label="region name" />
+              onChange={(e) => editProp((r) => { r.name = e.target.value })} placeholder={t('calib.namePh')} aria-label={t('calib.namePh')} />
           ) : (<>
             <input className="ce-name" value={(selSpec as RegionSpec).names!.ant}
-              onChange={(e) => editProp((r) => { if (r.names) r.names.ant = e.target.value })} placeholder="anterior name" aria-label="anterior name" />
+              onChange={(e) => editProp((r) => { if (r.names) r.names.ant = e.target.value })} placeholder={t('calib.antNamePh')} aria-label={t('calib.antNamePh')} />
             <input className="ce-name" value={(selSpec as RegionSpec).names!.post}
-              onChange={(e) => editProp((r) => { if (r.names) r.names.post = e.target.value })} placeholder="posterior name" aria-label="posterior name" />
+              onChange={(e) => editProp((r) => { if (r.names) r.names.post = e.target.value })} placeholder={t('calib.postNamePh')} aria-label={t('calib.postNamePh')} />
           </>)}
-          <span className="cn-lbl">Group</span>
-          <select value={(selSpec as RegionSpec).group} onChange={(e) => editProp((r) => { r.group = e.target.value as RegionGroup })} aria-label="region group">
-            {GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
+          <span className="cn-lbl">{t('calib.group')}</span>
+          <select value={(selSpec as RegionSpec).group} onChange={(e) => editProp((r) => { r.group = e.target.value as RegionGroup })} aria-label={t('calib.group')}>
+            {GROUPS.map((g) => <option key={g} value={g}>{t(`calib.grp.${g}`)}</option>)}
           </select>
-          <span className="cn-lbl">TBSA%</span>
+          <span className="cn-lbl">{t('calib.tbsa')}</span>
           <input className="ce-num" type="number" step={0.1} min={0} value={(selSpec as RegionSpec).tbsa}
-            onChange={(e) => editProp((r) => { r.tbsa = Number(e.target.value) || 0 })} aria-label="region TBSA percent" />
+            onChange={(e) => editProp((r) => { r.tbsa = Number(e.target.value) || 0 })} aria-label={t('calib.tbsa')} />
           <label className="ce-chk"><input type="checkbox" checked={(selSpec as RegionSpec).side === 'left'}
-            onChange={(e) => editProp((r) => { if (e.target.checked) r.side = 'left'; else delete r.side })} /> Mirror</label>
+            onChange={(e) => editProp((r) => { if (e.target.checked) r.side = 'left'; else delete r.side })} /> {t('calib.mirror')}</label>
           <span className="cn-sep" />
-          <button type="button" onClick={duplicateRegion} title="Copy this region">⎘ Duplicate</button>
-          <button type="button" onClick={splitRegion} title="Split this region into two halves">✂ Split</button>
-          <button type="button" className="ce-del" onClick={deleteRegion} title="Delete this region">🗑 Delete</button>
+          <button type="button" onClick={duplicateRegion} title={t('calib.duplicateTitle')}>{t('calib.duplicate')}</button>
+          <button type="button" onClick={splitRegion} title={t('calib.splitTitle')}>{t('calib.split')}</button>
+          <button type="button" className="ce-del" onClick={deleteRegion} title={t('calib.deleteTitle')}>{t('calib.delete')}</button>
           <span className="cn-sep" />
-          <span className="cn-lbl" title="Overlap precedence: when regions overlap, the higher priority wins the tap — across groups too (head vs limb). 0 = default authored order.">Priority {(selSpec as RegionSpec).priority ?? 0}</span>
-          <button type="button" onClick={() => bumpPriority('front')} title="Win every overlap in this view">⤒ Front</button>
-          <button type="button" onClick={() => bumpPriority('up')} aria-label="raise priority">↑</button>
-          <button type="button" onClick={() => bumpPriority('down')} aria-label="lower priority">↓</button>
-          <button type="button" onClick={() => bumpPriority('back')} title="Lose every overlap in this view">⤓ Back</button>
+          <span className="cn-lbl" title={t('calib.priorityTitle')}>{t('calib.priority', { n: (selSpec as RegionSpec).priority ?? 0 })}</span>
+          <button type="button" onClick={() => bumpPriority('front')} title={t('calib.frontTitle')}>{t('calib.front')}</button>
+          <button type="button" onClick={() => bumpPriority('up')} aria-label={t('calib.raise')}>↑</button>
+          <button type="button" onClick={() => bumpPriority('down')} aria-label={t('calib.lower')}>↓</button>
+          <button type="button" onClick={() => bumpPriority('back')} title={t('calib.backTitle')}>{t('calib.back')}</button>
         </div>
       )}
       <svg
@@ -771,65 +763,56 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
 
 // ---- In-app help / cheat-sheet --------------------------------------------
 // A contextual reference for every calibrator control, reachable from the ❓ Help
-// button. English-only like the rest of the tool (admin/maintenance furniture).
+// button. Follows the app language like the rest of the calibrator UI.
 function CalibHelp({ onClose }: { onClose: () => void }) {
+  const { t } = useLang()
   return (
-    <div className="calib-help" role="dialog" aria-modal="true" aria-label="Region calibrator help" onClick={onClose}>
+    <div className="calib-help" role="dialog" aria-modal="true" aria-label={t('calib.h.title')} onClick={onClose}>
       <div className="calib-help-card" onClick={(e) => e.stopPropagation()}>
         <header className="calib-help-head">
-          <h2>Region calibrator — help</h2>
-          <button type="button" onClick={onClose} title="Close help">✕ Close</button>
+          <h2>{t('calib.h.title')}</h2>
+          <button type="button" onClick={onClose} title={t('calib.closeTitle')}>{t('calib.close')}</button>
         </header>
         <div className="calib-help-body">
-          <p>
-            Fit the body-chart <strong>tap regions</strong> onto the figure. This is a
-            workshop tool — your edits never change the live field chart until you
-            <strong> Export</strong> the map and commit it to the app.
-          </p>
+          <p>{t('calib.h.intro')}</p>
 
-          <h3>Get around</h3>
+          <h3>{t('calib.h.nav')}</h3>
           <ul>
-            <li><strong>View</strong> — flip the anterior (front) / posterior (back) figure.</li>
-            <li><strong>Zoom</strong> — toggle between the selected region (big handles) and the whole body.</li>
-            <li><strong>Pick a region</strong> from the dropdown; the view zooms to it. <strong>Recenter</strong> re-frames it if it drifts off-screen.</li>
-            <li>You edit the image-<strong>left</strong> / centre / head regions; the <strong>right side mirrors automatically</strong>.</li>
+            <li>{t('calib.h.nav1')}</li>
+            <li>{t('calib.h.nav2')}</li>
+            <li>{t('calib.h.nav3')}</li>
+            <li>{t('calib.h.nav4')}</li>
           </ul>
 
-          <h3>Drag handles (on the figure)</h3>
+          <h3>{t('calib.h.handles')}</h3>
           <ul>
-            <li><span className="ch-blue">Blue ring</span> — move the whole region (it always sits at the region's centre).</li>
-            <li><span className="ch-amber">Amber dots</span> — reshape: boxes have 4 corners + 4 edge midpoints (8 anchors); ellipses have radius handles; quads have 4 corners; fingers/toes have their own.</li>
-            <li><span className="ch-green">Green +</span> — on a polygon, insert a vertex on that edge (then drag it). <strong>− point</strong> removes the selected vertex.</li>
+            <li><span className="ch-blue">●</span> {t('calib.h.handles1')}</li>
+            <li><span className="ch-amber">●</span> {t('calib.h.handles2')}</li>
+            <li><span className="ch-green">＋</span> {t('calib.h.handles3')}</li>
           </ul>
 
-          <h3>Precise buttons (figure holds still)</h3>
+          <h3>{t('calib.h.precise')}</h3>
+          <ul><li>{t('calib.h.precise1')}</li></ul>
+
+          <h3>{t('calib.h.shapes')}</h3>
+          <ul><li>{t('calib.h.shapes1')}</li></ul>
+
+          <h3>{t('calib.h.build')}</h3>
           <ul>
-            <li><strong>Move / Width / Height / Rotate</strong> — nudge by the <strong>Step</strong> (1 fine, 5 coarse; degrees for Rotate).</li>
+            <li>{t('calib.h.build1')}</li>
+            <li>{t('calib.h.build2')}</li>
+            <li>{t('calib.h.build3')}</li>
           </ul>
 
-          <h3>Shapes</h3>
-          <ul>
-            <li><strong>Shape</strong> menu — switch a region between rectangle / circle / oval / triangle / half-circle / free polygon, keeping its footprint. Triangle &amp; half-circle are stored as polygons.</li>
-          </ul>
+          <h3>{t('calib.h.overlap')}</h3>
+          <ul><li>{t('calib.h.overlap1')}</li></ul>
 
-          <h3>Build regions</h3>
+          <h3>{t('calib.h.save')}</h3>
           <ul>
-            <li><strong>＋ Add region</strong> — drop a new box at the view centre, then name / group / reshape it.</li>
-            <li><strong>Duplicate</strong> copies it; <strong>Split</strong> halves it (e.g. split the nose, then make one half a triangle and the other a rectangle); <strong>Delete</strong> removes it.</li>
-            <li><strong>Name / Group / TBSA% / Mirror</strong> fields edit the selected region. Region names drive burn-TBSA, so renaming changes the math; moving/reshaping does not.</li>
-          </ul>
-
-          <h3>Overlapping regions</h3>
-          <ul>
-            <li>A tap resolves to the region with the highest <strong>Priority</strong>. <strong>⤒ Front</strong> wins every overlap in the view, <strong>⤓ Back</strong> loses to all, <strong>↑ / ↓</strong> nudge by one — and it works <em>across groups</em> (a head region vs a limb). 0 = default authored order.</li>
-          </ul>
-
-          <h3>Save your work</h3>
-          <ul>
-            <li><strong>Undo</strong> (or Ctrl/⌘+Z) steps back one edit at a time.</li>
-            <li><strong>Save</strong> keeps edits in this browser so they resume next time — it does <em>not</em> touch the live chart.</li>
-            <li><strong>Export JSON</strong> downloads the full map. To ship it to everyone, commit those numbers to <code>body-regions.data.ts</code>.</li>
-            <li><strong>Reset to built-in</strong> discards edits and restores the shipped map.</li>
+            <li>{t('calib.h.save1')}</li>
+            <li>{t('calib.h.save2')}</li>
+            <li>{t('calib.h.save3')}</li>
+            <li>{t('calib.h.save4')}</li>
           </ul>
         </div>
       </div>
