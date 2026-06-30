@@ -76,22 +76,48 @@ describe('step-up re-auth gate (login password for sensitive actions)', () => {
     expect(await listAudit()).toHaveLength(0)
   })
 
-  it('still requires a PIN to manage the roster when signed OUT (no escalation)', async () => {
-    await addOperator('Admin', 'admin', '1234') // a PIN-protected admin exists
+  it('requires an ADMIN PIN to manage when signed OUT (no escalation)', async () => {
+    await addOperator('Admin', 'admin', 'admin1') // a PIN-protected admin exists
     await setActiveOperator(null) // …but nobody is on duty
 
     mockAsk.mockResolvedValue('0000') // wrong → blocked
     expect(await requireManageStepUp(t)).toBe(false)
 
-    mockAsk.mockResolvedValue('1234') // any registered operator PIN → allowed
+    mockAsk.mockResolvedValue('admin1') // the admin's PIN → allowed
     expect(await requireManageStepUp(t)).toBe(true)
   })
 
-  it('leaves roster management open while no operator has a PIN (bootstrap)', async () => {
-    await addOperator('Medic', 'admin') // no PIN
-    await setActiveOperator(null)
+  it('a non-admin operator’s PIN never unlocks roster management (no self-promotion)', async () => {
+    await addOperator('Boss', 'admin', 'admin1')   // admin has a PIN → roster is locked
+    const medic = await addOperator('Medic', 'field', 'field1')
+    await setActiveOperator(medic.id) // a field op is on duty, knows their own PIN
+
+    mockAsk.mockResolvedValue('field1') // their own (field) PIN must NOT pass
+    expect(await requireManageStepUp(t)).toBe(false)
+
+    mockAsk.mockResolvedValue('admin1') // only an admin PIN does
     expect(await requireManageStepUp(t)).toBe(true)
+  })
+
+  it('signed-in admin re-auths against their own PIN', async () => {
+    const boss = await addOperator('Boss', 'admin', 'admin1')
+    await setActiveOperator(boss.id)
+    mockAsk.mockResolvedValue('nope'); expect(await requireManageStepUp(t)).toBe(false)
+    mockAsk.mockResolvedValue('admin1'); expect(await requireManageStepUp(t)).toBe(true)
+  })
+
+  it('stays open only until an admin sets a PIN (bootstrap / post-recovery)', async () => {
+    const admin = await addOperator('Medic', 'admin') // admin, but no PIN yet
+    await setActiveOperator(null)
+    expect(await requireManageStepUp(t)).toBe(true) // bootstrap-open
     expect(mockAsk).not.toHaveBeenCalled()
+
+    await setOperatorPin(admin.id, '4321') // now an admin has a PIN → locked
+    mockAsk.mockResolvedValue('4321')
+    expect(await requireManageStepUp(t)).toBe(true)
+
+    await setOperatorPin(admin.id, '') // recovery clears the admin PIN → open again
+    expect(await requireManageStepUp(t)).toBe(true)
   })
 
   it('setOperatorPin adds, then clears, the gate', async () => {
