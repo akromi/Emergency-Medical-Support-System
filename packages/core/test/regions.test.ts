@@ -65,10 +65,10 @@ describe('regionAt — anatomical hit-testing', () => {
     expect(regionAt(210, 300, 'posterior')).toBe('L Upper back')
     expect(regionAt(182, 800, 'posterior')).toBe('L Calf')
     expect(regionAt(240, 535, 'posterior')).toBe('Perineum')
-    // The centre-line Perineum must not shadow the flanking Buttock halves: an
-    // inner-buttock tap still records Buttock (2% TBSA), not Perineum (1%).
-    expect(regionAt(200, 505, 'posterior')).toBe('L Buttock')
-    expect(regionAt(280, 505, 'posterior')).toBe('R Buttock')
+    // The lower buttock (below the lower-back overlap, beside the central
+    // Perineum) records Buttock — not Thigh, and not the central Perineum.
+    expect(regionAt(220, 535, 'posterior')).toBe('L Buttock')
+    expect(regionAt(260, 535, 'posterior')).toBe('R Buttock')
   })
 
   it('maps a tap to the macro zone of the region under it, not the smallest overlapping bbox', () => {
@@ -183,10 +183,19 @@ describe('data-driven region map', () => {
 
   it('keeps burn-TBSA stable (calibration moves positions, not names/tbsa)', () => {
     const d = cloneData()
-    const knee = d.left.find((e) => 'names' in e && e.names?.ant === 'Knee') as { shape: { kind: string; y1?: number; y2?: number } }
-    if (knee && knee.shape.kind === 'box') { knee.shape.y1 = 600; knee.shape.y2 = 650 }
+    const knee = d.left.find((e) => 'names' in e && e.names?.ant === 'Knee') as
+      { shape: { kind: string; pts?: Array<[number, number]>; y1?: number; y2?: number } }
+    // The shipped map traces the knee as a polygon; shove every vertex down the
+    // leg so the override genuinely moves it (a no-op override would prove nothing).
+    const s = knee.shape
+    if (s.kind === 'polygon' && s.pts) s.pts = s.pts.map(([x, y]) => [x, y + 120] as [number, number])
+    else if (s.kind === 'box' && s.y1 != null && s.y2 != null) { s.y1 += 120; s.y2 += 120 }
     applyRegionData(d)
-    expect(regionTBSA('R Thigh')).toBe(4.5) // unchanged by a position override
+    // The knee really moved (its old patella spot is no longer the knee)…
+    expect(regionAt(193, 687, 'anterior')).not.toBe('R Knee')
+    // …yet TBSA comes from the static table, unaffected by geometry.
+    expect(regionTBSA('R Knee')).toBe(0.5)
+    expect(regionTBSA('R Thigh')).toBe(4.5)
   })
 })
 

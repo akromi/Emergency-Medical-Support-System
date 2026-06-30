@@ -110,7 +110,12 @@ export const BODY_REGION_DATA: BodyRegionData = {
   left: [
     { names: { ant: "Shoulder", post: "Shoulder" }, side: 'left', group: 'arm', tbsa: 2, shape: { kind: 'polygon', pts: [[140.6, 257.1], [162.4, 246.3], [210.7, 226.5], [212.1, 254.1], [174.9, 255.4], [161.8, 276.5], [165.3, 294.4], [122.5, 300.3]] } },
     { names: { ant: "Chest", post: "Upper back" }, side: 'left', group: 'trunk', tbsa: 4.5, shape: box(166, 258, 238, 343.3) },
-    { names: { ant: "Pelvis", post: "Buttock" }, side: 'left', group: 'trunk', tbsa: 2, shape: { kind: 'polygon', pts: [[175.3, 431.8], [243.2, 434.4], [243.2, 509.8], [162.7, 514.6], [165.7, 494.8], [168.6, 472.1]] } },
+    // Shared front/back shape: anterior Pelvis, posterior Buttock. Extended down
+    // to the gluteal fold (~y558) so the full posterior buttock is selectable —
+    // a shorter polygon handed the lower buttock to Thigh on the back view. The
+    // central Groin/Perineum box overrides the midline, so this only owns the
+    // lateral hip/buttock either side of it.
+    { names: { ant: "Pelvis", post: "Buttock" }, side: 'left', group: 'trunk', tbsa: 2, shape: { kind: 'polygon', pts: [[175.3, 431.8], [243.2, 434.4], [243.2, 556], [161, 558], [165.7, 494.8], [168.6, 472.1]] } },
     { names: { ant: "Upper arm", post: "Upper arm" }, side: 'left', group: 'arm', tbsa: 2, shape: { kind: 'polygon', pts: [[125.6, 306.9], [171.1, 292.9], [171.3, 304.9], [169.4, 325.5], [161.9, 339.4], [152, 359.6], [112.2, 351.2], [113.6, 347.7], [117.9, 331.1], [124.9, 321.3], [124.3, 316.7]] } },
     { names: { ant: "Elbow", post: "Elbow" }, side: 'left', group: 'arm', tbsa: 0.5, shape: { kind: 'polygon', pts: [[111.9, 351.6], [149.5, 362.4], [144.7, 369.3], [140.1, 377.2], [135.7, 394.6], [90.1, 385.7], [101.5, 373]] } },
     { names: { ant: "Forearm", post: "Forearm" }, side: 'left', group: 'arm', tbsa: 1.5, shape: { kind: 'polygon', pts: [[89.2, 385.8], [139.1, 395.5], [88.7, 475.4], [58.7, 466.1]] } },

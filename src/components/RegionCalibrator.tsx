@@ -406,13 +406,17 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   const [histLen, setHistLen] = useState(0)
   const svgRef = useRef<SVGSVGElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  // Mirror of `data` that is always current — so history snapshots taken after an
+  // await (e.g. async Import reading a file) capture the LATEST map, not the
+  // stale value captured in the closure when the action started.
+  const dataRef = useRef(data)
 
   // Snapshot the current map + saved slot BEFORE a discrete edit (a button tap or
   // the start of a drag — not every pointermove). Capped so it can't grow forever.
   const pushHistory = () => {
     let saved: string | null = null
     try { saved = localStorage.getItem(LS_KEY) } catch { /* ignore */ }
-    historyRef.current = [...historyRef.current, { data: clone(data), saved }].slice(-60)
+    historyRef.current = [...historyRef.current, { data: clone(dataRef.current), saved }].slice(-60)
     setHistLen(historyRef.current.length)
   }
   function undo() {
@@ -428,7 +432,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
 
   // Preview edits live WHILE the tool is mounted; restore the shipped default on
   // exit so the override never leaks into the normal app.
-  useEffect(() => { applyRegionData(data) }, [data])
+  useEffect(() => { dataRef.current = data; applyRegionData(data) }, [data])
   useEffect(() => () => { applyRegionData(null) }, [])
 
   // Ctrl/⌘+Z → undo one step.
@@ -514,9 +518,17 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   async function importFile(file: File) {
     try {
       const parsed = JSON.parse(await file.text())
+      // Structural check, then a full trial build for BOTH views: this exercises
+      // every region/finger/toe shape via shapePoints, so a file that passes the
+      // shallow array check but has a malformed/empty shape is rejected here
+      // rather than crashing the editor after setData.
       if (!isRegionData(parsed)) { setImportErr(t('calib.importBad')); return }
-      pushHistory()
-      setData(parsed as BodyRegionData); setSel(null); setSelVert(null); setImportErr('')
+      buildRegions(parsed as BodyRegionData, 'anterior')
+      buildRegions(parsed as BodyRegionData, 'posterior')
+      pushHistory() // snapshots the LATEST map (via dataRef), even after the await
+      // Import is an unsaved edit: clear the "saved … resumes here" note so it
+      // can't keep advertising an earlier Save that no longer matches the map.
+      setData(parsed as BodyRegionData); setSel(null); setSelVert(null); setSavedAt(''); setImportErr('')
     } catch { setImportErr(t('calib.importBad')) }
   }
   function reset() {
