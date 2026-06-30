@@ -298,6 +298,7 @@ export function RegionCalibrator() {
     const prev = h[h.length - 1]
     historyRef.current = h.slice(0, -1)
     setHistLen(historyRef.current.length)
+    setDrag(null) // end any in-progress drag so later pointer moves don't re-edit the restored map
     try { if (prev.saved === null) localStorage.removeItem(LS_KEY); else localStorage.setItem(LS_KEY, prev.saved) } catch { /* ignore */ }
     setData(prev.data)
   }
