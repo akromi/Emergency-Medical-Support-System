@@ -55,12 +55,17 @@ interface Listed { addr: Addr; label: string }
 function listSpecs(data: BodyRegionData, view: BodyView, t: TFn, lang: string): Listed[] {
   const out: Listed[] = []
   const rl = (n: string) => regionLabel(n, lang)
+  // Shared parts are labelled for the CURRENT view: the anterior name on the
+  // front, the posterior name on the back (Pelvis↔Buttock, Upper abdomen↔Mid
+  // back, …) so the picker matches what the figure shows. Head parts are already
+  // per-view lists; the bkLeft bucket denotes the mirrored left+right pair.
+  const viewName = (r: RegionSpec) => (view === 'anterior' ? r.names!.ant : r.names!.post)
   data.head[view].forEach((s, i) => out.push({ addr: { k: 'head', view, i }, label: `${t('calib.bkHead')} · ${rl(s.name!)}` }))
-  data.central.forEach((s, i) => out.push({ addr: { k: 'central', i }, label: `${t('calib.bkCentre')} · ${rl(s.names!.ant)}` }))
+  data.central.forEach((s, i) => out.push({ addr: { k: 'central', i }, label: `${t('calib.bkCentre')} · ${rl(viewName(s))}` }))
   data.left.forEach((e, i) => {
     if ('fingers' in e) e.fingers.forEach((f, fi) => out.push({ addr: { k: 'finger', i, fi }, label: `${t('calib.bkHand')} · ${t('calib.finger', { label: rl(f.label) })}` }))
     else if ('toes' in e) e.toes.forEach((to, ti) => out.push({ addr: { k: 'toe', i, ti }, label: `${t('calib.bkFoot')} · ${rl(to.label)}` }))
-    else out.push({ addr: { k: 'left', i }, label: `${t('calib.bkLeft')} · ${rl((e as RegionSpec).names!.ant)}` })
+    else out.push({ addr: { k: 'left', i }, label: `${t('calib.bkLeft')} · ${rl(viewName(e as RegionSpec))}` })
   })
   return out
 }
@@ -689,7 +694,6 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
           </select>
         )}
         <button type="button" onClick={addRegion} title={t('calib.addTitle')}>{t('calib.addRegion')}</button>
-        <button type="button" onClick={undo} disabled={!histLen} title={t('calib.undoTitle')}>{t('calib.undo')}</button>
         <button type="button" onClick={save} title={t('calib.saveTitle')}>{t('calib.save')}</button>
         <button type="button" onClick={exportJson} title={t('calib.exportTitle')}>{t('calib.export')}</button>
         <button type="button" onClick={() => fileRef.current?.click()} title={t('calib.importTitle')}>{t('calib.import')}</button>
@@ -722,6 +726,8 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
             <button type="button" onClick={() => edit((s) => rotateSpec(s, -step))} aria-label={t('calib.rotL')} title={t('calib.rotL')}>↺</button>
             <button type="button" onClick={() => edit((s) => rotateSpec(s, step))} aria-label={t('calib.rotR')} title={t('calib.rotR')}>↻</button>
           </>)}
+          <span className="cn-sep" />
+          <button type="button" onClick={undo} disabled={!histLen} title={t('calib.undoTitle')}>{t('calib.undo')}</button>
           {'shape' in selSpec && (selSpec as RegionSpec).shape.kind === 'polygon' && (<>
             <span className="cn-lbl">{t('calib.point')}</span>
             <button type="button" onClick={removeVert}
