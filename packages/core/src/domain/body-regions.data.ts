@@ -108,11 +108,14 @@ export const BODY_REGION_DATA: BodyRegionData = {
     { names: { ant: 'Upper abdomen', post: 'Mid back' }, group: 'trunk', tbsa: 3, shape: box(184, 392, 296, 452) },
     { names: { ant: 'Lower abdomen', post: 'Lower back' }, group: 'trunk', tbsa: 3, shape: box(192, 452, 288, 506) },
     // Centre-line genital/perineal region, fitted to the crotch on the figure
-    // (sits between the two Pelvis halves and reaches down to where the legs
-    // separate). Listed in `central` so it is hit-tested before the (mirrored)
-    // Pelvis/Thigh and wins the central tap — wide enough to be a reliable
-    // touch target rather than a thin midline sliver.
-    { names: { ant: 'Groin', post: 'Perineum' }, group: 'trunk', tbsa: 1, shape: box(214, 512, 266, 566) },
+    // (between the two Pelvis halves, reaching down to where the legs separate).
+    // Listed in `central` so it is hit-tested before the (mirrored) Pelvis/Thigh
+    // and wins the central tap. Width is deliberately kept narrow (±16 of the
+    // x=240 midline): because `central` is SHARED by both views, this same box
+    // is the posterior Perineum, so a wider box would shadow the flanking
+    // Buttock halves (2% TBSA) on the back view. ±16 stays clear of each
+    // Buttock's centre while remaining a reliable touch target once zoomed.
+    { names: { ant: 'Groin', post: 'Perineum' }, group: 'trunk', tbsa: 1, shape: box(224, 512, 256, 566) },
   ],
   left: [
     { names: { ant: 'Shoulder', post: 'Shoulder' }, side: 'left', group: 'arm', tbsa: 2, shape: box(150, 250, 202, 300) },
