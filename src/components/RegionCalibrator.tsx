@@ -434,10 +434,6 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   const [step, setStep] = useState(1)        // nudge/resize amount per button tap
   const [recenter, setRecenter] = useState(0) // bump to re-frame the viewport
   const [showHelp, setShowHelp] = useState(false) // in-app help / cheat-sheet overlay
-  // Regions the shipped built-in has that the resumed saved map lacks (computed
-  // once on mount). Non-empty ⇒ the saved map predates this app version, so we
-  // offer to reload the built-in. Dismissible so it never blocks work.
-  const [staleAdded] = useState<string[]>(() => { const s = loadSaved(); return s ? regionsAddedSince(s) : [] })
   const [staleDismissed, setStaleDismissed] = useState(false)
   const [importErr, setImportErr] = useState('') // shown when an imported file is not a valid map
   // Undo stack in a ref (always current, so rapid Ctrl+Z key-repeat pops exactly
@@ -490,6 +486,10 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
 
   const regions = useMemo(() => buildRegions(data, view), [data, view])
   const specs = useMemo(() => listSpecs(data, view, t, lang), [data, view, t, lang])
+  // Built-in regions the CURRENT map lacks. Reactive to `data`, so it clears the
+  // moment the map becomes current (Reset / Load latest) and re-appears if an
+  // Undo restores a stale map — never keyed to a one-time mount snapshot.
+  const staleNow = useMemo(() => regionsAddedSince(data), [data])
   const selSpec = sel ? specShape(data, sel) : null
   const handles = selSpec ? handlesFor(selSpec) : []
 
@@ -710,10 +710,11 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
 
   return (
     <div className="calib">
-      {staleAdded.length > 0 && !staleDismissed && (
+      {staleNow.length > 0 && !staleDismissed && (
         <div className="calib-stale" role="alert">
-          <span>{t('calib.stale', { names: staleAdded.slice(0, 4).map((n) => regionLabel(n, lang)).join(', ') + (staleAdded.length > 4 ? '…' : '') })}</span>
-          <button type="button" onClick={() => { reset(); setStaleDismissed(true) }} title={t('calib.staleLoadTitle')}>{t('calib.staleLoad')}</button>
+          <span>{t('calib.stale', { names: staleNow.slice(0, 4).map((n) => regionLabel(n, lang)).join(', ') + (staleNow.length > 4 ? '…' : '') })}</span>
+          {/* Load latest makes the map current (staleNow → []), which hides this on its own — no sticky flag. */}
+          <button type="button" onClick={reset} title={t('calib.staleLoadTitle')}>{t('calib.staleLoad')}</button>
           <button type="button" onClick={() => setStaleDismissed(true)} title={t('calib.staleKeepTitle')}>{t('calib.staleKeep')}</button>
         </div>
       )}
