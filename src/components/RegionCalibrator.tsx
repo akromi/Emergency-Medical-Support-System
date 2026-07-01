@@ -64,7 +64,9 @@ function listSpecs(data: BodyRegionData, view: BodyView, t: TFn, lang: string): 
   data.central.forEach((s, i) => out.push({ addr: { k: 'central', i }, label: `${t('calib.bkCentre')} · ${rl(viewName(s))}` }))
   data.left.forEach((e, i) => {
     if ('fingers' in e) e.fingers.forEach((f, fi) => out.push({ addr: { k: 'finger', i, fi }, label: `${t('calib.bkHand')} · ${t('calib.finger', { label: rl(f.label) })}` }))
-    else if ('toes' in e) e.toes.forEach((to, ti) => out.push({ addr: { k: 'toe', i, ti }, label: `${t('calib.bkFoot')} · ${rl(to.label)}` }))
+    // Toes are anterior-only (their tops aren't visible on the back view), so they
+    // aren't listed — nor hit-tested — on the posterior view.
+    else if ('toes' in e) { if (view === 'anterior') e.toes.forEach((to, ti) => out.push({ addr: { k: 'toe', i, ti }, label: `${t('calib.bkFoot')} · ${rl(to.label)}` })) }
     else out.push({ addr: { k: 'left', i }, label: `${t('calib.bkLeft')} · ${rl(viewName(e as RegionSpec))}` })
   })
   return out
@@ -516,11 +518,13 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
 
   // Head specs are view-specific (their index means a different region per
   // view), so a head selection must be dropped when the view changes — otherwise
-  // its handles/drags would edit the OTHER view's head spec. Shared regions
-  // (centre/left/finger/toe) are view-independent and stay selected.
+  // its handles/drags would edit the OTHER view's head spec. Toes are shown only
+  // on the anterior view, so a toe selection is dropped when leaving it. Other
+  // shared regions (centre/left/finger) are view-independent and stay selected.
   function toggleView() {
-    setView((v) => (v === 'anterior' ? 'posterior' : 'anterior'))
-    setSel((s) => (s && s.k === 'head' ? null : s))
+    const next = view === 'anterior' ? 'posterior' : 'anterior'
+    setView(next)
+    setSel((s) => (s && (s.k === 'head' || (s.k === 'toe' && next === 'posterior')) ? null : s))
     setSelVert(null)
   }
 
@@ -772,7 +776,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
             <button type="button" onClick={() => edit((s) => rotateSpec(s, step))} aria-label={t('calib.rotR')} title={t('calib.rotR')}>↻</button>
           </>)}
           <span className="cn-sep" />
-          <button type="button" onClick={undo} disabled={!histLen} title={t('calib.undoTitle')}>{t('calib.undo')}</button>
+          <button type="button" className="cn-undo" onClick={undo} disabled={!histLen} title={t('calib.undoTitle')}>{t('calib.undo')}</button>
           {'shape' in selSpec && (selSpec as RegionSpec).shape.kind === 'polygon' && (<>
             <span className="cn-lbl">{t('calib.point')}</span>
             <button type="button" onClick={removeVert}

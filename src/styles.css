@@ -718,6 +718,9 @@ input::placeholder { color:var(--txt-faint); }
 .calib-nudge button:hover { border-color:var(--ekg); }
 .calib-nudge button:active { background:var(--raised); }
 .calib-nudge button.on { background:#163040; border-color:#3f9bd6; color:#bfe2fb; }
+/* Text action button (Undo) among the glyph controls: match the row's label
+   typography (11px uppercase) instead of the 16px glyph size. */
+.calib-nudge button.cn-undo { min-width:0; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:0 12px; }
 
 /* Region add / name / group / TBSA / duplicate / split / delete panel. */
 .calib-edit { display:flex; flex-wrap:wrap; align-items:center; gap:5px; padding:7px 12px;
