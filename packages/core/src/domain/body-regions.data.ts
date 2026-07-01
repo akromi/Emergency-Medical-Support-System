@@ -102,7 +102,7 @@ export const BODY_REGION_DATA: BodyRegionData = {
     ],
   },
   central: [
-    { names: { ant: "Anterior neck", post: "Posterior neck" }, group: 'neck', tbsa: 0.5, shape: box(211.1, 190.8, 268.9, 258) },
+    { names: { ant: "Anterior neck", post: "Posterior neck" }, group: 'neck', tbsa: 0.5, shape: box(205, 190.8, 275, 258) },
     { names: { ant: "Upper abdomen", post: "Mid back" }, group: 'trunk', tbsa: 3, shape: { kind: 'polygon', pts: [[165.2, 346.3], [319.5, 345.2], [306.6, 388.7], [305.7, 429.5], [172.8, 425.9], [171.7, 390.5]] } },
     { names: { ant: "Lower abdomen", post: "Lower back" }, group: 'trunk', tbsa: 3, shape: { kind: 'polygon', pts: [[174, 427], [307.8, 427], [308.5, 460.8], [290.3, 456], [267.2, 460.8], [240.9, 473.9], [212.9, 459.2], [189.6, 448.9], [176.6, 451.6]] } },
     // Top extended up to y472 to close the midline strip between Lower abdomen/back
