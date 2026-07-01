@@ -41,7 +41,7 @@ describe('regionAt — anatomical hit-testing', () => {
   it('resolves individual fingers and toes', () => {
     expect(regionAt(30, 524, 'anterior')).toBe('R Index proximal')
     expect(regionAt(39, 531, 'anterior')).toBe('R Middle proximal')
-    expect(regionAt(194, 916, 'anterior')).toBe('R Great toe')
+    expect(regionAt(175, 918, 'anterior')).toBe('R Great toe')
     // Mirror across the midline -> patient's LEFT.
     expect(regionAt(441, 531, 'anterior')).toBe('L Middle proximal')
   })
@@ -83,8 +83,8 @@ describe('regionAt — anatomical hit-testing', () => {
     // A toe tap resolves to the toe on the front; on the back the whole foot —
     // including the toe footprint — rolls into Heel (NOT the coarse limb
     // fallback, which would wrongly score ~9% instead of the foot's ~1%).
-    expect(regionAt(194, 916, 'anterior')).toBe('R Great toe')
-    expect(regionAt(194, 916, 'posterior')).toBe('L Heel')
+    expect(regionAt(175, 918, 'anterior')).toBe('R Great toe')
+    expect(regionAt(175, 918, 'posterior')).toBe('L Heel')
   })
 
   it('maps a tap to the macro zone of the region under it, not the smallest overlapping bbox', () => {
