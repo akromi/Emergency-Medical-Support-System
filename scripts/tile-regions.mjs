@@ -51,7 +51,14 @@ if (foot && toes.length) {
   const acc = (x, y) => { x1 = Math.min(x1, x); y1 = Math.min(y1, y); x2 = Math.max(x2, x); y2 = Math.max(y2, y) }
   if (foot.shape.kind === 'polygon') foot.shape.pts.forEach(([x, y]) => acc(x, y))
   else if (foot.shape.kind === 'box') { acc(foot.shape.x1, foot.shape.y1); acc(foot.shape.x2, foot.shape.y2) }
-  for (const t of toes) { acc(t.cx - t.w / 2, t.yTop); acc(t.cx + t.w / 2, t.yTop + t.len) }
+  // Accumulate each toe's four corners AFTER rotating about its root (cx, yTop),
+  // so a splayed (ang != 0) toe still lands fully inside the whole-foot box.
+  const rot = (x, y, cx, cy, deg) => { const a = ((deg || 0) * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a), dx = x - cx, dy = y - cy; return [cx + dx * c - dy * s, cy + dx * s + dy * c] }
+  for (const t of toes) {
+    for (const [px, py] of [[t.cx - t.w / 2, t.yTop], [t.cx + t.w / 2, t.yTop], [t.cx + t.w / 2, t.yTop + t.len], [t.cx - t.w / 2, t.yTop + t.len]]) {
+      const [rx, ry] = rot(px, py, t.cx, t.yTop, t.ang); acc(rx, ry)
+    }
+  }
   foot.shape = { kind: 'box', x1: r1(x1), y1: r1(y1), x2: r1(x2), y2: r1(y2) }
 }
 
