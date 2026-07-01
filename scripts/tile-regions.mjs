@@ -97,7 +97,7 @@ d.head.posterior.forEach((s) => L.push(region(s, "      "))); L.push("    ],", "
 d.central.forEach((s) => L.push(region(s, "    "))); L.push("  ],", "  left: [")
 for (const e of d.left) {
   if ('fingers' in e) { L.push("    { fingers: ["); e.fingers.forEach((f) => L.push(`      { label: ${JSON.stringify(f.label)}, rootX: ${num(f.rootX)}, rootY: ${num(f.rootY)}, ang: ${num(f.ang)}, w: ${num(f.w)}, lens: [${f.lens.map(num).join(', ')}], tbsa: [${f.tbsa.map(num).join(', ')}] },`)); L.push("    ] },") }
-  else if ('toes' in e) { L.push("    { toes: ["); e.toes.forEach((t) => L.push(`      { label: ${JSON.stringify(t.label)}, cx: ${num(t.cx)}, w: ${num(t.w)}, len: ${num(t.len)}, yTop: ${num(t.yTop)} },`)); L.push("    ] },") }
+  else if ('toes' in e) { L.push("    { toes: ["); e.toes.forEach((t) => L.push(`      { label: ${JSON.stringify(t.label)}, cx: ${num(t.cx)}, w: ${num(t.w)}, len: ${num(t.len)}, yTop: ${num(t.yTop)}${t.ang ? `, ang: ${num(t.ang)}` : ''} },`)); L.push("    ] },") }
   else L.push(region(e, "    "))
 }
 L.push("  ],", "}")

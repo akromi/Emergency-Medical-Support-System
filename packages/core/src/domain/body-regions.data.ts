@@ -58,6 +58,8 @@ export interface ToeSpec {
   w: number
   len: number
   yTop: number
+  /** Degrees (clockwise) to rotate the toe about its root (cx, yTop). */
+  ang?: number
 }
 
 /** Entries in the image-left list keep the exact build order; finger/toe groups
