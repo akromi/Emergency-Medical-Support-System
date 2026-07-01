@@ -137,9 +137,9 @@ export const BODY_REGION_DATA: BodyRegionData = {
     { names: { ant: "Thigh", post: "Thigh" }, side: 'left', group: 'leg', tbsa: 4.5, shape: { kind: 'polygon', pts: [[163.1, 511.5], [241.5, 513.3], [217, 668.5], [192.3, 663.6], [162, 664.5], [150, 602.6], [152.5, 553]] } },
     { names: { ant: "Shin", post: "Calf" }, side: 'left', group: 'leg', tbsa: 3, shape: quad(186, 710, 56, 189, 856, 34) },
     { names: { ant: "Ankle", post: "Ankle" }, side: 'left', group: 'leg', tbsa: 0.5, shape: box(171, 856, 207, 884) },
-    // Posterior label is "Heel", not "Sole": on a standing back-view figure you
-    // see the heel / back of the foot, not the plantar surface.
-    { names: { ant: "Foot dorsum", post: "Heel" }, side: 'left', group: 'foot', tbsa: 1, shape: box(150, 884, 204, 908) },
+    // Toes come BEFORE the foot region so they win their footprint on the
+    // anterior view (finer part first). They're anterior-only (built out of the
+    // posterior view — their tops aren't visible from behind).
     { toes: [
       { label: "Great toe", cx: 194, w: 13, len: 16, yTop: 908 },
       { label: "2nd toe", cx: 182, w: 10, len: 15, yTop: 908 },
@@ -147,5 +147,11 @@ export const BODY_REGION_DATA: BodyRegionData = {
       { label: "4th toe", cx: 163, w: 9, len: 13, yTop: 908 },
       { label: "5th toe", cx: 155, w: 8, len: 11, yTop: 908 },
     ] },
+    // Foot region spans the WHOLE foot (down to the toe tips, y924). Anterior
+    // "Foot dorsum" sits behind the individual toes; posterior "Heel" (no toes
+    // on the back) covers the whole foot so a back-of-foot tap stays ~1%, not
+    // the coarse limb fallback. Posterior label is "Heel", not "Sole": a
+    // standing back-view shows the heel, not the plantar surface.
+    { names: { ant: "Foot dorsum", post: "Heel" }, side: 'left', group: 'foot', tbsa: 1, shape: box(150, 884, 204, 924) },
   ],
 }

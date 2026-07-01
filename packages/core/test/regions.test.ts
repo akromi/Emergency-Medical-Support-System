@@ -80,9 +80,11 @@ describe('regionAt — anatomical hit-testing', () => {
   it('shows toes only on the anterior view (their tops aren’t visible from behind)', () => {
     expect(bodyRegions('anterior').some((r) => r.name === 'Great toe')).toBe(true)
     expect(bodyRegions('posterior').some((r) => r.name === 'Great toe')).toBe(false)
-    // A tap where a toe sits resolves to the toe on the front, not on the back.
+    // A toe tap resolves to the toe on the front; on the back the whole foot —
+    // including the toe footprint — rolls into Heel (NOT the coarse limb
+    // fallback, which would wrongly score ~9% instead of the foot's ~1%).
     expect(regionAt(194, 916, 'anterior')).toBe('R Great toe')
-    expect(regionAt(194, 916, 'posterior')).not.toContain('toe')
+    expect(regionAt(194, 916, 'posterior')).toBe('L Heel')
   })
 
   it('maps a tap to the macro zone of the region under it, not the smallest overlapping bbox', () => {
