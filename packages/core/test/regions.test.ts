@@ -142,6 +142,19 @@ describe('data-driven region map', () => {
     expect(regionAt(226, 163, 'anterior')).toBe('R Eye')
   })
 
+  it('rotates a toe about its root (cx, yTop)', () => {
+    const d = cloneData()
+    const toes = (d.left.find((e) => 'toes' in e) as { toes: Array<{ label: string; ang?: number }> }).toes
+    const great = toes.find((t) => t.label === 'Great toe')!
+    // Flat, (170, 908) sits just above the Great toe box — it's on the foot dorsum,
+    // not the toe (toes are anterior-only, mirrored image-left → patient's right).
+    expect(regionAt(170, 908, 'anterior')).toBe('R Foot dorsum')
+    great.ang = 90 // swing the toe 90° clockwise about its root
+    applyRegionData(d)
+    // The rotated toe now sweeps across (170, 908).
+    expect(regionAt(170, 908, 'anterior')).toBe('R Great toe')
+  })
+
   it('builds, hit-tests and mirrors a free polygon shape', () => {
     const d = cloneData()
     // Re-trace the Nose as an explicit triangle (calibrator "Shape ▸ Triangle").

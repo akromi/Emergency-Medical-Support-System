@@ -149,7 +149,8 @@ function sharedParts(data: BodyRegionData): SharedPart[] {
       }
     } else if ('toes' in e) {
       for (const t of e.toes) {
-        left.push({ names: { ant: t.label, post: t.label }, side: 'left', group: 'foot', tbsa: 0.1, antOnly: true, points: box(r1(t.cx - t.w / 2), t.yTop, r1(t.cx + t.w / 2), t.yTop + t.len) })
+        const pts = rotatePoints(box(r1(t.cx - t.w / 2), t.yTop, r1(t.cx + t.w / 2), t.yTop + t.len), t.cx, t.yTop, t.ang)
+        left.push({ names: { ant: t.label, post: t.label }, side: 'left', group: 'foot', tbsa: 0.1, antOnly: true, points: pts })
       }
     } else {
       left.push({ names: e.names as AntPost, side: 'left', group: e.group, tbsa: e.tbsa, points: shapePoints(e.shape), priority: e.priority })

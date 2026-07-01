@@ -186,10 +186,11 @@ function handlesFor(spec: RegionSpec | FingerSpec | ToeSpec): Handle[] {
       { id: 'width', x: r1(spec.rootX + px * spec.w / 2), y: r1(spec.rootY + py * spec.w / 2), role: 'pt' },
     ]
   }
-  if ('cx' in spec && 'len' in spec) { // toe
+  if ('cx' in spec && 'len' in spec) { // toe (rotates about its root at cx,yTop)
+    const br = rotPt(spec.cx + spec.w / 2, spec.yTop + spec.len, spec.cx, spec.yTop, spec.ang ?? 0)
     return [
       { id: 'top', x: spec.cx, y: spec.yTop, role: 'move' },
-      { id: 'br', x: r1(spec.cx + spec.w / 2), y: spec.yTop + spec.len, role: 'pt' },
+      { id: 'br', x: r1(br.x), y: r1(br.y), role: 'pt' },
     ]
   }
   const s = (spec as RegionSpec).shape
@@ -243,7 +244,10 @@ function dragHandle(spec: RegionSpec | FingerSpec | ToeSpec, id: string, px: num
   }
   if ('cx' in spec && 'len' in spec) { // toe
     if (id === 'top') { spec.cx = r1(px); spec.yTop = r1(py); return }
-    if (id === 'br') { spec.w = r1(Math.max(MIN, 2 * (px - spec.cx))); spec.len = r1(Math.max(MIN, py - spec.yTop)); return }
+    if (id === 'br') { // un-rotate the pointer to the toe's local frame before sizing
+      const l = rotPt(px, py, spec.cx, spec.yTop, -(spec.ang ?? 0))
+      spec.w = r1(Math.max(MIN, 2 * (l.x - spec.cx))); spec.len = r1(Math.max(MIN, l.y - spec.yTop)); return
+    }
     return
   }
   const s = (spec as RegionSpec).shape
@@ -289,8 +293,10 @@ function specBBox(spec: RegionSpec | FingerSpec | ToeSpec, mirror = false): { x:
     const tx = spec.rootX + Math.sin(a) * sum, ty = spec.rootY + Math.cos(a) * sum, m = spec.w
     x1 = Math.min(spec.rootX, tx) - m; x2 = Math.max(spec.rootX, tx) + m
     y1 = Math.min(spec.rootY, ty) - m; y2 = Math.max(spec.rootY, ty) + m
-  } else if ('cx' in spec && 'len' in spec) { // toe
-    x1 = spec.cx - spec.w / 2; x2 = spec.cx + spec.w / 2; y1 = spec.yTop; y2 = spec.yTop + spec.len
+  } else if ('cx' in spec && 'len' in spec) { // toe (rotated about its root)
+    const cs = ([[spec.cx - spec.w / 2, spec.yTop], [spec.cx + spec.w / 2, spec.yTop], [spec.cx + spec.w / 2, spec.yTop + spec.len], [spec.cx - spec.w / 2, spec.yTop + spec.len]] as const)
+      .map(([x, y]) => rotPt(x, y, spec.cx, spec.yTop, spec.ang ?? 0))
+    x1 = Math.min(...cs.map((p) => p.x)); x2 = Math.max(...cs.map((p) => p.x)); y1 = Math.min(...cs.map((p) => p.y)); y2 = Math.max(...cs.map((p) => p.y))
   } else {
     const s = (spec as RegionSpec).shape
     if (s.kind === 'box') {
@@ -362,7 +368,7 @@ function resizeSpec(spec: RegionSpec | FingerSpec | ToeSpec, dw: number, dh: num
 /** Rotate by `d` degrees: fingers via their angle, boxes/ellipses via `rot`. */
 function rotateSpec(spec: RegionSpec | FingerSpec | ToeSpec, d: number): void {
   if ('lens' in spec) { spec.ang = r1(spec.ang + d); return }
-  if ('cx' in spec && 'len' in spec) return // toe: no rotation
+  if ('cx' in spec && 'len' in spec) { spec.ang = r1((spec.ang ?? 0) + d); return } // toe: rotate about its root
   const s = (spec as RegionSpec).shape
   if (s.kind === 'box' || s.kind === 'ellipse') s.rot = r1(((s.rot ?? 0) + d) % 360)
   else if (s.kind === 'polygon') { // a polygon has no `rot`; rotate its vertices about the centroid
@@ -373,7 +379,7 @@ function rotateSpec(spec: RegionSpec | FingerSpec | ToeSpec, d: number): void {
 /** Whether the selected spec can be rotated (fingers, boxes, ellipses, polygons). */
 function rotatable(spec: RegionSpec | FingerSpec | ToeSpec): boolean {
   if ('lens' in spec) return true
-  if ('cx' in spec && 'len' in spec) return false
+  if ('cx' in spec && 'len' in spec) return true // toe: rotates about its root
   const k = (spec as RegionSpec).shape.kind
   return k === 'box' || k === 'ellipse' || k === 'polygon'
 }
