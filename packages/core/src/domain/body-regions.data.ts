@@ -95,27 +95,22 @@ export const BODY_REGION_DATA: BodyRegionData = {
       { name: "Crown", group: 'head', tbsa: 1, shape: { kind: 'polygon', pts: [[274.6, 138.9], [240.5, 140], [205.3, 140.5], [205.3, 140.5], [207.3, 132.9], [211.5, 125.3], [218.7, 118.1], [227.7, 113.9], [241.2, 111.2], [248.7, 111.9], [259, 115.9], [267.1, 121], [272.6, 128.8], [274.6, 138.9]] } },
     ],
     posterior: [
-      { name: "Ear", side: 'left', group: 'face', tbsa: 0.4, shape: ell(200, 170, 8, 17) },
-      { name: "Posterior scalp", group: 'head', tbsa: 1.5, shape: box(206, 113, 274, 162) },
-      { name: "Occiput", group: 'head', tbsa: 2, shape: box(204, 162, 276, 210) },
-      { name: "Nape", group: 'neck', tbsa: 0.5, shape: box(220, 210, 260, 233) },
+      { name: "Ear", side: 'left', group: 'face', tbsa: 0.4, shape: { kind: 'ellipse', cx: 205.2, cy: 174.7, rx: 5.8, ry: 11.9, rot: -19 } },
+      { name: "Posterior scalp", group: 'head', tbsa: 1.5, shape: { kind: 'polygon', pts: [[219.5, 121.5], [246, 115.6], [264, 120.3], [272.4, 134.8], [274, 162], [206, 162], [206.7, 138]] } },
+      { name: "Occiput", group: 'head', tbsa: 2, shape: box(207, 164.2, 272, 191.5) },
+      { name: "Nape", group: 'neck', tbsa: 0.5, shape: box(214.4, 220.3, 266.4, 243.3) },
     ],
   },
   central: [
-    { names: { ant: "Anterior neck", post: "Posterior neck" }, group: 'neck', tbsa: 0.5, shape: box(211.7, 207.5, 269.5, 251) },
-    { names: { ant: "Upper abdomen", post: "Mid back" }, group: 'trunk', tbsa: 3, shape: box(173.7, 345.2, 305.7, 429.5) },
-    { names: { ant: "Lower abdomen", post: "Lower back" }, group: 'trunk', tbsa: 3, shape: box(174, 433, 307.8, 493.7) },
-    { names: { ant: "Groin", post: "Perineum" }, group: 'trunk', tbsa: 1, shape: box(224, 512, 256, 566) },
+    { names: { ant: "Anterior neck", post: "Posterior neck" }, group: 'neck', tbsa: 0.5, shape: box(211.1, 190.8, 268.9, 258) },
+    { names: { ant: "Upper abdomen", post: "Mid back" }, group: 'trunk', tbsa: 3, shape: { kind: 'polygon', pts: [[165.2, 346.3], [319.5, 345.2], [306.6, 388.7], [305.7, 429.5], [172.8, 425.9], [171.7, 390.5]] } },
+    { names: { ant: "Lower abdomen", post: "Lower back" }, group: 'trunk', tbsa: 3, shape: { kind: 'polygon', pts: [[174, 433], [307.8, 433], [308.5, 460.8], [290.3, 456], [267.2, 460.8], [240.9, 473.9], [212.9, 459.2], [189.6, 448.9], [176.6, 451.6]] } },
+    { names: { ant: "Groin", post: "Perineum" }, group: 'trunk', tbsa: 1, shape: { kind: 'polygon', pts: [[221.5, 510.4], [255.8, 512], [254.5, 538.3], [243.1, 545.7], [235.4, 545.9], [224.9, 533.1]] } },
   ],
   left: [
     { names: { ant: "Shoulder", post: "Shoulder" }, side: 'left', group: 'arm', tbsa: 2, shape: { kind: 'polygon', pts: [[140.6, 257.1], [162.4, 246.3], [210.7, 226.5], [212.1, 254.1], [174.9, 255.4], [161.8, 276.5], [165.3, 294.4], [122.5, 300.3]] } },
     { names: { ant: "Chest", post: "Upper back" }, side: 'left', group: 'trunk', tbsa: 4.5, shape: box(166, 258, 238, 343.3) },
-    // Shared front/back shape: anterior Pelvis, posterior Buttock. Extended down
-    // to the gluteal fold (~y558) so the full posterior buttock is selectable —
-    // a shorter polygon handed the lower buttock to Thigh on the back view. The
-    // central Groin/Perineum box overrides the midline, so this only owns the
-    // lateral hip/buttock either side of it.
-    { names: { ant: "Pelvis", post: "Buttock" }, side: 'left', group: 'trunk', tbsa: 2, shape: { kind: 'polygon', pts: [[175.3, 431.8], [243.2, 434.4], [243.2, 556], [161, 558], [165.7, 494.8], [168.6, 472.1]] } },
+    { names: { ant: "Pelvis", post: "Buttock" }, side: 'left', group: 'trunk', tbsa: 2, shape: { kind: 'polygon', pts: [[188.5, 454], [203.8, 453.4], [216.4, 460.7], [230.9, 474.6], [241.7, 494.3], [239.7, 524.6], [229.6, 550.2], [197.1, 558.8], [173.3, 537.6], [165.7, 494.8], [173.3, 467.3]] } },
     { names: { ant: "Upper arm", post: "Upper arm" }, side: 'left', group: 'arm', tbsa: 2, shape: { kind: 'polygon', pts: [[125.6, 306.9], [171.1, 292.9], [171.3, 304.9], [169.4, 325.5], [161.9, 339.4], [152, 359.6], [112.2, 351.2], [113.6, 347.7], [117.9, 331.1], [124.9, 321.3], [124.3, 316.7]] } },
     { names: { ant: "Elbow", post: "Elbow" }, side: 'left', group: 'arm', tbsa: 0.5, shape: { kind: 'polygon', pts: [[111.9, 351.6], [149.5, 362.4], [144.7, 369.3], [140.1, 377.2], [135.7, 394.6], [90.1, 385.7], [101.5, 373]] } },
     { names: { ant: "Forearm", post: "Forearm" }, side: 'left', group: 'arm', tbsa: 1.5, shape: { kind: 'polygon', pts: [[89.2, 385.8], [139.1, 395.5], [88.7, 475.4], [58.7, 466.1]] } },
@@ -129,29 +124,17 @@ export const BODY_REGION_DATA: BodyRegionData = {
       { label: "Little", rootX: 62.8, rootY: 525.3, ang: -10.3, w: 7.9, lens: [12.1, 9.7, 7.7], tbsa: [0.06, 0.05, 0.05] },
     ] },
     { names: { ant: "Palm", post: "Back of hand" }, side: 'left', group: 'hand', tbsa: 0.5, shape: { kind: 'polygon', pts: [[37.2, 498.6], [59.4, 486.4], [69.2, 491.3], [76.4, 492.8], [80.9, 492], [78.6, 505.7], [72.7, 516.3], [67.6, 525.2], [62.1, 526.1], [48.2, 524.9], [29.1, 516.6], [30.8, 507.1]] } },
-    // Knee BEFORE Thigh: their polygons overlap a few px at the top of the
-    // patella, and regionAt returns the first match — so the finer Knee (0.5%)
-    // must precede the larger Thigh (4.5%) to win that band (the file's
-    // order-is-precedence convention, no priority needed).
     { names: { ant: "Knee", post: "Back of knee" }, side: 'left', group: 'leg', tbsa: 0.5, shape: { kind: 'polygon', pts: [[167, 662.7], [218.5, 661.2], [214.4, 687], [204.7, 711.9], [161.2, 710.5]] } },
-    { names: { ant: "Thigh", post: "Thigh" }, side: 'left', group: 'leg', tbsa: 4.5, shape: { kind: 'polygon', pts: [[163.1, 511.5], [241.5, 513.3], [217, 668.5], [192.3, 663.6], [162, 664.5], [150, 602.6], [152.5, 553]] } },
-    { names: { ant: "Shin", post: "Calf" }, side: 'left', group: 'leg', tbsa: 3, shape: quad(186, 710, 56, 189, 856, 34) },
-    { names: { ant: "Ankle", post: "Ankle" }, side: 'left', group: 'leg', tbsa: 0.5, shape: box(171, 856, 207, 884) },
-    // Toes come BEFORE the foot region so they win their footprint on the
-    // anterior view (finer part first). They're anterior-only (built out of the
-    // posterior view — their tops aren't visible from behind).
+    { names: { ant: "Thigh", post: "Thigh" }, side: 'left', group: 'leg', tbsa: 4.5, shape: { kind: 'polygon', pts: [[160.7, 513.6], [194.5, 563.9], [224.2, 556.5], [236.6, 546.6], [217, 668.5], [192.3, 663.6], [162, 664.5], [150, 602.6], [152.5, 553]] } },
+    { names: { ant: "Shin", post: "Calf" }, side: 'left', group: 'leg', tbsa: 3, shape: { kind: 'polygon', pts: [[162, 709.9], [210.5, 714.2], [207.9, 751.1], [206.9, 782.7], [194.1, 817.7], [191, 854.6], [160.3, 853.1], [151.1, 781], [149.6, 748.8]] } },
+    { names: { ant: "Ankle", post: "Ankle" }, side: 'left', group: 'leg', tbsa: 0.5, shape: { kind: 'polygon', pts: [[164.2, 854.9], [192, 855.4], [193.6, 866.8], [193.6, 879.9], [159.8, 879.4], [161.2, 867.4]] } },
     { toes: [
-      { label: "Great toe", cx: 194, w: 13, len: 16, yTop: 908 },
-      { label: "2nd toe", cx: 182, w: 10, len: 15, yTop: 908 },
-      { label: "3rd toe", cx: 172, w: 9, len: 14, yTop: 908 },
-      { label: "4th toe", cx: 163, w: 9, len: 13, yTop: 908 },
-      { label: "5th toe", cx: 155, w: 8, len: 11, yTop: 908 },
+      { label: "Great toe", cx: 175.1, w: 10, len: 16, yTop: 911.2 },
+      { label: "2nd toe", cx: 163.6, w: 8.8, len: 16.9, yTop: 910.1 },
+      { label: "3rd toe", cx: 157, w: 6, len: 17.5, yTop: 908 },
+      { label: "4th toe", cx: 150.4, w: 5.6, len: 13.4, yTop: 908.7 },
+      { label: "5th toe", cx: 145.5, w: 3.3, len: 12.4, yTop: 909.1 },
     ] },
-    // Foot region spans the WHOLE foot (down to the toe tips, y924). Anterior
-    // "Foot dorsum" sits behind the individual toes; posterior "Heel" (no toes
-    // on the back) covers the whole foot so a back-of-foot tap stays ~1%, not
-    // the coarse limb fallback. Posterior label is "Heel", not "Sole": a
-    // standing back-view shows the heel, not the plantar surface.
-    { names: { ant: "Foot dorsum", post: "Heel" }, side: 'left', group: 'foot', tbsa: 1, shape: box(150, 884, 204, 924) },
+    { names: { ant: "Foot dorsum", post: "Heel" }, side: 'left', group: 'foot', tbsa: 1, shape: box(143, 878, 192, 930) },
   ],
 }
