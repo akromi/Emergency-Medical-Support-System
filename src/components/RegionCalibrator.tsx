@@ -772,7 +772,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
             <button type="button" onClick={() => edit((s) => rotateSpec(s, step))} aria-label={t('calib.rotR')} title={t('calib.rotR')}>↻</button>
           </>)}
           <span className="cn-sep" />
-          <button type="button" onClick={undo} disabled={!histLen} title={t('calib.undoTitle')}>{t('calib.undo')}</button>
+          <button type="button" className="cn-undo" onClick={undo} disabled={!histLen} title={t('calib.undoTitle')}>{t('calib.undo')}</button>
           {'shape' in selSpec && (selSpec as RegionSpec).shape.kind === 'polygon' && (<>
             <span className="cn-lbl">{t('calib.point')}</span>
             <button type="button" onClick={removeVert}

@@ -137,7 +137,9 @@ export const BODY_REGION_DATA: BodyRegionData = {
     { names: { ant: "Thigh", post: "Thigh" }, side: 'left', group: 'leg', tbsa: 4.5, shape: { kind: 'polygon', pts: [[163.1, 511.5], [241.5, 513.3], [217, 668.5], [192.3, 663.6], [162, 664.5], [150, 602.6], [152.5, 553]] } },
     { names: { ant: "Shin", post: "Calf" }, side: 'left', group: 'leg', tbsa: 3, shape: quad(186, 710, 56, 189, 856, 34) },
     { names: { ant: "Ankle", post: "Ankle" }, side: 'left', group: 'leg', tbsa: 0.5, shape: box(171, 856, 207, 884) },
-    { names: { ant: "Foot dorsum", post: "Sole" }, side: 'left', group: 'foot', tbsa: 1, shape: box(150, 884, 204, 908) },
+    // Posterior label is "Heel", not "Sole": on a standing back-view figure you
+    // see the heel / back of the foot, not the plantar surface.
+    { names: { ant: "Foot dorsum", post: "Heel" }, side: 'left', group: 'foot', tbsa: 1, shape: box(150, 884, 204, 908) },
     { toes: [
       { label: "Great toe", cx: 194, w: 13, len: 16, yTop: 908 },
       { label: "2nd toe", cx: 182, w: 10, len: 15, yTop: 908 },
