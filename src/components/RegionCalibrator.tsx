@@ -390,6 +390,38 @@ function loadSaved(): BodyRegionData | null {
   try { const d = JSON.parse(localStorage.getItem(LS_KEY) ?? 'null'); return isRegionData(d) ? d : null } catch { return null }
 }
 
+// Identity keys for every region in a map (bucket-prefixed anterior name / digit
+// label), used to tell whether a saved map predates the shipped built-in.
+function regionKeys(d: BodyRegionData): Set<string> {
+  const s = new Set<string>()
+  d.head.anterior.forEach((r) => s.add(`ha:${r.name}`))
+  d.head.posterior.forEach((r) => s.add(`hp:${r.name}`))
+  d.central.forEach((r) => s.add(`c:${r.names!.ant}`))
+  d.left.forEach((e) => {
+    if ('fingers' in e) e.fingers.forEach((f) => s.add(`f:${f.label}`))
+    else if ('toes' in e) e.toes.forEach((tt) => s.add(`t:${tt.label}`))
+    else s.add(`l:${(e as RegionSpec).names!.ant}`)
+  })
+  return s
+}
+
+// Built-in regions absent from `saved` — i.e. added since the map was saved.
+// Their (anterior) display names drive the "your saved map is out of date"
+// prompt so the user can pull the current built-in (e.g. a newly-added Groin).
+function regionsAddedSince(saved: BodyRegionData): string[] {
+  const have = regionKeys(saved), out: string[] = []
+  const bd = BODY_REGION_DATA
+  bd.head.anterior.forEach((r) => { if (!have.has(`ha:${r.name}`)) out.push(r.name!) })
+  bd.head.posterior.forEach((r) => { if (!have.has(`hp:${r.name}`)) out.push(r.name!) })
+  bd.central.forEach((r) => { if (!have.has(`c:${r.names!.ant}`)) out.push(r.names!.ant) })
+  bd.left.forEach((e) => {
+    if ('fingers' in e) e.fingers.forEach((f) => { if (!have.has(`f:${f.label}`)) out.push(f.label) })
+    else if ('toes' in e) e.toes.forEach((tt) => { if (!have.has(`t:${tt.label}`)) out.push(tt.label) })
+    else { const r = e as RegionSpec; if (!have.has(`l:${r.names!.ant}`)) out.push(r.names!.ant) }
+  })
+  return out
+}
+
 export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   const { t, lang } = useLang()
   const [view, setView] = useState<BodyView>('anterior')
@@ -402,6 +434,11 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   const [step, setStep] = useState(1)        // nudge/resize amount per button tap
   const [recenter, setRecenter] = useState(0) // bump to re-frame the viewport
   const [showHelp, setShowHelp] = useState(false) // in-app help / cheat-sheet overlay
+  // Regions the shipped built-in has that the resumed saved map lacks (computed
+  // once on mount). Non-empty ⇒ the saved map predates this app version, so we
+  // offer to reload the built-in. Dismissible so it never blocks work.
+  const [staleAdded] = useState<string[]>(() => { const s = loadSaved(); return s ? regionsAddedSince(s) : [] })
+  const [staleDismissed, setStaleDismissed] = useState(false)
   const [importErr, setImportErr] = useState('') // shown when an imported file is not a valid map
   // Undo stack in a ref (always current, so rapid Ctrl+Z key-repeat pops exactly
   // one entry per press); a length state drives the disabled button. Each entry
@@ -673,6 +710,13 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
 
   return (
     <div className="calib">
+      {staleAdded.length > 0 && !staleDismissed && (
+        <div className="calib-stale" role="alert">
+          <span>{t('calib.stale', { names: staleAdded.slice(0, 4).map((n) => regionLabel(n, lang)).join(', ') + (staleAdded.length > 4 ? '…' : '') })}</span>
+          <button type="button" onClick={() => { reset(); setStaleDismissed(true) }} title={t('calib.staleLoadTitle')}>{t('calib.staleLoad')}</button>
+          <button type="button" onClick={() => setStaleDismissed(true)} title={t('calib.staleKeepTitle')}>{t('calib.staleKeep')}</button>
+        </div>
+      )}
       <div className="calib-bar">
         <strong>{t('calib.title')}</strong>
         <button type="button" className="calib-help-btn" onClick={() => setShowHelp(true)} title={t('calib.helpTitle')} aria-label={t('calib.helpAria')}>{t('calib.help')}</button>
@@ -864,6 +908,7 @@ function CalibHelp({ onClose }: { onClose: () => void }) {
             <li>{t('calib.h.save2')}</li>
             <li>{t('calib.h.save3')}</li>
             <li>{t('calib.h.save5')}</li>
+            <li>{t('calib.h.save6')}</li>
             <li>{t('calib.h.save4')}</li>
           </ul>
         </div>

@@ -79,3 +79,36 @@ test('admin can add, reshape, split and delete a calibrator region', async ({ pa
   await expect(regionSelect.locator('option')).toHaveCount(before + 1)
   await expect(calib.locator('.calib-edit')).toHaveCount(0)
 })
+
+test('a stale saved map offers to load the latest built-in', async ({ page }) => {
+  // Seed a saved override that predates the shipped regions (empty ⇒ missing all),
+  // then reload so the calibrator resumes from it instead of the built-in.
+  await page.evaluate(() => localStorage.setItem('tl.regions.override',
+    JSON.stringify({ head: { anterior: [], posterior: [] }, central: [], left: [] })))
+  await page.reload()
+  const dismiss = page.locator('.tour-offer .tip-x')
+  if (await dismiss.count()) await dismiss.first().click()
+
+  // Sign in as admin and open the calibrator.
+  await page.getByRole('button', { name: /Operators/ }).click()
+  const op = page.locator('.op')
+  await op.getByPlaceholder('Operator name').fill('Chief')
+  await op.locator('.op-add select').selectOption('admin')
+  await op.getByRole('button', { name: 'Add' }).click()
+  await op.locator('.op-pick', { hasText: 'Chief' }).click()
+  await op.getByRole('button', { name: /Close/ }).click()
+  await page.getByRole('button', { name: /🛠 Admin/ }).click()
+  await page.getByRole('button', { name: /Region calibrator/ }).click()
+  const calib = page.locator('.calib')
+  await expect(calib).toBeVisible()
+
+  // The stale-map notice appears; "Load latest" pulls the built-in and clears it.
+  const stale = calib.locator('.calib-stale')
+  await expect(stale).toBeVisible()
+  const regionSelect = calib.locator('.calib-bar select').first()
+  const before = await regionSelect.locator('option').count() // just the placeholder
+  await stale.getByRole('button', { name: /Load latest/ }).click()
+  await expect(stale).toHaveCount(0)
+  expect(await regionSelect.locator('option').count()).toBeGreaterThan(before + 10)
+  expect(await page.evaluate(() => localStorage.getItem('tl.regions.override'))).toBeNull()
+})
