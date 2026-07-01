@@ -390,6 +390,38 @@ function loadSaved(): BodyRegionData | null {
   try { const d = JSON.parse(localStorage.getItem(LS_KEY) ?? 'null'); return isRegionData(d) ? d : null } catch { return null }
 }
 
+// Identity keys for every region in a map (bucket-prefixed anterior name / digit
+// label), used to tell whether a saved map predates the shipped built-in.
+function regionKeys(d: BodyRegionData): Set<string> {
+  const s = new Set<string>()
+  d.head.anterior.forEach((r) => s.add(`ha:${r.name}`))
+  d.head.posterior.forEach((r) => s.add(`hp:${r.name}`))
+  d.central.forEach((r) => s.add(`c:${r.names!.ant}`))
+  d.left.forEach((e) => {
+    if ('fingers' in e) e.fingers.forEach((f) => s.add(`f:${f.label}`))
+    else if ('toes' in e) e.toes.forEach((tt) => s.add(`t:${tt.label}`))
+    else s.add(`l:${(e as RegionSpec).names!.ant}`)
+  })
+  return s
+}
+
+// Built-in regions absent from `saved` — i.e. added since the map was saved.
+// Their (anterior) display names drive the "your saved map is out of date"
+// prompt so the user can pull the current built-in (e.g. a newly-added Groin).
+function regionsAddedSince(saved: BodyRegionData): string[] {
+  const have = regionKeys(saved), out: string[] = []
+  const bd = BODY_REGION_DATA
+  bd.head.anterior.forEach((r) => { if (!have.has(`ha:${r.name}`)) out.push(r.name!) })
+  bd.head.posterior.forEach((r) => { if (!have.has(`hp:${r.name}`)) out.push(r.name!) })
+  bd.central.forEach((r) => { if (!have.has(`c:${r.names!.ant}`)) out.push(r.names!.ant) })
+  bd.left.forEach((e) => {
+    if ('fingers' in e) e.fingers.forEach((f) => { if (!have.has(`f:${f.label}`)) out.push(f.label) })
+    else if ('toes' in e) e.toes.forEach((tt) => { if (!have.has(`t:${tt.label}`)) out.push(tt.label) })
+    else { const r = e as RegionSpec; if (!have.has(`l:${r.names!.ant}`)) out.push(r.names!.ant) }
+  })
+  return out
+}
+
 export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   const { t, lang } = useLang()
   const [view, setView] = useState<BodyView>('anterior')
@@ -402,6 +434,7 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   const [step, setStep] = useState(1)        // nudge/resize amount per button tap
   const [recenter, setRecenter] = useState(0) // bump to re-frame the viewport
   const [showHelp, setShowHelp] = useState(false) // in-app help / cheat-sheet overlay
+  const [staleDismissed, setStaleDismissed] = useState(false)
   const [importErr, setImportErr] = useState('') // shown when an imported file is not a valid map
   // Undo stack in a ref (always current, so rapid Ctrl+Z key-repeat pops exactly
   // one entry per press); a length state drives the disabled button. Each entry
@@ -453,6 +486,10 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
 
   const regions = useMemo(() => buildRegions(data, view), [data, view])
   const specs = useMemo(() => listSpecs(data, view, t, lang), [data, view, t, lang])
+  // Built-in regions the CURRENT map lacks. Reactive to `data`, so it clears the
+  // moment the map becomes current (Reset / Load latest) and re-appears if an
+  // Undo restores a stale map — never keyed to a one-time mount snapshot.
+  const staleNow = useMemo(() => regionsAddedSince(data), [data])
   const selSpec = sel ? specShape(data, sel) : null
   const handles = selSpec ? handlesFor(selSpec) : []
 
@@ -673,6 +710,14 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
 
   return (
     <div className="calib">
+      {staleNow.length > 0 && !staleDismissed && (
+        <div className="calib-stale" role="alert">
+          <span>{t('calib.stale', { names: staleNow.slice(0, 4).map((n) => regionLabel(n, lang)).join(', ') + (staleNow.length > 4 ? '…' : '') })}</span>
+          {/* Load latest makes the map current (staleNow → []), which hides this on its own — no sticky flag. */}
+          <button type="button" onClick={reset} title={t('calib.staleLoadTitle')}>{t('calib.staleLoad')}</button>
+          <button type="button" onClick={() => setStaleDismissed(true)} title={t('calib.staleKeepTitle')}>{t('calib.staleKeep')}</button>
+        </div>
+      )}
       <div className="calib-bar">
         <strong>{t('calib.title')}</strong>
         <button type="button" className="calib-help-btn" onClick={() => setShowHelp(true)} title={t('calib.helpTitle')} aria-label={t('calib.helpAria')}>{t('calib.help')}</button>
@@ -864,6 +909,7 @@ function CalibHelp({ onClose }: { onClose: () => void }) {
             <li>{t('calib.h.save2')}</li>
             <li>{t('calib.h.save3')}</li>
             <li>{t('calib.h.save5')}</li>
+            <li>{t('calib.h.save6')}</li>
             <li>{t('calib.h.save4')}</li>
           </ul>
         </div>
