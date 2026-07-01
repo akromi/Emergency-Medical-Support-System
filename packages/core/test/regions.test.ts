@@ -144,15 +144,23 @@ describe('data-driven region map', () => {
 
   it('rotates a toe about its root (cx, yTop)', () => {
     const d = cloneData()
-    const toes = (d.left.find((e) => 'toes' in e) as { toes: Array<{ label: string; ang?: number }> }).toes
+    const toes = (d.left.find((e) => 'toes' in e) as {
+      toes: Array<{ label: string; cx: number; w: number; len: number; yTop: number; ang?: number }>
+    }).toes
     const great = toes.find((t) => t.label === 'Great toe')!
-    // Flat, (170, 908) sits just above the Great toe box — it's on the foot dorsum,
-    // not the toe (toes are anterior-only, mirrored image-left → patient's right).
-    expect(regionAt(170, 908, 'anterior')).toBe('R Foot dorsum')
-    great.ang = 90 // swing the toe 90° clockwise about its root
-    applyRegionData(d)
-    // The rotated toe now sweeps across (170, 908).
-    expect(regionAt(170, 908, 'anterior')).toBe('R Great toe')
+    // Pin a known flat geometry so the assertion doesn't ride on the shipped
+    // calibration: a 12×24 box hanging from the root (180, 905), corners span
+    // x∈[174,186], y∈[905,929].
+    great.cx = 180; great.w = 12; great.len = 24; great.yTop = 905; great.ang = 90
+    // Rotating 90° clockwise about the root sends each corner (dx, dy) → (-dy, dx):
+    // the footprint swings left of the root (x∈[156,180]) and its length becomes
+    // the width span (y∈[899,911]).
+    const toe = buildRegions(d, 'anterior').find((r) => r.name === 'Great toe' && r.side === 'left')!
+    const xs = toe.points.map((p) => p[0]), ys = toe.points.map((p) => p[1])
+    expect(Math.min(...xs)).toBeCloseTo(156, 1)
+    expect(Math.max(...xs)).toBeCloseTo(180, 1)
+    expect(Math.min(...ys)).toBeCloseTo(899, 1)
+    expect(Math.max(...ys)).toBeCloseTo(911, 1)
   })
 
   it('builds, hit-tests and mirrors a free polygon shape', () => {
