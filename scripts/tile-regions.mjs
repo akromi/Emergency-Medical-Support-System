@@ -4,7 +4,11 @@
 // vertical-band fallback. Also gives the foot its whole-foot coverage, since the
 // toes are anterior-only (their tops aren't visible from behind).
 //
-//   node scripts/tile-regions.mjs <exported.json> > packages/core/src/domain/body-regions.data.ts
+//   node scripts/tile-regions.mjs <exported.json>
+//
+// It rewrites packages/core/src/domain/body-regions.data.ts IN PLACE (keeping the
+// file's type/helper header). Do NOT redirect stdout into that file — the shell
+// would truncate it before the script can read its header.
 //
 // Idempotent-ish: run once per adopted export. Margin is deliberately small
 // (a few px) — enough to close seams, not enough to visibly distort a region.
@@ -54,10 +58,12 @@ if (foot && toes.length) {
 // --- close the few vertical junction gaps wider than the dilation margin ---
 // (stable for this figure): neck must meet the chest, and the head-top regions
 // must reach the crown of the skull.
+const topY = (sh) => sh.kind === 'box' ? sh.y1 : sh.kind === 'polygon' ? Math.min(...sh.pts.map((p) => p[1])) : sh.kind === 'quad' ? sh.yTop : sh.kind === 'ellipse' ? sh.cy - sh.ry : Infinity
 const neck = d.central.find((s) => s.names && s.names.ant === 'Anterior neck')
 const chest = d.left.find((e) => e.names && e.names.ant === 'Chest')
-if (neck && neck.shape.kind === 'box' && chest && chest.shape.kind === 'box') {
-  neck.shape.y2 = Math.max(neck.shape.y2, chest.shape.y1 + 2) // overlap the chest top
+// Extend the neck down to the chest's top, whatever shape the chest is traced as.
+if (neck && neck.shape.kind === 'box' && chest && chest.shape) {
+  neck.shape.y2 = Math.max(neck.shape.y2, topY(chest.shape) + 2)
 }
 
 // --- dilate every region shape (skip fingers/toes: distal, no seam gaps) ---
