@@ -45,7 +45,9 @@ Drag the handles onto the figure:
   **− point** removes the selected vertex (kept at ≥ 3).
 
 Or use the **Move / Width / Height / Rotate** buttons with a 1- or 5-unit **Step**
-for precise, tap-based adjustment — the figure holds still while you work.
+for precise, tap-based adjustment — the figure holds still while you work. **Rotate**
+turns boxes, ellipses, polygons and fingers, as well as **toes** (which pivot about
+their root, to follow the splay of the foot).
 
 ## Shapes
 
