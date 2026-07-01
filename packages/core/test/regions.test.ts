@@ -72,6 +72,17 @@ describe('regionAt — anatomical hit-testing', () => {
     // Perineum) records Buttock — not Thigh, and not the central Perineum.
     expect(regionAt(220, 535, 'posterior')).toBe('L Buttock')
     expect(regionAt(260, 535, 'posterior')).toBe('R Buttock')
+    // The foot's back aspect is the Heel (not "Sole" — the plantar surface isn't
+    // visible on a standing back-view figure).
+    expect(regionAt(177, 896, 'posterior')).toBe('L Heel')
+  })
+
+  it('shows toes only on the anterior view (their tops aren’t visible from behind)', () => {
+    expect(bodyRegions('anterior').some((r) => r.name === 'Great toe')).toBe(true)
+    expect(bodyRegions('posterior').some((r) => r.name === 'Great toe')).toBe(false)
+    // A tap where a toe sits resolves to the toe on the front, not on the back.
+    expect(regionAt(194, 916, 'anterior')).toBe('R Great toe')
+    expect(regionAt(194, 916, 'posterior')).not.toContain('toe')
   })
 
   it('maps a tap to the macro zone of the region under it, not the smallest overlapping bbox', () => {
@@ -208,6 +219,14 @@ describe('burn TBSA estimation', () => {
     expect(regionTBSA('Palm')).toBe(0.5)
     expect(regionTBSA('R Great toe')).toBe(0.1)
     expect(regionTBSA('Nowhere')).toBe(0)
+  })
+
+  it('keeps TBSA for the renamed posterior foot (legacy "Sole" → "Heel")', () => {
+    // Records persist the region name; a burn saved as "Sole" before the rename
+    // must still contribute its 1%, not 0.
+    expect(regionTBSA('Heel')).toBe(1)
+    expect(regionTBSA('Sole')).toBe(1)
+    expect(regionTBSA('L Sole')).toBe(1)
   })
 
   it('sums burns across regions, ignoring non-burn injuries', () => {

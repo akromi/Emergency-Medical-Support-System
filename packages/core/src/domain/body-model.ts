@@ -86,6 +86,9 @@ interface SharedPart {
   tbsa: number
   points: ReadonlyArray<Point>
   priority?: number
+  /** Only present on the anterior view (e.g. toes: their tops aren't visible on
+   *  a standing back-view figure). Dropped from the posterior build. */
+  antOnly?: boolean
 }
 
 const mirrorX = (pts: ReadonlyArray<Point>): Point[] => pts.map(([x, y]) => [r1(W - x), y] as Point)
@@ -146,7 +149,7 @@ function sharedParts(data: BodyRegionData): SharedPart[] {
       }
     } else if ('toes' in e) {
       for (const t of e.toes) {
-        left.push({ names: { ant: t.label, post: t.label }, side: 'left', group: 'foot', tbsa: 0.1, points: box(r1(t.cx - t.w / 2), t.yTop, r1(t.cx + t.w / 2), t.yTop + t.len) })
+        left.push({ names: { ant: t.label, post: t.label }, side: 'left', group: 'foot', tbsa: 0.1, antOnly: true, points: box(r1(t.cx - t.w / 2), t.yTop, r1(t.cx + t.w / 2), t.yTop + t.len) })
       }
     } else {
       left.push({ names: e.names as AntPost, side: 'left', group: e.group, tbsa: e.tbsa, points: shapePoints(e.shape), priority: e.priority })
@@ -162,7 +165,9 @@ function sharedParts(data: BodyRegionData): SharedPart[] {
 }
 
 function buildView(view: BodyView, data: BodyRegionData, shared: SharedPart[]): BodyRegion[] {
-  const sharedRegions: BodyRegion[] = shared.map((p) => ({
+  const sharedRegions: BodyRegion[] = shared
+    .filter((p) => view === 'anterior' || !p.antOnly) // toes: anterior-only
+    .map((p) => ({
     name: view === 'anterior' ? p.names.ant : p.names.post,
     side: p.side,
     group: p.group,
@@ -318,6 +323,10 @@ export const REGION_TBSA: Readonly<Record<string, number>> = (() => {
     Head: 7, Chest: 9, Abdomen: 6, Pelvis: 3, 'Left lower limb': 9, 'Right lower limb': 9,
   }
   for (const [k, v] of Object.entries(fallback)) if (!(k in m)) m[k] = v
+  // Back-compat: regions renamed across versions keep their TBSA for records
+  // saved under the old name (posterior foot "Sole" → "Heel", same 1%).
+  const legacy: Record<string, number> = { Sole: 1 }
+  for (const [k, v] of Object.entries(legacy)) if (!(k in m)) m[k] = v
   return m
 })()
 
