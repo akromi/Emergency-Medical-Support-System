@@ -92,11 +92,11 @@ export const BODY_REGION_DATA: BodyRegionData = {
       { name: "Cheek", side: 'left', group: 'face', tbsa: 0.6, shape: box(210.6, 164.4, 226.4, 203.2) },
       { name: "Chin", group: 'face', tbsa: 0.4, shape: box(219, 192, 265.6, 207.9) },
       { name: "Forehead", group: 'face', tbsa: 1, shape: box(205.4, 140.3, 276.4, 151.2) },
-      { name: "Crown", group: 'head', tbsa: 1, shape: { kind: 'polygon', pts: [[274.6, 138.9], [240.5, 140], [205.3, 140.5], [205.3, 140.5], [207.3, 132.9], [211.5, 125.3], [218.7, 118.1], [227.7, 113.9], [241.2, 111.2], [248.7, 111.9], [259, 115.9], [267.1, 121], [272.6, 128.8], [274.6, 138.9]] } },
+      { name: "Crown", group: 'head', tbsa: 1, shape: { kind: 'polygon', pts: [[274.6, 138.9], [240.5, 140], [205.3, 140.5], [205.3, 140.5], [207.3, 132.9], [211.5, 123], [218.7, 113], [227.7, 108], [241.2, 106], [248.7, 108], [259, 112], [267.1, 118], [272.6, 128.8], [274.6, 138.9]] } },
     ],
     posterior: [
       { name: "Ear", side: 'left', group: 'face', tbsa: 0.4, shape: { kind: 'ellipse', cx: 205.2, cy: 174.7, rx: 5.8, ry: 11.9, rot: -19 } },
-      { name: "Posterior scalp", group: 'head', tbsa: 1.5, shape: { kind: 'polygon', pts: [[219.5, 121.5], [246, 115.6], [264, 120.3], [272.4, 134.8], [274, 162], [206, 162], [206.7, 138]] } },
+      { name: "Posterior scalp", group: 'head', tbsa: 1.5, shape: { kind: 'polygon', pts: [[216, 116], [246, 106], [268, 116], [272.4, 134.8], [274, 162], [206, 162], [206.7, 132]] } },
       { name: "Occiput", group: 'head', tbsa: 2, shape: box(207, 164.2, 272, 191.5) },
       { name: "Nape", group: 'neck', tbsa: 0.5, shape: box(214.4, 220.3, 266.4, 243.3) },
     ],
@@ -104,12 +104,14 @@ export const BODY_REGION_DATA: BodyRegionData = {
   central: [
     { names: { ant: "Anterior neck", post: "Posterior neck" }, group: 'neck', tbsa: 0.5, shape: box(211.1, 190.8, 268.9, 258) },
     { names: { ant: "Upper abdomen", post: "Mid back" }, group: 'trunk', tbsa: 3, shape: { kind: 'polygon', pts: [[165.2, 346.3], [319.5, 345.2], [306.6, 388.7], [305.7, 429.5], [172.8, 425.9], [171.7, 390.5]] } },
-    { names: { ant: "Lower abdomen", post: "Lower back" }, group: 'trunk', tbsa: 3, shape: { kind: 'polygon', pts: [[174, 433], [307.8, 433], [308.5, 460.8], [290.3, 456], [267.2, 460.8], [240.9, 473.9], [212.9, 459.2], [189.6, 448.9], [176.6, 451.6]] } },
-    { names: { ant: "Groin", post: "Perineum" }, group: 'trunk', tbsa: 1, shape: { kind: 'polygon', pts: [[221.5, 510.4], [255.8, 512], [254.5, 538.3], [243.1, 545.7], [235.4, 545.9], [224.9, 533.1]] } },
+    { names: { ant: "Lower abdomen", post: "Lower back" }, group: 'trunk', tbsa: 3, shape: { kind: 'polygon', pts: [[174, 427], [307.8, 427], [308.5, 460.8], [290.3, 456], [267.2, 460.8], [240.9, 473.9], [212.9, 459.2], [189.6, 448.9], [176.6, 451.6]] } },
+    // Top extended up to y472 to close the midline strip between Lower abdomen/back
+    // and the genital region (the mirrored Pelvis halves don't meet on the midline).
+    { names: { ant: "Groin", post: "Perineum" }, group: 'trunk', tbsa: 1, shape: { kind: 'polygon', pts: [[220, 472], [256, 472], [255.8, 512], [254.5, 538.3], [246, 558], [234, 558], [224.9, 533.1], [221.5, 510.4]] } },
   ],
   left: [
     { names: { ant: "Shoulder", post: "Shoulder" }, side: 'left', group: 'arm', tbsa: 2, shape: { kind: 'polygon', pts: [[140.6, 257.1], [162.4, 246.3], [210.7, 226.5], [212.1, 254.1], [174.9, 255.4], [161.8, 276.5], [165.3, 294.4], [122.5, 300.3]] } },
-    { names: { ant: "Chest", post: "Upper back" }, side: 'left', group: 'trunk', tbsa: 4.5, shape: box(166, 258, 238, 343.3) },
+    { names: { ant: "Chest", post: "Upper back" }, side: 'left', group: 'trunk', tbsa: 4.5, shape: box(166, 258, 241, 343.3) },
     { names: { ant: "Pelvis", post: "Buttock" }, side: 'left', group: 'trunk', tbsa: 2, shape: { kind: 'polygon', pts: [[188.5, 454], [203.8, 453.4], [216.4, 460.7], [230.9, 474.6], [241.7, 494.3], [239.7, 524.6], [229.6, 550.2], [197.1, 558.8], [173.3, 537.6], [165.7, 494.8], [173.3, 467.3]] } },
     { names: { ant: "Upper arm", post: "Upper arm" }, side: 'left', group: 'arm', tbsa: 2, shape: { kind: 'polygon', pts: [[125.6, 306.9], [171.1, 292.9], [171.3, 304.9], [169.4, 325.5], [161.9, 339.4], [152, 359.6], [112.2, 351.2], [113.6, 347.7], [117.9, 331.1], [124.9, 321.3], [124.3, 316.7]] } },
     { names: { ant: "Elbow", post: "Elbow" }, side: 'left', group: 'arm', tbsa: 0.5, shape: { kind: 'polygon', pts: [[111.9, 351.6], [149.5, 362.4], [144.7, 369.3], [140.1, 377.2], [135.7, 394.6], [90.1, 385.7], [101.5, 373]] } },
