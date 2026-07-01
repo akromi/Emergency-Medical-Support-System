@@ -78,8 +78,8 @@ export interface BodyRegionData {
 
 const box = (x1: number, y1: number, x2: number, y2: number): ShapeSpec => ({ kind: 'box', x1, y1, x2, y2 })
 const ell = (cx: number, cy: number, rx: number, ry: number): ShapeSpec => ({ kind: 'ellipse', cx, cy, rx, ry })
-const quad = (cxTop: number, yTop: number, wTop: number, cxBot: number, yBot: number, wBot: number): ShapeSpec =>
-  ({ kind: 'quad', cxTop, yTop, wTop, cxBot, yBot, wBot })
+// (No quad() helper: the current map uses none. The 'quad' ShapeSpec kind above
+// stays supported — inline `{ kind: 'quad', … }` if a future calibration needs it.)
 
 /** The canonical region map. Edit these numbers (or the calibrator) to refit. */
 export const BODY_REGION_DATA: BodyRegionData = {
