@@ -129,7 +129,7 @@ export const BODY_REGION_DATA: BodyRegionData = {
     { names: { ant: "Knee", post: "Back of knee" }, side: 'left', group: 'leg', tbsa: 0.5, shape: { kind: 'polygon', pts: [[156.4, 651.1], [232.7, 648.8], [226, 690.2], [212.7, 724.1], [147.8, 722.1] ] } },
     { names: { ant: "Thigh", post: "Thigh" }, side: 'left', group: 'leg', tbsa: 4.5, shape: { kind: 'polygon', pts: [[154.7, 483.2], [199.7, 550.3], [218.8, 545.5], [253.4, 517.8], [226.8, 682.7], [191.3, 675.6], [152.2, 676.7], [138, 603.4], [140.5, 551.4] ] } },
     { names: { ant: "Shin", post: "Calf" }, side: 'left', group: 'leg', tbsa: 3, shape: { kind: 'polygon', pts: [[153.4, 697.1], [223.3, 703.2], [219.9, 751.7], [218.9, 785.1], [205.9, 820.3], [202, 867.2], [149.7, 864.5], [139.1, 782], [137.6, 747.2] ] } },
-    { names: { ant: "Ankle", post: "Ankle" }, side: 'left', group: 'leg', tbsa: 0.5, shape: { kind: 'polygon', pts: [[154.8, 842.7], [202.4, 843.6], [205.6, 866], [205.6, 892.1], [146.4, 891.2], [149.4, 865.3] ] } },
+    { names: { ant: "Ankle", post: "Ankle" }, side: 'left', group: 'leg', tbsa: 0.5, shape: { kind: 'polygon', pts: [[157.2, 842.4], [199, 843.4], [202.1, 866.6], [203, 882], [177.1, 880.3], [149, 883], [152.6, 863.1] ] } },
     { toes: [
       { label: "Great toe", cx: 184.1, w: 16, len: 25, yTop: 904.2, ang: 20 },
       { label: "2nd toe", cx: 168.6, w: 7.8, len: 20.9, yTop: 907.1, ang: 16 },
@@ -137,6 +137,6 @@ export const BODY_REGION_DATA: BodyRegionData = {
       { label: "4th toe", cx: 153.4, w: 5.6, len: 18.4, yTop: 905.7, ang: 14 },
       { label: "5th toe", cx: 148, w: 6.3, len: 16.4, yTop: 906.2, ang: 15 },
     ] },
-    { names: { ant: "Foot dorsum", post: "Heel" }, side: 'left', group: 'foot', tbsa: 1, shape: box(131.9, 858.7, 202.9, 936.7) },
+    { names: { ant: "Foot dorsum", post: "Heel" }, side: 'left', group: 'foot', tbsa: 1, shape: box(134.7, 862.1, 199.8, 936.4) },
   ],
 }
