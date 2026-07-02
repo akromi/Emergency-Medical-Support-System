@@ -527,15 +527,13 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
     setData((d) => { const nd = clone(d); fn(specShape(nd, sel)); return nd })
   }
 
-  // Head specs are view-specific (their index means a different region per
-  // view), so a head selection must be dropped when the view changes — otherwise
-  // its handles/drags would edit the OTHER view's head spec. Toes are shown only
-  // on the anterior view, so a toe selection is dropped when leaving it. Other
-  // shared regions (centre/left/finger) are view-independent and stay selected.
+  // Drop any selection that listSpecs omits on the new view (head index differs
+  // per view; toes are anterior-only; antOnly/postOnly twins like Sole are
+  // view-specific) so handles never edit invisible geometry.
   function toggleView() {
     const next = view === 'anterior' ? 'posterior' : 'anterior'
     setView(next)
-    setSel((s) => (s && (s.k === 'head' || (s.k === 'toe' && next === 'posterior')) ? null : s))
+    setSel((s) => (s && !listSpecs(data, next, t, lang).some((spec) => addrEq(spec.addr, s)) ? null : s))
     setSelVert(null)
   }
 
