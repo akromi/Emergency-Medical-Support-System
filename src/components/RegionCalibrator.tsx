@@ -405,6 +405,14 @@ function loadSaved(): BodyRegionData | null {
 
 // Identity keys for every region in a map (bucket-prefixed anterior name / digit
 // label), used to tell whether a saved map predates the shipped built-in.
+// View-specific left twins (antOnly/postOnly, e.g. Sole) get a @ant/@post
+// suffix so two entries with the same name don't collapse to one key.
+function leftRegionKey(r: RegionSpec): string {
+  const base = `l:${r.names!.ant}`
+  if (r.antOnly) return `${base}@ant`
+  if (r.postOnly) return `${base}@post`
+  return base
+}
 function regionKeys(d: BodyRegionData): Set<string> {
   const s = new Set<string>()
   d.head.anterior.forEach((r) => s.add(`ha:${r.name}`))
@@ -413,7 +421,7 @@ function regionKeys(d: BodyRegionData): Set<string> {
   d.left.forEach((e) => {
     if ('fingers' in e) e.fingers.forEach((f) => s.add(`f:${f.label}`))
     else if ('toes' in e) e.toes.forEach((tt) => s.add(`t:${tt.label}`))
-    else s.add(`l:${(e as RegionSpec).names!.ant}`)
+    else s.add(leftRegionKey(e as RegionSpec))
   })
   return s
 }
@@ -430,7 +438,7 @@ function regionsAddedSince(saved: BodyRegionData): string[] {
   bd.left.forEach((e) => {
     if ('fingers' in e) e.fingers.forEach((f) => { if (!have.has(`f:${f.label}`)) out.push(f.label) })
     else if ('toes' in e) e.toes.forEach((tt) => { if (!have.has(`t:${tt.label}`)) out.push(tt.label) })
-    else { const r = e as RegionSpec; if (!have.has(`l:${r.names!.ant}`)) out.push(r.names!.ant) }
+    else { const r = e as RegionSpec; if (!have.has(leftRegionKey(r))) out.push(r.names!.ant) }
   })
   return out
 }
