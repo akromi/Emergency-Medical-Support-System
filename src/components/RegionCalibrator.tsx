@@ -67,6 +67,11 @@ function listSpecs(data: BodyRegionData, view: BodyView, t: TFn, lang: string): 
     // Toes are anterior-only (their tops aren't visible on the back view), so they
     // aren't listed — nor hit-tested — on the posterior view.
     else if ('toes' in e) { if (view === 'anterior') e.toes.forEach((to, ti) => out.push({ addr: { k: 'toe', i, ti }, label: `${t('calib.bkFoot')} · ${rl(to.label)}` })) }
+    // Skip view-specific twins on the view where they aren't built/hit-tested
+    // (e.g. the posterior-only Sole on the anterior picker) — otherwise the row
+    // would edit an invisible region. Mirrors buildRegions()'s view filter.
+    else if ((e as RegionSpec).antOnly && view === 'posterior') { /* anterior-only */ }
+    else if ((e as RegionSpec).postOnly && view === 'anterior') { /* posterior-only */ }
     else out.push({ addr: { k: 'left', i }, label: `${t('calib.bkLeft')} · ${rl(viewName(e as RegionSpec))}` })
   })
   return out
