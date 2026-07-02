@@ -51,6 +51,10 @@ const TREATMENT_TYPES = [
   'Wound packing', 'Burn cooling', 'CPR', 'Other',
 ]
 
+// The eight ABO/Rh groups. Blood-group codes are universal notation, not
+// translated; the empty option (Unknown) carries the localised label.
+const BLOOD_TYPES = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']
+
 function fmtTime(ms: number): string {
   return new Date(ms).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
@@ -467,7 +471,16 @@ export function App() {
                 </label>
               </div>
               <label className="field"><span>{t('tomb.mrn')}</span><input className="mono" value={record.tombstone.mrn} onChange={(e) => setTomb('mrn', e.target.value)} /></label>
-              <label className="field"><span>{t('tomb.blood')}</span><input value={record.tombstone.bloodType} onChange={(e) => setTomb('bloodType', e.target.value)} placeholder={t('tomb.blood_ph')} /></label>
+              <label className="field"><span>{t('tomb.blood')}</span>
+                <select value={record.tombstone.bloodType} onChange={(e) => setTomb('bloodType', e.target.value)}>
+                  <option value="">{t('tomb.blood_ph')}</option>
+                  {BLOOD_TYPES.map((bt) => <option key={bt} value={bt}>{bt}</option>)}
+                  {/* Preserve a legacy free-text value that isn't one of the eight groups. */}
+                  {record.tombstone.bloodType && !BLOOD_TYPES.includes(record.tombstone.bloodType) && (
+                    <option value={record.tombstone.bloodType}>{record.tombstone.bloodType}</option>
+                  )}
+                </select>
+              </label>
               <label className="field"><span>{t('tomb.nok')}</span><input value={record.tombstone.nextOfKin} onChange={(e) => setTomb('nextOfKin', e.target.value)} /></label>
               <label className="field"><span>{t('tomb.nokphone')}</span><input className="mono" value={record.tombstone.nextOfKinPhone} onChange={(e) => setTomb('nextOfKinPhone', e.target.value)} /></label>
             </div>
