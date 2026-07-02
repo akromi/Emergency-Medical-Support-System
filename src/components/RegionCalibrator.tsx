@@ -67,6 +67,11 @@ function listSpecs(data: BodyRegionData, view: BodyView, t: TFn, lang: string): 
     // Toes are anterior-only (their tops aren't visible on the back view), so they
     // aren't listed — nor hit-tested — on the posterior view.
     else if ('toes' in e) { if (view === 'anterior') e.toes.forEach((to, ti) => out.push({ addr: { k: 'toe', i, ti }, label: `${t('calib.bkFoot')} · ${rl(to.label)}` })) }
+    // Skip view-specific twins on the view where they aren't built/hit-tested
+    // (e.g. the posterior-only Sole on the anterior picker) — otherwise the row
+    // would edit an invisible region. Mirrors buildRegions()'s view filter.
+    else if ((e as RegionSpec).antOnly && view === 'posterior') { /* anterior-only */ }
+    else if ((e as RegionSpec).postOnly && view === 'anterior') { /* posterior-only */ }
     else out.push({ addr: { k: 'left', i }, label: `${t('calib.bkLeft')} · ${rl(viewName(e as RegionSpec))}` })
   })
   return out
@@ -408,9 +413,16 @@ function regionKeys(d: BodyRegionData): Set<string> {
   d.left.forEach((e) => {
     if ('fingers' in e) e.fingers.forEach((f) => s.add(`f:${f.label}`))
     else if ('toes' in e) e.toes.forEach((tt) => s.add(`t:${tt.label}`))
-    else s.add(`l:${(e as RegionSpec).names!.ant}`)
+    else s.add(leftKey(e as RegionSpec))
   })
   return s
+}
+
+// A left region's identity key. View-specific twins can share an anterior name
+// (e.g. the anterior + posterior Sole), so disambiguate by the view flag —
+// otherwise the two would collapse to one key and a stale map could be missed.
+function leftKey(r: RegionSpec): string {
+  return `l:${r.names!.ant}${r.antOnly ? ':ant' : r.postOnly ? ':post' : ''}`
 }
 
 // Built-in regions absent from `saved` — i.e. added since the map was saved.
@@ -425,7 +437,7 @@ function regionsAddedSince(saved: BodyRegionData): string[] {
   bd.left.forEach((e) => {
     if ('fingers' in e) e.fingers.forEach((f) => { if (!have.has(`f:${f.label}`)) out.push(f.label) })
     else if ('toes' in e) e.toes.forEach((tt) => { if (!have.has(`t:${tt.label}`)) out.push(tt.label) })
-    else { const r = e as RegionSpec; if (!have.has(`l:${r.names!.ant}`)) out.push(r.names!.ant) }
+    else { const r = e as RegionSpec; if (!have.has(leftKey(r))) out.push(r.names!.ant) }
   })
   return out
 }
@@ -525,12 +537,22 @@ export function RegionCalibrator({ onClose }: { onClose?: () => void } = {}) {
   // Head specs are view-specific (their index means a different region per
   // view), so a head selection must be dropped when the view changes — otherwise
   // its handles/drags would edit the OTHER view's head spec. Toes are shown only
-  // on the anterior view, so a toe selection is dropped when leaving it. Other
-  // shared regions (centre/left/finger) are view-independent and stay selected.
+  // on the anterior view, so a toe selection is dropped when leaving it. A
+  // view-specific left twin (antOnly/postOnly, e.g. the Sole) is dropped when
+  // switching to the view where it isn't built. Other shared regions stay.
   function toggleView() {
     const next = view === 'anterior' ? 'posterior' : 'anterior'
     setView(next)
-    setSel((s) => (s && (s.k === 'head' || (s.k === 'toe' && next === 'posterior')) ? null : s))
+    setSel((s) => {
+      if (!s) return s
+      if (s.k === 'head') return null
+      if (s.k === 'toe' && next === 'posterior') return null
+      if (s.k === 'left') {
+        const e = data.left[s.i] as RegionSpec
+        if ((e?.antOnly && next === 'posterior') || (e?.postOnly && next === 'anterior')) return null
+      }
+      return s
+    })
     setSelVert(null)
   }
 

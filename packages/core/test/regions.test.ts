@@ -72,19 +72,34 @@ describe('regionAt — anatomical hit-testing', () => {
     // Perineum) records Buttock — not Thigh, and not the central Perineum.
     expect(regionAt(220, 535, 'posterior')).toBe('L Buttock')
     expect(regionAt(260, 535, 'posterior')).toBe('R Buttock')
-    // The foot's back aspect is the Heel (not "Sole" — the plantar surface isn't
-    // visible on a standing back-view figure).
+    // The upper back-of-foot is the Heel; the lower band is the (posterior-only)
+    // Sole, which wins there by priority.
     expect(regionAt(177, 896, 'posterior')).toBe('L Heel')
+    expect(regionAt(177, 920, 'posterior')).toBe('L Sole')
+  })
+
+  it('exposes the Sole on both views (dorsal arch + plantar band), each view-specific', () => {
+    expect(bodyRegions('anterior').some((r) => r.name === 'Sole')).toBe(true)
+    expect(bodyRegions('posterior').some((r) => r.name === 'Sole')).toBe(true)
+    // Anterior: the medial-arch box wins over the foot dorsum.
+    expect(regionAt(185, 890, 'anterior')).toBe('R Sole')
+    // Posterior: the plantar band wins over the heel.
+    expect(regionAt(177, 920, 'posterior')).toBe('L Sole')
+    // The two twins are view-specific: the anterior arch spot isn't the Sole on
+    // the back (it's the Heel there), and the posterior band spot isn't the Sole
+    // on the front (it's the foot dorsum / toe there).
+    expect(regionAt(185, 890, 'posterior')).toBe('L Heel')
+    expect(regionAt(177, 920, 'anterior')).not.toContain('Sole')
   })
 
   it('shows toes only on the anterior view (their tops aren’t visible from behind)', () => {
     expect(bodyRegions('anterior').some((r) => r.name === 'Great toe')).toBe(true)
     expect(bodyRegions('posterior').some((r) => r.name === 'Great toe')).toBe(false)
-    // A toe tap resolves to the toe on the front; on the back the whole foot —
-    // including the toe footprint — rolls into Heel (NOT the coarse limb
-    // fallback, which would wrongly score ~9% instead of the foot's ~1%).
+    // A toe tap resolves to the toe on the front; on the back the toe footprint
+    // rolls into a foot region (here the Sole band) — NOT the coarse limb
+    // fallback, which would wrongly score ~9% instead of the foot's ~1%.
     expect(regionAt(175, 918, 'anterior')).toBe('R Great toe')
-    expect(regionAt(175, 918, 'posterior')).toBe('L Heel')
+    expect(regionAt(175, 918, 'posterior')).toBe('L Sole')
   })
 
   it('maps a tap to the macro zone of the region under it, not the smallest overlapping bbox', () => {
@@ -244,9 +259,9 @@ describe('burn TBSA estimation', () => {
     expect(regionTBSA('Nowhere')).toBe(0)
   })
 
-  it('keeps TBSA for the renamed posterior foot (legacy "Sole" → "Heel")', () => {
-    // Records persist the region name; a burn saved as "Sole" before the rename
-    // must still contribute its 1%, not 0.
+  it('scores the foot aspects (Heel and the posterior-only Sole) at 1%', () => {
+    // "Sole" is now a real posterior-only region; both back-of-foot aspects
+    // contribute 1% (and old records saved as "Sole" still resolve to 1%).
     expect(regionTBSA('Heel')).toBe(1)
     expect(regionTBSA('Sole')).toBe(1)
     expect(regionTBSA('L Sole')).toBe(1)

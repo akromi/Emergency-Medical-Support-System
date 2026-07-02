@@ -1837,7 +1837,7 @@ const REGION_FR: Dict = {
   'Little proximal': 'Auriculaire proximal', 'Little middle': 'Auriculaire médian', 'Little distal': 'Auriculaire distal',
   // leg / foot
   Thigh: 'Cuisse', Knee: 'Genou', 'Back of knee': 'Creux poplité', Shin: 'Tibia', Calf: 'Mollet',
-  Ankle: 'Cheville', 'Foot dorsum': 'Dos du pied', Heel: 'Talon',
+  Ankle: 'Cheville', 'Foot dorsum': 'Dos du pied', Heel: 'Talon', Sole: 'Plante du pied',
   'Great toe': 'Gros orteil', '2nd toe': '2e orteil', '3rd toe': '3e orteil', '4th toe': '4e orteil', '5th toe': '5e orteil',
   // macro zones + off-silhouette fallbacks
   Head: 'Tête', Neck: 'Cou', Torso: 'Tronc', Arm: 'Bras', Hand: 'Main', Leg: 'Jambe', Foot: 'Pied',
@@ -1865,7 +1865,7 @@ const REGION_AR: Dict = {
   'Little proximal': 'الخنصر القريب', 'Little middle': 'الخنصر المتوسّط', 'Little distal': 'الخنصر البعيد',
   // leg / foot
   Thigh: 'الفخذ', Knee: 'الركبة', 'Back of knee': 'مأبض الركبة', Shin: 'الساق', Calf: 'بطّة الساق',
-  Ankle: 'الكاحل', 'Foot dorsum': 'ظهر القدم', Heel: 'الكعب',
+  Ankle: 'الكاحل', 'Foot dorsum': 'ظهر القدم', Heel: 'الكعب', Sole: 'أخمص القدم',
   'Great toe': 'إبهام القدم', '2nd toe': 'الإصبع الثاني', '3rd toe': 'الإصبع الثالث', '4th toe': 'الإصبع الرابع', '5th toe': 'الإصبع الخامس',
   // macro zones + off-silhouette fallbacks
   Head: 'الرأس', Neck: 'الرقبة', Torso: 'الجذع', Arm: 'الذراع', Hand: 'اليد', Leg: 'الساق', Foot: 'القدم',
@@ -1893,7 +1893,7 @@ const REGION_FA: Dict = {
   'Little proximal': 'انگشت کوچک نزدیک', 'Little middle': 'انگشت کوچک وسط', 'Little distal': 'انگشت کوچک دور',
   // leg / foot
   Thigh: 'ران', Knee: 'زانو', 'Back of knee': 'پشت زانو', Shin: 'ساق', Calf: 'پشت ساق',
-  Ankle: 'مچ پا', 'Foot dorsum': 'پشت پا', Heel: 'پاشنه',
+  Ankle: 'مچ پا', 'Foot dorsum': 'پشت پا', Heel: 'پاشنه', Sole: 'کف پا',
   'Great toe': 'شست پا', '2nd toe': 'انگشت دوم پا', '3rd toe': 'انگشت سوم پا', '4th toe': 'انگشت چهارم پا', '5th toe': 'انگشت پنجم پا',
   // macro zones + off-silhouette fallbacks
   Head: 'سر', Neck: 'گردن', Torso: 'تنه', Arm: 'بازو', Hand: 'دست', Leg: 'پا', Foot: 'پنجه پا',
