@@ -97,7 +97,7 @@ const shape = (s) => s.kind === 'box' ? `box(${num(s.x1)}, ${num(s.y1)}, ${num(s
   : s.kind === 'polygon' ? `{ kind: 'polygon', pts: [${s.pts.map(([x, y]) => `[${num(x)}, ${num(y)}]`).join(', ')} ] }`
   : `quad(${num(s.cxTop)}, ${num(s.yTop)}, ${num(s.wTop)}, ${num(s.cxBot)}, ${num(s.yBot)}, ${num(s.wBot)})`
 const nm = (s) => 'name' in s ? `name: ${JSON.stringify(s.name)}` : `names: { ant: ${JSON.stringify(s.names.ant)}, post: ${JSON.stringify(s.names.post)} }`
-const region = (s, ind) => { const p = [nm(s)]; if (s.side === 'left') p.push("side: 'left'"); p.push(`group: '${s.group}'`, `tbsa: ${num(s.tbsa)}`, `shape: ${shape(s.shape)}`); if ('priority' in s) p.push(`priority: ${num(s.priority)}`); return `${ind}{ ${p.join(', ')} },` }
+const region = (s, ind) => { const p = [nm(s)]; if (s.side === 'left') p.push("side: 'left'"); p.push(`group: '${s.group}'`, `tbsa: ${num(s.tbsa)}`, `shape: ${shape(s.shape)}`); if ('priority' in s) p.push(`priority: ${num(s.priority)}`); if (s.antOnly) p.push('antOnly: true'); if (s.postOnly) p.push('postOnly: true'); return `${ind}{ ${p.join(', ')} },` }
 const L = ["export const BODY_REGION_DATA: BodyRegionData = {", "  head: {", "    anterior: ["]
 d.head.anterior.forEach((s) => L.push(region(s, "      "))); L.push("    ],", "    posterior: [")
 d.head.posterior.forEach((s) => L.push(region(s, "      "))); L.push("    ],", "  },", "  central: [")

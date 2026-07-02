@@ -89,6 +89,9 @@ interface SharedPart {
   /** Only present on the anterior view (e.g. toes: their tops aren't visible on
    *  a standing back-view figure). Dropped from the posterior build. */
   antOnly?: boolean
+  /** Only present on the posterior view (e.g. the sole/plantar surface, not seen
+   *  on the dorsal/front figure). Dropped from the anterior build. */
+  postOnly?: boolean
 }
 
 const mirrorX = (pts: ReadonlyArray<Point>): Point[] => pts.map(([x, y]) => [r1(W - x), y] as Point)
@@ -153,7 +156,7 @@ function sharedParts(data: BodyRegionData): SharedPart[] {
         left.push({ names: { ant: t.label, post: t.label }, side: 'left', group: 'foot', tbsa: 0.1, antOnly: true, points: pts })
       }
     } else {
-      left.push({ names: e.names as AntPost, side: 'left', group: e.group, tbsa: e.tbsa, points: shapePoints(e.shape), priority: e.priority })
+      left.push({ names: e.names as AntPost, side: 'left', group: e.group, tbsa: e.tbsa, points: shapePoints(e.shape), priority: e.priority, antOnly: e.antOnly, postOnly: e.postOnly })
     }
   }
 
@@ -167,7 +170,7 @@ function sharedParts(data: BodyRegionData): SharedPart[] {
 
 function buildView(view: BodyView, data: BodyRegionData, shared: SharedPart[]): BodyRegion[] {
   const sharedRegions: BodyRegion[] = shared
-    .filter((p) => view === 'anterior' || !p.antOnly) // toes: anterior-only
+    .filter((p) => view === 'anterior' ? !p.postOnly : !p.antOnly) // toes: anterior-only; sole: posterior-only
     .map((p) => ({
     name: view === 'anterior' ? p.names.ant : p.names.post,
     side: p.side,
@@ -324,10 +327,9 @@ export const REGION_TBSA: Readonly<Record<string, number>> = (() => {
     Head: 7, Chest: 9, Abdomen: 6, Pelvis: 3, 'Left lower limb': 9, 'Right lower limb': 9,
   }
   for (const [k, v] of Object.entries(fallback)) if (!(k in m)) m[k] = v
-  // Back-compat: regions renamed across versions keep their TBSA for records
-  // saved under the old name (posterior foot "Sole" → "Heel", same 1%).
-  const legacy: Record<string, number> = { Sole: 1 }
-  for (const [k, v] of Object.entries(legacy)) if (!(k in m)) m[k] = v
+  // ("Sole" used to be a back-compat alias for the renamed posterior foot; it's
+  // now a real posterior-only region again, so the map supplies its TBSA — and
+  // old records saved as "Sole" still resolve to the same 1%.)
   return m
 })()
 

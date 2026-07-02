@@ -37,6 +37,11 @@ export interface RegionSpec {
    *  higher value wins overlaps even ACROSS groups (head vs limb). Default 0
    *  keeps the authored order (a stable sort), so existing data is unchanged. */
   priority?: number
+  /** Anterior-only: built only on the front view (e.g. toe tops). */
+  antOnly?: boolean
+  /** Posterior-only: built only on the back view (e.g. the sole/plantar
+   *  surface, which isn't seen on the dorsal/front figure). */
+  postOnly?: boolean
 }
 
 /** One finger: a fan of 3 phalanx boxes down from the knuckle (root). */
@@ -137,6 +142,13 @@ export const BODY_REGION_DATA: BodyRegionData = {
       { label: "4th toe", cx: 153.4, w: 5.6, len: 18.4, yTop: 905.7, ang: 14 },
       { label: "5th toe", cx: 148, w: 6.3, len: 16.4, yTop: 906.2, ang: 15 },
     ] },
+    // Sole (plantar surface). Two view-specific twins, each authored BEFORE the
+    // foot box so it wins that overlap (equal priority → first-match), leaving the
+    // rest of the foot as Foot dorsum / Heel. Fine-tune both boxes in the calibrator.
+    //   • anterior: the medial arch / instep marked on the dorsal view (antOnly)
+    //   • posterior: the plantar band over the lower back-of-foot (postOnly)
+    { names: { ant: "Sole", post: "Sole" }, side: 'left', group: 'foot', tbsa: 1, shape: box(170, 876, 199, 902), antOnly: true },
+    { names: { ant: "Sole", post: "Sole" }, side: 'left', group: 'foot', tbsa: 1, shape: box(134.7, 906, 199.8, 936.4), postOnly: true },
     { names: { ant: "Foot dorsum", post: "Heel" }, side: 'left', group: 'foot', tbsa: 1, shape: box(134.7, 862.1, 199.8, 936.4) },
   ],
 }
