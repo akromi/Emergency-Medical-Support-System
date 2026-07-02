@@ -413,9 +413,16 @@ function regionKeys(d: BodyRegionData): Set<string> {
   d.left.forEach((e) => {
     if ('fingers' in e) e.fingers.forEach((f) => s.add(`f:${f.label}`))
     else if ('toes' in e) e.toes.forEach((tt) => s.add(`t:${tt.label}`))
-    else s.add(`l:${(e as RegionSpec).names!.ant}`)
+    else s.add(leftKey(e as RegionSpec))
   })
   return s
+}
+
+// A left region's identity key. View-specific twins can share an anterior name
+// (e.g. the anterior + posterior Sole), so disambiguate by the view flag —
+// otherwise the two would collapse to one key and a stale map could be missed.
+function leftKey(r: RegionSpec): string {
+  return `l:${r.names!.ant}${r.antOnly ? ':ant' : r.postOnly ? ':post' : ''}`
 }
 
 // Built-in regions absent from `saved` — i.e. added since the map was saved.
@@ -430,7 +437,7 @@ function regionsAddedSince(saved: BodyRegionData): string[] {
   bd.left.forEach((e) => {
     if ('fingers' in e) e.fingers.forEach((f) => { if (!have.has(`f:${f.label}`)) out.push(f.label) })
     else if ('toes' in e) e.toes.forEach((tt) => { if (!have.has(`t:${tt.label}`)) out.push(tt.label) })
-    else { const r = e as RegionSpec; if (!have.has(`l:${r.names!.ant}`)) out.push(r.names!.ant) }
+    else { const r = e as RegionSpec; if (!have.has(leftKey(r))) out.push(r.names!.ant) }
   })
   return out
 }
